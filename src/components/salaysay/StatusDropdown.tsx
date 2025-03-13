@@ -94,8 +94,8 @@ export function StatusDropdown({
     }
   };
 
-  const getStatusIcon = (statusValue: string) => {
-    return statusOptions.find(option => option.value === statusValue)?.icon;
+  const getCurrentStatus = () => {
+    return statusOptions.find(option => option.value === status);
   };
 
   const getFormattedStatusText = (statusValue: string) => {
@@ -112,9 +112,10 @@ export function StatusDropdown({
   }
 
   if (!canEdit) {
+    const currentStatus = getCurrentStatus();
     return (
       <div className={`flex items-center ${getStatusColor(status)}`}>
-        {getStatusIcon(status)}
+        {currentStatus?.icon}
         <span className="ml-2">{getFormattedStatusText(status)}</span>
       </div>
     );
@@ -130,7 +131,7 @@ export function StatusDropdown({
         className={`h-8 w-full border-0 bg-transparent focus:ring-0 pl-0 ${getStatusColor(status)}`}
       >
         <div className="flex items-center">
-          {getStatusIcon(status)}
+          {getCurrentStatus()?.icon}
           <span className="ml-2">{getFormattedStatusText(status)}</span>
         </div>
       </SelectTrigger>

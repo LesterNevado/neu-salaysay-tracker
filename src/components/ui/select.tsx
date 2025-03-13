@@ -122,7 +122,6 @@ const SelectItem = React.forwardRef<
     )}
     {...props}
   >
-    {/* Removed the default checkmark indicator that was causing duplicates */}
     <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
   </SelectPrimitive.Item>
 ))
