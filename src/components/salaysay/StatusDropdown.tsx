@@ -135,6 +135,7 @@ export function StatusDropdown({
           <SelectItem 
             key={option.value} 
             value={option.value}
+            className="px-2 py-1.5"
           >
             <div className="flex items-center">
               {option.icon}
