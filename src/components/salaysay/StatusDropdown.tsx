@@ -98,6 +98,10 @@ export function StatusDropdown({
     return statusOptions.find(option => option.value === statusValue)?.icon;
   };
 
+  const getFormattedStatusText = (statusValue: string) => {
+    return statusValue.replace('_', ' ').charAt(0).toUpperCase() + statusValue.replace('_', ' ').slice(1);
+  };
+
   if (isUpdating) {
     return (
       <div className="flex items-center">
@@ -111,7 +115,7 @@ export function StatusDropdown({
     return (
       <div className={`flex items-center ${getStatusColor(status)}`}>
         {getStatusIcon(status)}
-        <span className="ml-2">{status.replace('_', ' ')}</span>
+        <span className="ml-2">{getFormattedStatusText(status)}</span>
       </div>
     );
   }
@@ -127,7 +131,7 @@ export function StatusDropdown({
       >
         <div className="flex items-center">
           {getStatusIcon(status)}
-          <span className="ml-2">{status.replace('_', ' ').charAt(0).toUpperCase() + status.replace('_', ' ').slice(1)}</span>
+          <span className="ml-2">{getFormattedStatusText(status)}</span>
         </div>
       </SelectTrigger>
       <SelectContent>
@@ -137,7 +141,10 @@ export function StatusDropdown({
             value={option.value}
             className="px-2 py-1.5"
           >
-            <span>{option.label}</span>
+            <div className="flex items-center">
+              {option.icon}
+              <span className="ml-2">{option.label}</span>
+            </div>
           </SelectItem>
         ))}
       </SelectContent>
