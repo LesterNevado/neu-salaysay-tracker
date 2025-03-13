@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Loader2, ShieldCheck, ShieldX, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -137,10 +136,7 @@ export function StatusDropdown({
             value={option.value}
             className="px-2 py-1.5"
           >
-            <div className="flex items-center">
-              {option.icon}
-              <span className="ml-2">{option.label}</span>
-            </div>
+            <span className="ml-2">{option.label}</span>
           </SelectItem>
         ))}
       </SelectContent>
