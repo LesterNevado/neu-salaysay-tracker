@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Loader2, ShieldCheck, ShieldX, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,7 +7,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 
 type StatusOption = "pending_review" | "approved" | "rejected";
@@ -18,6 +16,12 @@ interface StatusDropdownProps {
   initialStatus: string;
   canEdit: boolean;
   onStatusChange?: (newStatus: StatusOption) => void;
+}
+
+interface StatusOptionItem {
+  value: StatusOption;
+  label: string;
+  icon: React.ReactNode;
 }
 
 export function StatusDropdown({ 
@@ -30,7 +34,7 @@ export function StatusDropdown({
   const [isUpdating, setIsUpdating] = useState(false);
   const { toast } = useToast();
 
-  const statusOptions: { value: StatusOption; label: string; icon: React.ReactNode }[] = [
+  const statusOptions: StatusOptionItem[] = [
     { 
       value: "pending_review", 
       label: "Pending Review", 
@@ -94,7 +98,7 @@ export function StatusDropdown({
     }
   };
 
-  const getCurrentStatus = () => {
+  const getCurrentStatusOption = (): StatusOptionItem | undefined => {
     return statusOptions.find(option => option.value === status);
   };
 
@@ -112,7 +116,7 @@ export function StatusDropdown({
   }
 
   if (!canEdit) {
-    const currentStatus = getCurrentStatus();
+    const currentStatus = getCurrentStatusOption();
     return (
       <div className={`flex items-center ${getStatusColor(status)}`}>
         {currentStatus?.icon}
@@ -131,7 +135,7 @@ export function StatusDropdown({
         className={`h-8 w-full border-0 bg-transparent focus:ring-0 pl-0 ${getStatusColor(status)}`}
       >
         <div className="flex items-center">
-          {getCurrentStatus()?.icon}
+          {getCurrentStatusOption()?.icon}
           <span className="ml-2">{getFormattedStatusText(status)}</span>
         </div>
       </SelectTrigger>
