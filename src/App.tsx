@@ -36,6 +36,8 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   // Add a flag to track if this is an initial session or a new login
   const [isInitialSession, setIsInitialSession] = useState(true);
+  // Track newly authenticated sessions via Google
+  const [isNewGoogleAuth, setIsNewGoogleAuth] = useState(false);
 
   useEffect(() => {
     // Set up the Supabase auth listener FIRST
@@ -43,13 +45,24 @@ const App: React.FC = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
       console.log("Auth state changed:", event, newSession?.user?.email);
       
+      const previouslyLoggedIn = !!session;
+      const isNowLoggedIn = !!newSession;
+      
       // Always update the session and user state when auth state changes
       setSession(newSession);
       setUser(newSession?.user || null);
       
-      // Only log a 'login' activity when it's an actual SIGNED_IN event
-      // AND not the initial session restoration
-      if (event === 'SIGNED_IN' && !isInitialSession) {
+      // Check if this is a successful Google sign-in by checking URL
+      const url = new URL(window.location.href);
+      const hasAuthParam = url.searchParams.has('provider') || url.hash.includes('provider=');
+      
+      // Handle successfully completed Google auth flow
+      if (event === 'SIGNED_IN' && hasAuthParam) {
+        console.log("Detected new Google auth sign-in");
+        setIsNewGoogleAuth(true);
+        toast.success("Successfully signed in");
+      } else if (event === 'SIGNED_IN' && !isInitialSession && !previouslyLoggedIn && isNowLoggedIn) {
+        // This is a non-initial session sign-in that wasn't from the Index page
         logActivity('login', 'User logged in').catch(console.error);
         toast.success("Successfully signed in");
       } else if (event === 'SIGNED_OUT') {
@@ -96,6 +109,15 @@ const App: React.FC = () => {
       subscription.unsubscribe();
     };
   }, []);
+
+  // Effect to log new Google auth activity after session is established
+  useEffect(() => {
+    if (isNewGoogleAuth && session && !isLoading) {
+      console.log("Logging Google authentication activity");
+      logActivity('login', 'User logged in via Google').catch(console.error);
+      setIsNewGoogleAuth(false); // Reset the flag
+    }
+  }, [isNewGoogleAuth, session, isLoading]);
 
   return (
     <React.StrictMode>
