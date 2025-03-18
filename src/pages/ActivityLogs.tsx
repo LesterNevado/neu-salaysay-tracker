@@ -38,52 +38,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
 import { Profile } from "@/types/database.types";
-
-interface ActivityLog {
-  id: string;
-  created_at: string;
-  user_id: string;
-  action_type: 'upload' | 'status_change' | 'login' | 'comment';
-  description: string;
-  related_file_id?: string;
-  new_status?: 'pending_review' | 'approved' | 'rejected';
-  user?: {
-    email: string;
-    full_name: string;
-    avatar_url: string;
-  };
-  file?: {
-    violation_type: string;
-    file_path: string;
-  };
-}
-
-// Mock data for demonstration since the activity_logs table doesn't exist
-const generateMockActivityLogs = (count: number): ActivityLog[] => {
-  const actionTypes: ActivityLog['action_type'][] = ['upload', 'status_change', 'login', 'comment'];
-  const statuses: ActivityLog['new_status'][] = ['pending_review', 'approved', 'rejected'];
-  
-  return Array.from({ length: count }, (_, i) => ({
-    id: `mock-${i}`,
-    created_at: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
-    user_id: `user-${Math.floor(Math.random() * 5)}`,
-    action_type: actionTypes[Math.floor(Math.random() * actionTypes.length)],
-    description: `${actionTypes[Math.floor(Math.random() * actionTypes.length)]} action performed`,
-    related_file_id: Math.random() > 0.3 ? `file-${Math.floor(Math.random() * 10)}` : undefined,
-    new_status: Math.random() > 0.5 ? statuses[Math.floor(Math.random() * statuses.length)] : undefined,
-    user: {
-      email: `user${Math.floor(Math.random() * 5)}@example.com`,
-      full_name: `User ${Math.floor(Math.random() * 5)}`,
-      avatar_url: null,
-    },
-    file: Math.random() > 0.3 ? {
-      violation_type: `Violation Type ${Math.floor(Math.random() * 5)}`,
-      file_path: `/path/to/file-${Math.floor(Math.random() * 10)}.pdf`,
-    } : undefined,
-  }));
-};
-
-const MOCK_ACTIVITY_LOGS = generateMockActivityLogs(50);
+import { ActivityLog } from "@/types/activity.types";
+import { toast } from 'sonner';
 
 export default function ActivityLogs() {
   const navigate = useNavigate();
@@ -94,6 +50,31 @@ export default function ActivityLogs() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [userProfiles, setUserProfiles] = useState<Profile[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
+
+  // Helper function to log activity
+  const logActivity = async (action: ActivityLog['action_type'], description: string, fileId?: string, newStatus?: ActivityLog['new_status']) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { error } = await supabase
+        .from('activity_logs')
+        .insert({
+          user_id: session.user.id,
+          action_type: action,
+          description,
+          related_file_id: fileId,
+          new_status: newStatus,
+        });
+
+      if (error) {
+        console.error("Error logging activity:", error);
+      }
+    } catch (err) {
+      console.error("Error in logActivity:", err);
+    }
+  };
 
   useEffect(() => {
     const checkUserAndFetchLogs = async () => {
@@ -110,51 +91,91 @@ export default function ActivityLogs() {
         
       if (profilesError) {
         console.error("Error fetching profiles:", profilesError);
+        toast.error("Failed to load user profiles");
       } else {
         setUserProfiles(profiles || []);
       }
 
-      // Since we don't have an actual activity_logs table, we'll use mock data
-      await fetchMockActivityLogs();
+      await fetchActivityLogs();
     };
 
     checkUserAndFetchLogs();
   }, [navigate, userFilter, actionFilter, currentPage]);
 
-  const fetchMockActivityLogs = async () => {
+  const fetchActivityLogs = async () => {
     setLoading(true);
     try {
-      // Filter the mock data based on current filters
-      let filteredLogs = [...MOCK_ACTIVITY_LOGS];
-      
+      // Start building the query
+      let query = supabase
+        .from('activity_logs')
+        .select(`
+          *,
+          user:profiles(*),
+          file:salaysay_submissions(*)
+        `);
+
+      // Apply filters
       if (userFilter !== "all") {
-        filteredLogs = filteredLogs.filter(log => log.user_id === userFilter);
+        query = query.eq('user_id', userFilter);
       }
 
       if (actionFilter !== "all") {
-        filteredLogs = filteredLogs.filter(log => log.action_type === actionFilter);
+        query = query.eq('action_type', actionFilter);
       }
 
-      // Sort by date (newest first)
-      filteredLogs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      // Get count for pagination
+      const { count, error: countError } = await query.count();
       
-      // Apply pagination
+      if (countError) {
+        console.error("Error fetching count:", countError);
+        toast.error("Failed to load activity count");
+        return;
+      }
+      
+      setTotalCount(count || 0);
+
+      // Apply order by and pagination
       const from = (currentPage - 1) * itemsPerPage;
-      const to = from + itemsPerPage;
-      const paginatedLogs = filteredLogs.slice(from, to);
+      const to = from + itemsPerPage - 1;
       
-      setActivities(paginatedLogs);
-      
-      // Set total count for pagination
-      setTotalCount(filteredLogs.length);
+      const { data, error } = await query
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+      if (error) {
+        console.error("Error fetching activity logs:", error);
+        toast.error("Failed to load activity logs");
+        return;
+      }
+
+      // Transform the data to match our ActivityLog interface
+      const formattedLogs: ActivityLog[] = data.map(log => ({
+        id: log.id,
+        created_at: log.created_at,
+        user_id: log.user_id,
+        action_type: log.action_type as ActivityLog['action_type'],
+        description: log.description,
+        related_file_id: log.related_file_id,
+        new_status: log.new_status as ActivityLog['new_status'] | undefined,
+        user: log.user ? {
+          email: log.user.email,
+          full_name: log.user.full_name,
+          avatar_url: log.user.avatar_url
+        } : undefined,
+        file: log.file && log.file.length > 0 ? {
+          violation_type: log.file[0].violation_type,
+          file_path: log.file[0].file_path
+        } : undefined
+      }));
+
+      setActivities(formattedLogs);
     } catch (error) {
       console.error('Error:', error);
+      toast.error("An unexpected error occurred");
     } finally {
       setLoading(false);
     }
   };
-
-  const [totalCount, setTotalCount] = useState(0);
   
   const totalPages = Math.ceil(totalCount / itemsPerPage);
 
@@ -198,6 +219,12 @@ export default function ActivityLogs() {
     }
   };
 
+  // Function to get the display name for a user
+  const getUserDisplayName = (userId: string) => {
+    const profile = userProfiles.find(p => p.id === userId);
+    return profile?.full_name || profile?.email || 'Unknown user';
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-white p-8">
       <div className="max-w-6xl mx-auto">
@@ -235,7 +262,9 @@ export default function ActivityLogs() {
                 <label className="text-sm font-medium mb-1 block">User</label>
                 <Select value={userFilter} onValueChange={setUserFilter}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Filter by user" />
+                    <SelectValue placeholder="Filter by user">
+                      {userFilter === "all" ? "All Users" : getUserDisplayName(userFilter)}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Users</SelectItem>
