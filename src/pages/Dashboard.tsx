@@ -1,9 +1,10 @@
+
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { Send, User, Users } from "lucide-react";
+import { Send, User, Users, ActivitySquare } from "lucide-react";
 import { UploadDialog } from "@/components/UploadDialog";
 import { FileExplorer } from "@/components/salaysay/FileExplorer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -168,10 +169,16 @@ export default function Dashboard() {
           <div className="bg-white rounded-lg shadow-lg p-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold">Salaysay Tracking And Archival Tool</h2>
-              <Button onClick={handleSubmitSalaysay} className="flex items-center gap-2">
-                <Send className="h-4 w-4" />
-                Submit Salaysay
-              </Button>
+              <div className="flex gap-3">
+                <Button onClick={() => navigate('/activity-logs')} variant="outline" className="flex items-center gap-2">
+                  <ActivitySquare className="h-4 w-4" />
+                  Activity Logs
+                </Button>
+                <Button onClick={handleSubmitSalaysay} className="flex items-center gap-2">
+                  <Send className="h-4 w-4" />
+                  Submit Salaysay
+                </Button>
+              </div>
             </div>
             <p className="text-gray-600 mb-6">
               NEU-STAT is New Era University's official Salaysay Tracking System, enabling seamless submission, monitoring, and approval of Salaysay documents.
