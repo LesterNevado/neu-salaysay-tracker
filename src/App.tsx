@@ -34,6 +34,8 @@ const App: React.FC = () => {
   const [session, setSession] = useState(null);
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  // Add a flag to track if this is an initial session or a new login
+  const [isInitialSession, setIsInitialSession] = useState(true);
 
   useEffect(() => {
     // Set up the Supabase auth listener FIRST
@@ -45,7 +47,9 @@ const App: React.FC = () => {
       setSession(newSession);
       setUser(newSession?.user || null);
       
-      if (event === 'SIGNED_IN') {
+      // Only log a 'login' activity when it's an actual SIGNED_IN event
+      // AND not the initial session restoration
+      if (event === 'SIGNED_IN' && !isInitialSession) {
         logActivity('login', 'User logged in').catch(console.error);
         toast.success("Successfully signed in");
       } else if (event === 'SIGNED_OUT') {
@@ -76,6 +80,11 @@ const App: React.FC = () => {
         toast.error("An unexpected error occurred.");
       } finally {
         setIsLoading(false);
+        // After initial session check, set isInitialSession to false
+        // so we can distinguish between a restored session and a new login
+        setTimeout(() => {
+          setIsInitialSession(false);
+        }, 1000); // Small delay to ensure auth listener is properly set up
       }
     };
 

@@ -10,6 +10,7 @@ import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AuthContext } from "@/App";
 import { toast } from "sonner";
+import { logActivity } from "@/utils/activityLogger";
 
 export default function Index() {
   const [isLoading, setIsLoading] = useState(false);
@@ -55,6 +56,17 @@ export default function Index() {
         console.error("Sign in error:", error);
         setError("Failed to sign in. Please try again.");
         toast.error("Sign in failed. Please try again.");
+      } else {
+        // We'll log the login activity here directly,
+        // since we know the user is initiating a login from the login page
+        // This ensures we only log logins that are user-initiated
+        try {
+          // We don't await this because the OAuth redirect will happen immediately
+          // and we want to make sure this activity is logged
+          logActivity('login', 'User initiated login').catch(console.error);
+        } catch (err) {
+          console.error("Error logging login activity:", err);
+        }
       }
     } catch (error) {
       console.error("Unexpected sign in error:", error);
