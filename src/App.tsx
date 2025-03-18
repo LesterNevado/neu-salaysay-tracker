@@ -25,6 +25,7 @@ const queryClient = new QueryClient({
     queries: {
       refetchOnWindowFocus: false, // Prevent queries from refetching when window regains focus
       retry: 1,
+      staleTime: 60000, // Consider data fresh for 1 minute
     },
   },
 });
@@ -35,40 +36,53 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Initialize the session from Supabase
-    const initSession = async () => {
-      setIsLoading(true);
+    // Set up the Supabase auth listener FIRST
+    // This is crucial for maintaining the session across tab changes and refreshes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+      console.log("Auth state changed:", event, newSession?.user?.email);
       
-      // Get the current session
-      const { data, error } = await supabase.auth.getSession();
-      
-      if (error) {
-        console.error("Error getting session:", error);
-        toast.error("Error retrieving your session. Please log in again.");
-        setIsLoading(false);
-        return;
-      }
-      
-      if (data?.session) {
-        setSession(data.session);
-        setUser(data.session.user);
-      }
-      
-      setIsLoading(false);
-    };
-
-    initSession();
-
-    // Set up auth listener to detect changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      // Always update the session and user state when auth state changes
       setSession(newSession);
       setUser(newSession?.user || null);
       
       if (event === 'SIGNED_IN') {
-        await logActivity('login', 'User logged in');
+        logActivity('login', 'User logged in').catch(console.error);
+        toast.success("Successfully signed in");
+      } else if (event === 'SIGNED_OUT') {
+        toast.info("Signed out successfully");
       }
     });
 
+    // Get the initial session (this runs only once)
+    const initSession = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Get the current session from Supabase
+        const { data, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error("Error getting session:", error);
+          toast.error("Error retrieving your session.");
+        } else if (data?.session) {
+          console.log("Retrieved existing session:", data.session.user?.email);
+          setSession(data.session);
+          setUser(data.session.user);
+        } else {
+          console.log("No existing session found");
+        }
+      } catch (err) {
+        console.error("Unexpected error in session initialization:", err);
+        toast.error("An unexpected error occurred.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    // Initialize the session
+    initSession();
+
+    // Cleanup the subscription when the component unmounts
     return () => {
       subscription.unsubscribe();
     };

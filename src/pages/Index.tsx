@@ -9,11 +9,12 @@ import { Button } from "@/components/ui/button";
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AuthContext } from "@/App";
+import { toast } from "sonner";
 
 export default function Index() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { toast } = useToast();
+  const { toast: uiToast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
   const { session, isLoading: authLoading } = useContext(AuthContext);
@@ -28,6 +29,7 @@ export default function Index() {
 
     // Redirect to dashboard if already authenticated
     if (!authLoading && session) {
+      console.log("User is authenticated, redirecting to dashboard");
       navigate('/dashboard');
     }
   }, [navigate, location, session, authLoading]);
@@ -39,7 +41,7 @@ export default function Index() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin,
+          redirectTo: `${window.location.origin}/dashboard`,
           scopes: 'email profile',
           queryParams: {
             access_type: 'offline',
@@ -50,10 +52,14 @@ export default function Index() {
       });
 
       if (error) {
+        console.error("Sign in error:", error);
         setError("Failed to sign in. Please try again.");
+        toast.error("Sign in failed. Please try again.");
       }
     } catch (error) {
+      console.error("Unexpected sign in error:", error);
       setError("An unexpected error occurred during sign in.");
+      toast.error("An unexpected error occurred during sign in.");
     } finally {
       setIsLoading(false);
     }
