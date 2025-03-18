@@ -189,11 +189,12 @@ export default function ActivityLogs() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <div>
                 <label className="text-sm font-medium mb-1 block">User</label>
-                <Select value={userFilter} onValueChange={setUserFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Filter by user">
-                      {userFilter === "all" ? "All Users" : getUserDisplayName(userFilter)}
-                    </SelectValue>
+                <Select 
+                  value={userFilter} 
+                  onValueChange={setUserFilter}
+                >
+                  <SelectTrigger className="w-full bg-white">
+                    <SelectValue placeholder="All Users" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Users</SelectItem>
@@ -207,9 +208,12 @@ export default function ActivityLogs() {
               </div>
               <div>
                 <label className="text-sm font-medium mb-1 block">Action Type</label>
-                <Select value={actionFilter} onValueChange={setActionFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Filter by action" />
+                <Select 
+                  value={actionFilter} 
+                  onValueChange={setActionFilter}
+                >
+                  <SelectTrigger className="w-full bg-white">
+                    <SelectValue placeholder="All Actions" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Actions</SelectItem>

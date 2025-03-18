@@ -78,7 +78,7 @@ export function UploadDialog({ isOpen, onClose, userId, onUploadComplete }: Uplo
               value={selectedViolationType} 
               onValueChange={setSelectedViolationType}
             >
-              <SelectTrigger id="violation-type" className="w-full">
+              <SelectTrigger id="violation-type" className="w-full bg-white">
                 <SelectValue placeholder="Select violation type" />
               </SelectTrigger>
               <SelectContent>

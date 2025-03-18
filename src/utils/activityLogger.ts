@@ -5,17 +5,6 @@ import { ActivityLog } from "@/types/activity.types";
 type ActionType = 'upload' | 'status_change' | 'login' | 'comment';
 type StatusType = 'pending_review' | 'approved' | 'rejected';
 
-// Helper function to get current logs from localStorage
-const getLogs = (): ActivityLog[] => {
-  const storedLogs = localStorage.getItem('activity_logs');
-  return storedLogs ? JSON.parse(storedLogs) : [];
-};
-
-// Helper function to save logs to localStorage
-const saveLogs = (logs: ActivityLog[]) => {
-  localStorage.setItem('activity_logs', JSON.stringify(logs));
-};
-
 export const logActivity = async (
   action: ActionType, 
   description: string, 
@@ -26,31 +15,8 @@ export const logActivity = async (
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return;
 
-    // Create a new log entry
-    const newLog: ActivityLog = {
-      id: crypto.randomUUID(),
-      created_at: new Date().toISOString(),
-      user_id: session.user.id,
-      action_type: action,
-      description,
-      related_file_id: fileId,
-      new_status: newStatus,
-    };
-
-    // Get current logs and add the new one
-    const currentLogs = getLogs();
-    const updatedLogs = [newLog, ...currentLogs];
-    
-    // Save updated logs
-    saveLogs(updatedLogs);
-    
-    // For debugging
-    console.log("Activity logged:", newLog);
-    
-    // Note: We're not using Supabase for now since the table doesn't exist in the schema
-    // When the table is added to Supabase, uncomment the code below
-    /*
-    await supabase
+    // Create a new log entry in Supabase
+    const { error } = await supabase
       .from('activity_logs')
       .insert({
         user_id: session.user.id,
@@ -59,7 +25,12 @@ export const logActivity = async (
         related_file_id: fileId,
         new_status: newStatus,
       });
-    */
+      
+    if (error) {
+      console.error("Error logging activity to Supabase:", error);
+    } else {
+      console.log("Activity logged successfully to Supabase");
+    }
   } catch (err) {
     console.error("Error logging activity:", err);
   }
@@ -73,65 +44,71 @@ export const getActivityLogs = async (
   itemsPerPage: number = 10
 ) => {
   try {
-    // Get logs from localStorage
-    let logs = getLogs();
+    // Start query builder
+    let query = supabase
+      .from('activity_logs')
+      .select(`
+        *,
+        profiles:user_id(id, email, full_name, avatar_url),
+        salaysay_submissions:related_file_id(id, violation_type, file_path)
+      `)
+      .order('created_at', { ascending: false });
     
     // Apply filters
     if (userFilter !== 'all') {
-      logs = logs.filter(log => log.user_id === userFilter);
+      query = query.eq('user_id', userFilter);
     }
     
     if (actionFilter !== 'all') {
-      logs = logs.filter(log => log.action_type === actionFilter);
+      query = query.eq('action_type', actionFilter);
     }
     
-    // Get total count before pagination
-    const totalCount = logs.length;
+    // Get the total count for pagination
+    const { count, error: countError } = await supabase
+      .from('activity_logs')
+      .select('*', { count: 'exact', head: true });
+      
+    if (countError) {
+      console.error('Error getting count:', countError);
+      return { logs: [], totalCount: 0 };
+    }
     
     // Apply pagination
-    const start = (page - 1) * itemsPerPage;
-    const end = start + itemsPerPage;
-    const paginatedLogs = logs.slice(start, end);
+    const from = (page - 1) * itemsPerPage;
+    const to = from + itemsPerPage - 1;
     
-    // Fetch user details for each log
-    const logsWithUserDetails = await Promise.all(
-      paginatedLogs.map(async (log) => {
-        // Fetch user details
-        const { data: userData } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', log.user_id)
-          .single();
-          
-        // Fetch file details if needed
-        let fileData = null;
-        if (log.related_file_id) {
-          const { data } = await supabase
-            .from('salaysay_submissions')
-            .select('*')
-            .eq('id', log.related_file_id)
-            .single();
-          fileData = data;
-        }
-        
-        return {
-          ...log,
-          user: userData ? {
-            email: userData.email,
-            full_name: userData.full_name,
-            avatar_url: userData.avatar_url
-          } : undefined,
-          file: fileData ? {
-            violation_type: fileData.violation_type,
-            file_path: fileData.file_path
-          } : undefined
-        };
-      })
-    );
+    // Execute query with pagination
+    const { data, error } = await query
+      .range(from, to);
+    
+    if (error) {
+      console.error('Error fetching activity logs:', error);
+      return { logs: [], totalCount: 0 };
+    }
+    
+    // Format the data to match our ActivityLog type
+    const logsWithDetails: ActivityLog[] = data.map(log => ({
+      id: log.id,
+      created_at: log.created_at,
+      user_id: log.user_id,
+      action_type: log.action_type as ActionType,
+      description: log.description,
+      related_file_id: log.related_file_id,
+      new_status: log.new_status as StatusType | undefined,
+      user: log.profiles ? {
+        email: log.profiles.email,
+        full_name: log.profiles.full_name,
+        avatar_url: log.profiles.avatar_url
+      } : undefined,
+      file: log.salaysay_submissions ? {
+        violation_type: log.salaysay_submissions.violation_type,
+        file_path: log.salaysay_submissions.file_path
+      } : undefined
+    }));
     
     return {
-      logs: logsWithUserDetails,
-      totalCount
+      logs: logsWithDetails,
+      totalCount: count || 0
     };
   } catch (error) {
     console.error('Error fetching activity logs:', error);

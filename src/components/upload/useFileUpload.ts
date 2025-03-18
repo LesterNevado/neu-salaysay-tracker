@@ -3,6 +3,7 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { FileUpload } from "./types";
+import { logActivity } from "@/utils/activityLogger";
 
 export function useFileUpload(userId: string) {
   const [uploads, setUploads] = useState<FileUpload[]>([]);
@@ -78,18 +79,27 @@ export function useFileUpload(userId: string) {
         )
       );
 
-      const { error: insertError } = await supabase
+      const { error: insertError, data: submissionData } = await supabase
         .from('salaysay_submissions')
         .insert({
           user_id: userId,
           file_path: data.path,
           violation_type: violationType,
           status: 'pending_review'
-        });
+        })
+        .select()
+        .single();
 
       if (insertError) {
         throw insertError;
       }
+
+      // Log activity
+      await logActivity(
+        'upload',
+        `Uploaded salaysay for ${violationType}`,
+        submissionData.id
+      );
 
       setUploads(prev => 
         prev.map(upload => 
@@ -98,6 +108,11 @@ export function useFileUpload(userId: string) {
             : upload
         )
       );
+
+      toast({
+        title: "Upload successful",
+        description: "Your file has been uploaded."
+      });
 
     } catch (error) {
       console.error('Upload error:', error);
