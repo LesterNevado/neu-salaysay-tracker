@@ -48,7 +48,13 @@ export const getActivityLogs = async (
     let query = supabase
       .from('activity_logs')
       .select(`
-        *,
+        id,
+        created_at,
+        user_id,
+        action_type,
+        description,
+        related_file_id,
+        new_status,
         profiles:user_id(id, email, full_name, avatar_url),
         salaysay_submissions:related_file_id(id, violation_type, file_path)
       `)

@@ -229,6 +229,12 @@ export function FileExplorer({
     }
   };
 
+  const handleStatusChange = (fileId: string, newStatus: string) => {
+    setFiles(files.map(file => 
+      file.id === fileId ? {...file, status: newStatus} : file
+    ));
+  };
+
   const formatDate = (dateString: string) => {
     try {
       return format(new Date(dateString), 'dd/MM/yyyy h:mm a');
@@ -402,8 +408,9 @@ export function FileExplorer({
                   <td className="px-4 py-3">
                     <StatusDropdown 
                       fileId={file.id}
-                      initialStatus={file.status}
+                      currentStatus={file.status as "pending_review" | "approved" | "rejected"}
                       canEdit={canEditStatus(file.user_id)}
+                      onStatusChange={(newStatus) => handleStatusChange(file.id, newStatus)}
                     />
                   </td>
                   {showAllUsers && (

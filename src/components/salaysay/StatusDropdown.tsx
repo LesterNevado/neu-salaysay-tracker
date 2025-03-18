@@ -17,13 +17,15 @@ type StatusType = "pending_review" | "approved" | "rejected";
 interface StatusDropdownProps {
   fileId: string;
   currentStatus: StatusType;
-  onStatusChange: (newStatus: StatusType) => void;
+  onStatusChange?: (newStatus: StatusType) => void;
+  canEdit?: boolean;
 }
 
 export function StatusDropdown({
   fileId,
   currentStatus,
   onStatusChange,
+  canEdit = true,
 }: StatusDropdownProps) {
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
@@ -76,7 +78,10 @@ export function StatusDropdown({
         newStatus
       );
 
-      onStatusChange(newStatus);
+      if (onStatusChange) {
+        onStatusChange(newStatus);
+      }
+      
       toast({
         title: "Status updated",
         description: `File status has been updated to ${newStatus.replace("_", " ")}`,
@@ -100,34 +105,36 @@ export function StatusDropdown({
           variant="outline"
           size="sm"
           className="w-full justify-start h-auto py-1.5 bg-white"
-          disabled={isLoading}
+          disabled={isLoading || !canEdit}
         >
           {getStatusDisplay(currentStatus)}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-[200px]">
-        <DropdownMenuItem
-          className="cursor-pointer"
-          onClick={() => updateStatus("pending_review")}
-        >
-          <Clock className="mr-2 h-4 w-4 text-yellow-500" />
-          <span>Pending Review</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          className="cursor-pointer"
-          onClick={() => updateStatus("approved")}
-        >
-          <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
-          <span>Approved</span>
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          className="cursor-pointer"
-          onClick={() => updateStatus("rejected")}
-        >
-          <ShieldX className="mr-2 h-4 w-4 text-red-500" />
-          <span>Rejected</span>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
+      {canEdit && (
+        <DropdownMenuContent align="end" className="w-[200px]">
+          <DropdownMenuItem
+            className="cursor-pointer"
+            onClick={() => updateStatus("pending_review")}
+          >
+            <Clock className="mr-2 h-4 w-4 text-yellow-500" />
+            <span>Pending Review</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="cursor-pointer"
+            onClick={() => updateStatus("approved")}
+          >
+            <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+            <span>Approved</span>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="cursor-pointer"
+            onClick={() => updateStatus("rejected")}
+          >
+            <ShieldX className="mr-2 h-4 w-4 text-red-500" />
+            <span>Rejected</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      )}
     </DropdownMenu>
   );
 }
