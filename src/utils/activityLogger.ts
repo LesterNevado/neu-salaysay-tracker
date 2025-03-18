@@ -13,23 +13,28 @@ export const logActivity = async (
 ) => {
   try {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) return;
+    if (!session) {
+      console.error("Cannot log activity: No active session");
+      return;
+    }
+
+    console.log(`Logging activity: ${action} - ${description}`);
 
     // Create a new log entry in Supabase
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('activity_logs')
       .insert({
         user_id: session.user.id,
         action_type: action,
         description,
-        related_file_id: fileId,
-        new_status: newStatus,
+        related_file_id: fileId || null,
+        new_status: newStatus || null,
       });
       
     if (error) {
       console.error("Error logging activity to Supabase:", error);
     } else {
-      console.log("Activity logged successfully to Supabase");
+      console.log("Activity logged successfully to Supabase", data);
     }
   } catch (err) {
     console.error("Error logging activity:", err);
