@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
+import { Profile } from "@/types/database.types";
 
 interface ActivityLog {
   id: string;
@@ -57,6 +58,33 @@ interface ActivityLog {
   };
 }
 
+// Mock data for demonstration since the activity_logs table doesn't exist
+const generateMockActivityLogs = (count: number): ActivityLog[] => {
+  const actionTypes: ActivityLog['action_type'][] = ['upload', 'status_change', 'login', 'comment'];
+  const statuses: ActivityLog['new_status'][] = ['pending_review', 'approved', 'rejected'];
+  
+  return Array.from({ length: count }, (_, i) => ({
+    id: `mock-${i}`,
+    created_at: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
+    user_id: `user-${Math.floor(Math.random() * 5)}`,
+    action_type: actionTypes[Math.floor(Math.random() * actionTypes.length)],
+    description: `${actionTypes[Math.floor(Math.random() * actionTypes.length)]} action performed`,
+    related_file_id: Math.random() > 0.3 ? `file-${Math.floor(Math.random() * 10)}` : undefined,
+    new_status: Math.random() > 0.5 ? statuses[Math.floor(Math.random() * statuses.length)] : undefined,
+    user: {
+      email: `user${Math.floor(Math.random() * 5)}@example.com`,
+      full_name: `User ${Math.floor(Math.random() * 5)}`,
+      avatar_url: null,
+    },
+    file: Math.random() > 0.3 ? {
+      violation_type: `Violation Type ${Math.floor(Math.random() * 5)}`,
+      file_path: `/path/to/file-${Math.floor(Math.random() * 10)}.pdf`,
+    } : undefined,
+  }));
+};
+
+const MOCK_ACTIVITY_LOGS = generateMockActivityLogs(50);
+
 export default function ActivityLogs() {
   const navigate = useNavigate();
   const [activities, setActivities] = useState<ActivityLog[]>([]);
@@ -65,7 +93,7 @@ export default function ActivityLogs() {
   const [actionFilter, setActionFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-  const [userIsAdmin, setUserIsAdmin] = useState(false);
+  const [userProfiles, setUserProfiles] = useState<Profile[]>([]);
 
   useEffect(() => {
     const checkUserAndFetchLogs = async () => {
@@ -75,72 +103,60 @@ export default function ActivityLogs() {
         return;
       }
 
-      // Check if current user is admin
-      const { data: userData, error: userError } = await supabase
+      // Fetch user profiles for the dropdown
+      const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
-        .select('is_admin')
-        .eq('id', session.user.id)
-        .single();
-
-      if (userError) {
-        console.error("Error checking admin status:", userError);
-        setUserIsAdmin(false);
+        .select('*');
+        
+      if (profilesError) {
+        console.error("Error fetching profiles:", profilesError);
       } else {
-        setUserIsAdmin(userData?.is_admin || false);
+        setUserProfiles(profiles || []);
       }
 
-      fetchActivityLogs();
+      // Since we don't have an actual activity_logs table, we'll use mock data
+      await fetchMockActivityLogs();
     };
 
     checkUserAndFetchLogs();
   }, [navigate, userFilter, actionFilter, currentPage]);
 
-  const fetchActivityLogs = async () => {
+  const fetchMockActivityLogs = async () => {
     setLoading(true);
     try {
-      let query = supabase
-        .from('activity_logs')
-        .select(`
-          *,
-          user:user_id (
-            email,
-            full_name,
-            avatar_url
-          ),
-          file:related_file_id (
-            violation_type,
-            file_path
-          )
-        `)
-        .order('created_at', { ascending: false });
-
+      // Filter the mock data based on current filters
+      let filteredLogs = [...MOCK_ACTIVITY_LOGS];
+      
       if (userFilter !== "all") {
-        query = query.eq('user_id', userFilter);
+        filteredLogs = filteredLogs.filter(log => log.user_id === userFilter);
       }
 
       if (actionFilter !== "all") {
-        query = query.eq('action_type', actionFilter);
+        filteredLogs = filteredLogs.filter(log => log.action_type === actionFilter);
       }
 
+      // Sort by date (newest first)
+      filteredLogs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      
       // Apply pagination
       const from = (currentPage - 1) * itemsPerPage;
-      const to = from + itemsPerPage - 1;
-      query = query.range(from, to);
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Error fetching activity logs:', error);
-        return;
-      }
-
-      setActivities(data as ActivityLog[]);
+      const to = from + itemsPerPage;
+      const paginatedLogs = filteredLogs.slice(from, to);
+      
+      setActivities(paginatedLogs);
+      
+      // Set total count for pagination
+      setTotalCount(filteredLogs.length);
     } catch (error) {
       console.error('Error:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  const [totalCount, setTotalCount] = useState(0);
+  
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
 
   const getActionIcon = (activity: ActivityLog) => {
     switch (activity.action_type) {
@@ -181,8 +197,6 @@ export default function ActivityLogs() {
       return dateString;
     }
   };
-
-  const totalPages = Math.ceil(activities.length / itemsPerPage);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-white p-8">
@@ -225,7 +239,11 @@ export default function ActivityLogs() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Users</SelectItem>
-                    {/* This would be populated from the database */}
+                    {userProfiles.map(profile => (
+                      <SelectItem key={profile.id} value={profile.id}>
+                        {profile.full_name || profile.email || 'Unknown user'}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -354,7 +372,8 @@ export default function ActivityLogs() {
                 <PaginationItem>
                   <PaginationPrevious 
                     onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                    disabled={currentPage <= 1}
+                    aria-disabled={currentPage <= 1}
+                    className={currentPage <= 1 ? "pointer-events-none opacity-50" : ""}
                   />
                 </PaginationItem>
                 
@@ -385,7 +404,8 @@ export default function ActivityLogs() {
                 <PaginationItem>
                   <PaginationNext 
                     onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                    disabled={currentPage >= totalPages}
+                    aria-disabled={currentPage >= totalPages}
+                    className={currentPage >= totalPages ? "pointer-events-none opacity-50" : ""}
                   />
                 </PaginationItem>
               </PaginationContent>
