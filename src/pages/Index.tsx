@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { motion } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AuthContext } from "@/App";
 
 export default function Index() {
   const [isLoading, setIsLoading] = useState(false);
@@ -15,6 +16,7 @@ export default function Index() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
+  const { session, isLoading: authLoading } = useContext(AuthContext);
 
   useEffect(() => {
     // Check URL parameters for errors
@@ -24,44 +26,11 @@ export default function Index() {
       setError("Please sign in with your NEU email address (@neu.edu.ph)");
     }
 
-    const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const userEmail = session.user.email;
-        if (userEmail?.endsWith('@neu.edu.ph')) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-
-          if (!profile) {
-            const { error: profileError } = await supabase
-              .from('profiles')
-              .insert([
-                {
-                  id: session.user.id,
-                  email: userEmail,
-                  full_name: session.user.user_metadata.full_name || null,
-                }
-              ]);
-
-            if (profileError) {
-              toast({
-                variant: "destructive",
-                title: "Error",
-                description: "Failed to create user profile.",
-              });
-              return;
-            }
-          }
-          navigate('/dashboard');
-        }
-      }
-    };
-
-    checkUser();
-  }, [navigate, toast, location]);
+    // Redirect to dashboard if already authenticated
+    if (!authLoading && session) {
+      navigate('/dashboard');
+    }
+  }, [navigate, location, session, authLoading]);
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);

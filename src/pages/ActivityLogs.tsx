@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -48,9 +48,11 @@ import { Profile } from "@/types/database.types";
 import { ActivityLog } from "@/types/activity.types";
 import { toast } from 'sonner';
 import { getActivityLogs } from "@/utils/activityLogger";
+import { AuthContext } from "@/App";
 
 export default function ActivityLogs() {
   const navigate = useNavigate();
+  const { session, isLoading: authLoading } = useContext(AuthContext);
   const [activities, setActivities] = useState<ActivityLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [userFilter, setUserFilter] = useState<string>("all");
@@ -61,13 +63,13 @@ export default function ActivityLogs() {
   const [totalCount, setTotalCount] = useState(0);
 
   useEffect(() => {
-    const checkUserAndFetchLogs = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        navigate('/');
-        return;
-      }
+    // Redirect if not logged in
+    if (!authLoading && !session) {
+      navigate('/');
+      return;
+    }
 
+    const fetchData = async () => {
       // Fetch user profiles for the dropdown
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
@@ -83,8 +85,10 @@ export default function ActivityLogs() {
       await fetchActivityLogs();
     };
 
-    checkUserAndFetchLogs();
-  }, [navigate, userFilter, actionFilter, currentPage]);
+    if (session) {
+      fetchData();
+    }
+  }, [navigate, userFilter, actionFilter, currentPage, session, authLoading]);
 
   const fetchActivityLogs = async () => {
     setLoading(true);

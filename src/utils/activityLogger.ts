@@ -55,8 +55,8 @@ export const getActivityLogs = async (
         description,
         related_file_id,
         new_status,
-        profiles:user_id(id, email, full_name, avatar_url),
-        salaysay_submissions:related_file_id(id, violation_type, file_path)
+        profiles(email, full_name, avatar_url),
+        salaysay_submissions(id, violation_type, file_path)
       `)
       .order('created_at', { ascending: false });
     
@@ -93,24 +93,32 @@ export const getActivityLogs = async (
     }
     
     // Format the data to match our ActivityLog type
-    const logsWithDetails: ActivityLog[] = data.map(log => ({
-      id: log.id,
-      created_at: log.created_at,
-      user_id: log.user_id,
-      action_type: log.action_type as ActionType,
-      description: log.description,
-      related_file_id: log.related_file_id,
-      new_status: log.new_status as StatusType | undefined,
-      user: log.profiles ? {
-        email: log.profiles.email,
-        full_name: log.profiles.full_name,
-        avatar_url: log.profiles.avatar_url
-      } : undefined,
-      file: log.salaysay_submissions ? {
-        violation_type: log.salaysay_submissions.violation_type,
-        file_path: log.salaysay_submissions.file_path
-      } : undefined
-    }));
+    const logsWithDetails: ActivityLog[] = data.map(log => {
+      // Extract profile data safely
+      const profile = log.profiles ? {
+        email: log.profiles.email || '',
+        full_name: log.profiles.full_name || '',
+        avatar_url: log.profiles.avatar_url || ''
+      } : undefined;
+      
+      // Extract file data safely
+      const file = log.salaysay_submissions ? {
+        violation_type: log.salaysay_submissions.violation_type || '',
+        file_path: log.salaysay_submissions.file_path || ''
+      } : undefined;
+      
+      return {
+        id: log.id,
+        created_at: log.created_at,
+        user_id: log.user_id,
+        action_type: log.action_type as ActionType,
+        description: log.description,
+        related_file_id: log.related_file_id,
+        new_status: log.new_status as StatusType | undefined,
+        user: profile,
+        file: file
+      };
+    });
     
     return {
       logs: logsWithDetails,
