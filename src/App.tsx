@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -10,7 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import ActivityLogs from "./pages/ActivityLogs";
 import NotFound from "./pages/NotFound";
 import { supabase } from "./integrations/supabase/client";
-import { logActivity } from "./utils/activityLogger";
+import { logLoginActivity } from "./utils/activityLogger";
 import { toast } from "sonner";
 
 // Create a context for auth state
@@ -34,44 +33,12 @@ const App: React.FC = () => {
   const [session, setSession] = useState(null);
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  // Add a flag to track if this is an initial session or a new login
-  const [isInitialSession, setIsInitialSession] = useState(true);
-  // Flag to track if we need to log a sign-in event
-  const [shouldLogSignIn, setShouldLogSignIn] = useState(false);
-  // Track the auth provider used
-  const [authProvider, setAuthProvider] = useState<string | null>(null);
-
-  // Effect for activity logging when session and auth provider are available
-  useEffect(() => {
-    const handleActivityLogging = async () => {
-      // Only proceed if we should log a sign in and we have a session
-      if (shouldLogSignIn && session && !isLoading) {
-        console.log(`Logging sign-in activity via ${authProvider || 'direct'}`);
-        
-        try {
-          // Directly log to Supabase with appropriate message based on provider
-          const message = authProvider 
-            ? `User logged in via ${authProvider}` 
-            : 'User logged in';
-            
-          await logActivity('login', message);
-          console.log("Successfully logged activity");
-          
-          // Reset the flag to prevent duplicate logging
-          setShouldLogSignIn(false);
-          setAuthProvider(null);
-        } catch (error) {
-          console.error("Error logging sign-in activity:", error);
-        }
-      }
-    };
-
-    handleActivityLogging();
-  }, [shouldLogSignIn, session, isLoading, authProvider]);
+  const [previousLoginStatus, setPreviousLoginStatus] = useState(false);
+  const [lastLoginTimestamp, setLastLoginTimestamp] = useState<number | null>(null);
 
   useEffect(() => {
     // Set up the Supabase auth listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       console.log("Auth state changed:", event, newSession?.user?.email);
       
       // Always update the session and user state when auth state changes
@@ -79,26 +46,50 @@ const App: React.FC = () => {
       setUser(newSession?.user || null);
       
       if (event === 'SIGNED_IN') {
-        // For newly signed-in users (not initial session load)
-        if (!isInitialSession) {
-          // Check if this is a Google sign-in by looking at the URL
-          const url = new URL(window.location.href);
-          const hasProvider = url.searchParams.has('provider') || 
-                            url.hash.includes('provider=');
+        // Only log sign-in activity if this is a true new sign-in
+        // We can detect this based on URL or by checking if the user was previously null
+        const currentTime = Date.now();
+        const url = new URL(window.location.href);
+        const isRedirectFromAuth = url.hash.includes('access_token') || 
+                                  url.searchParams.has('access_token') ||
+                                  url.hash.includes('provider=') || 
+                                  url.searchParams.has('provider=');
+        
+        // Prevent duplicate logging within a short period (30 seconds)
+        const isNewLogin = !lastLoginTimestamp || (currentTime - lastLoginTimestamp > 30000);
+        
+        if (isRedirectFromAuth && isNewLogin && newSession?.user) {
+          setLastLoginTimestamp(currentTime);
           
-          if (hasProvider) {
-            // Set the auth provider for the activity log
-            setAuthProvider('Google');
-            // Set the flag to log this sign-in
-            setShouldLogSignIn(true);
-          } else {
-            // This is a different kind of sign-in
-            setShouldLogSignIn(true);
+          // Determine auth method
+          const authMethod = url.hash.includes('google') || url.searchParams.has('provider=google') 
+            ? 'Google' 
+            : 'direct';
+          
+          console.log(`Detected new login via ${authMethod}, logging activity...`);
+          
+          // We need to use the special login logger because the regular logger 
+          // might not work correctly during the login transition
+          try {
+            const logSuccess = await logLoginActivity(
+              newSession.user.id,
+              `User logged in via ${authMethod}`
+            );
+            
+            if (logSuccess) {
+              console.log("Successfully logged login activity to Supabase");
+            } else {
+              console.error("Failed to log login activity to Supabase");
+            }
+          } catch (err) {
+            console.error("Error logging login activity:", err);
           }
           
           toast.success("Successfully signed in");
         }
       } else if (event === 'SIGNED_OUT') {
+        setPreviousLoginStatus(false);
+        setLastLoginTimestamp(null);
         toast.info("Signed out successfully");
       }
     });
@@ -118,6 +109,7 @@ const App: React.FC = () => {
           console.log("Retrieved existing session:", data.session.user?.email);
           setSession(data.session);
           setUser(data.session.user);
+          setPreviousLoginStatus(true);
         } else {
           console.log("No existing session found");
         }
@@ -126,11 +118,6 @@ const App: React.FC = () => {
         toast.error("An unexpected error occurred.");
       } finally {
         setIsLoading(false);
-        // After initial session check, set isInitialSession to false
-        // so we can distinguish between a restored session and a new login
-        setTimeout(() => {
-          setIsInitialSession(false);
-        }, 1000); // Small delay to ensure auth listener is properly set up
       }
     };
 
@@ -141,7 +128,7 @@ const App: React.FC = () => {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [lastLoginTimestamp]);
 
   return (
     <React.StrictMode>
