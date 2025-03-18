@@ -36,10 +36,18 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
+import { 
+  Pagination, 
+  PaginationContent, 
+  PaginationItem, 
+  PaginationLink, 
+  PaginationNext, 
+  PaginationPrevious 
+} from "@/components/ui/pagination";
 import { Profile } from "@/types/database.types";
 import { ActivityLog } from "@/types/activity.types";
 import { toast } from 'sonner';
+import { getActivityLogs } from "@/utils/activityLogger";
 
 export default function ActivityLogs() {
   const navigate = useNavigate();
@@ -51,30 +59,6 @@ export default function ActivityLogs() {
   const itemsPerPage = 10;
   const [userProfiles, setUserProfiles] = useState<Profile[]>([]);
   const [totalCount, setTotalCount] = useState(0);
-
-  // Helper function to log activity
-  const logActivity = async (action: ActivityLog['action_type'], description: string, fileId?: string, newStatus?: ActivityLog['new_status']) => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-
-      const { error } = await supabase
-        .from('activity_logs')
-        .insert({
-          user_id: session.user.id,
-          action_type: action,
-          description,
-          related_file_id: fileId,
-          new_status: newStatus,
-        });
-
-      if (error) {
-        console.error("Error logging activity:", error);
-      }
-    } catch (err) {
-      console.error("Error in logActivity:", err);
-    }
-  };
 
   useEffect(() => {
     const checkUserAndFetchLogs = async () => {
@@ -105,70 +89,15 @@ export default function ActivityLogs() {
   const fetchActivityLogs = async () => {
     setLoading(true);
     try {
-      // Start building the query
-      let query = supabase
-        .from('activity_logs')
-        .select(`
-          *,
-          user:profiles(*),
-          file:salaysay_submissions(*)
-        `);
-
-      // Apply filters
-      if (userFilter !== "all") {
-        query = query.eq('user_id', userFilter);
-      }
-
-      if (actionFilter !== "all") {
-        query = query.eq('action_type', actionFilter);
-      }
-
-      // Get count for pagination
-      const { count, error: countError } = await query.count();
+      const { logs, totalCount } = await getActivityLogs(
+        userFilter, 
+        actionFilter, 
+        currentPage, 
+        itemsPerPage
+      );
       
-      if (countError) {
-        console.error("Error fetching count:", countError);
-        toast.error("Failed to load activity count");
-        return;
-      }
-      
-      setTotalCount(count || 0);
-
-      // Apply order by and pagination
-      const from = (currentPage - 1) * itemsPerPage;
-      const to = from + itemsPerPage - 1;
-      
-      const { data, error } = await query
-        .order('created_at', { ascending: false })
-        .range(from, to);
-
-      if (error) {
-        console.error("Error fetching activity logs:", error);
-        toast.error("Failed to load activity logs");
-        return;
-      }
-
-      // Transform the data to match our ActivityLog interface
-      const formattedLogs: ActivityLog[] = data.map(log => ({
-        id: log.id,
-        created_at: log.created_at,
-        user_id: log.user_id,
-        action_type: log.action_type as ActivityLog['action_type'],
-        description: log.description,
-        related_file_id: log.related_file_id,
-        new_status: log.new_status as ActivityLog['new_status'] | undefined,
-        user: log.user ? {
-          email: log.user.email,
-          full_name: log.user.full_name,
-          avatar_url: log.user.avatar_url
-        } : undefined,
-        file: log.file && log.file.length > 0 ? {
-          violation_type: log.file[0].violation_type,
-          file_path: log.file[0].file_path
-        } : undefined
-      }));
-
-      setActivities(formattedLogs);
+      setActivities(logs);
+      setTotalCount(totalCount);
     } catch (error) {
       console.error('Error:', error);
       toast.error("An unexpected error occurred");
