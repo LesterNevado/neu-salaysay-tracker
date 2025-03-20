@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, Clock, ShieldX } from "lucide-react";
-import { logActivity } from "@/utils/activityLogger";
+import { logActivity } from "@/utils/activity";
 
 type StatusType = "pending_review" | "approved" | "rejected";
 

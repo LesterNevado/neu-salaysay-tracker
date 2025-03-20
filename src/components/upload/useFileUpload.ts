@@ -1,9 +1,8 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { FileUpload } from "./types";
-import { logActivity } from "@/utils/activityLogger";
+import { logActivity } from "@/utils/activity";
 
 export function useFileUpload(userId: string) {
   const [uploads, setUploads] = useState<FileUpload[]>([]);

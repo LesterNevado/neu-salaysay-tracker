@@ -10,7 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import ActivityLogs from "./pages/ActivityLogs";
 import NotFound from "./pages/NotFound";
 import { supabase } from "./integrations/supabase/client";
-import { logLoginActivity, logActivity } from "./utils/activityLogger";
+import { logLoginActivity, logActivity } from "./utils/activity";
 import { toast } from "sonner";
 
 // Create a context for auth state

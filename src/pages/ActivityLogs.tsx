@@ -49,7 +49,7 @@ import {
 import { Profile } from "@/types/database.types";
 import { ActivityLog } from "@/types/activity.types";
 import { toast } from 'sonner';
-import { getActivityLogs } from "@/utils/activityLogger";
+import { getActivityLogs } from "@/utils/activity";
 import { AuthContext } from "@/App";
 
 export default function ActivityLogs() {
