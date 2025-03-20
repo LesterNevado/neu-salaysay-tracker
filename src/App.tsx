@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -13,7 +12,6 @@ import { supabase } from "./integrations/supabase/client";
 import { logLoginActivity, logActivity } from "./utils/activity";
 import { toast } from "sonner";
 
-// Create a context for auth state
 export const AuthContext = React.createContext({
   session: null,
   user: null,
@@ -23,9 +21,9 @@ export const AuthContext = React.createContext({
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      refetchOnWindowFocus: false, // Prevent queries from refetching when window regains focus
+      refetchOnWindowFocus: false,
       retry: 1,
-      staleTime: 60000, // Consider data fresh for 1 minute
+      staleTime: 60000,
     },
   },
 });
@@ -39,7 +37,6 @@ const App: React.FC = () => {
   const [lastLogoutTimestamp, setLastLogoutTimestamp] = useState<number | null>(null);
   const [lastActiveUserId, setLastActiveUserId] = useState<string | null>(null);
 
-  // Check URL for sign-in source
   const isGoogleAuth = () => {
     const url = new URL(window.location.href);
     return url.hash.includes('google') || 
@@ -47,11 +44,9 @@ const App: React.FC = () => {
            url.hash.includes('provider=google');
   };
 
-  // Function to log logout activity
   const handleLogout = async (userId: string) => {
     console.log("Logging out user:", userId);
     try {
-      // Force a small delay to ensure the logout event is captured
       await new Promise(resolve => setTimeout(resolve, 100));
       
       const logSuccess = await logLoginActivity(
@@ -61,7 +56,6 @@ const App: React.FC = () => {
       
       if (logSuccess) {
         console.log("Successfully logged logout activity to Supabase");
-        // Invalidate queries to refresh activity logs
         queryClient.invalidateQueries();
       } else {
         console.error("Failed to log logout activity to Supabase");
@@ -72,13 +66,10 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
-    // Log login or logout activity when necessary
     const logAuthActivity = async () => {
       const currentTime = Date.now();
       
-      // Handle login activity
       if (session && user) {
-        // Only log if this is a new login (not just a refresh)
         const isNewLogin = !previousLoginStatus || 
                            (lastLoginTimestamp === null || (currentTime - lastLoginTimestamp > 30000));
         
@@ -88,7 +79,6 @@ const App: React.FC = () => {
           setPreviousLoginStatus(true);
           setLastActiveUserId(user.id);
           
-          // Determine auth method
           const authMethod = isGoogleAuth() ? 'Google' : 'direct';
           
           try {
@@ -108,9 +98,7 @@ const App: React.FC = () => {
         }
       }
       
-      // Handle logout activity
       if (!session && previousLoginStatus && lastActiveUserId) {
-        // Only log logout if it's a new logout (not a page refresh)
         const isNewLogout = lastLogoutTimestamp === null || 
                           (currentTime - (lastLogoutTimestamp || 0) > 30000);
         
@@ -119,41 +107,34 @@ const App: React.FC = () => {
           setLastLogoutTimestamp(currentTime);
           setPreviousLoginStatus(false);
           
-          // Use the stored user ID for logout event
           await handleLogout(lastActiveUserId);
         }
       }
     };
     
-    // Run the function when session state changes
     if (!isLoading) {
       logAuthActivity();
     }
   }, [session, user, isLoading, previousLoginStatus, lastLoginTimestamp, lastLogoutTimestamp, lastActiveUserId]);
 
   useEffect(() => {
-    // Set up the Supabase auth listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       console.log("Auth state changed:", event, newSession?.user?.email);
       
       if (event === 'SIGNED_OUT') {
-        // Immediately capture the user ID before clearing state
         const userId = lastActiveUserId || (user?.id) || (newSession?.user?.id);
         
         if (userId) {
           console.log("SIGNED_OUT event detected for user:", userId);
-          // Log the logout immediately to ensure it's captured
           await handleLogout(userId);
         }
         
-        // Now update the state
         setSession(null);
         setUser(null);
         setPreviousLoginStatus(false);
         
         toast.info("Signed out successfully");
       } else {
-        // Always update the session and user state when auth state changes
         setSession(newSession);
         setUser(newSession?.user || null);
         
@@ -163,12 +144,10 @@ const App: React.FC = () => {
       }
     });
 
-    // Get the initial session (this runs only once)
     const initSession = async () => {
       try {
         setIsLoading(true);
         
-        // Get the current session from Supabase
         const { data, error } = await supabase.auth.getSession();
         
         if (error) {
@@ -191,10 +170,8 @@ const App: React.FC = () => {
       }
     };
 
-    // Initialize the session
     initSession();
 
-    // Cleanup the subscription when the component unmounts
     return () => {
       subscription.unsubscribe();
     };

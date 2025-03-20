@@ -124,11 +124,9 @@ export default function ActivityLogs() {
           return <Clock className="h-5 w-5 text-yellow-500" />;
         }
       case 'login':
-        if (activity.description.toLowerCase().includes('logged out')) {
-          return <LogOut className="h-5 w-5 text-orange-500" />;
-        } else {
-          return <LogIn className="h-5 w-5 text-purple-500" />;
-        }
+        return <LogIn className="h-5 w-5 text-purple-500" />;
+      case 'logout':
+        return <LogOut className="h-5 w-5 text-orange-500" />;
       case 'comment':
         return <FileText className="h-5 w-5 text-indigo-500" />;
       default:
@@ -225,7 +223,8 @@ export default function ActivityLogs() {
                     <SelectItem value="all">All Actions</SelectItem>
                     <SelectItem value="upload">Upload</SelectItem>
                     <SelectItem value="status_change">Status Change</SelectItem>
-                    <SelectItem value="login">Login/Logout</SelectItem>
+                    <SelectItem value="login">Login</SelectItem>
+                    <SelectItem value="logout">Logout</SelectItem>
                     <SelectItem value="comment">Comment</SelectItem>
                   </SelectContent>
                 </Select>
