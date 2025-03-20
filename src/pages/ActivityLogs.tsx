@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -200,18 +201,18 @@ export default function ActivityLogs() {
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <div>
-                <label className="text-sm font-medium mb-1 block">User</label>
+                <label className="text-sm font-medium mb-1 block text-black">User</label>
                 <Select 
                   value={userFilter} 
                   onValueChange={setUserFilter}
                 >
-                  <SelectTrigger className="w-full bg-white">
-                    <SelectValue placeholder="All Users" />
+                  <SelectTrigger className="w-full bg-white text-black">
+                    <SelectValue placeholder="All Users" className="text-black" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Users</SelectItem>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="all" className="text-black">All Users</SelectItem>
                     {userProfiles.map(profile => (
-                      <SelectItem key={profile.id} value={profile.id}>
+                      <SelectItem key={profile.id} value={profile.id} className="text-black">
                         {profile.full_name || profile.email || 'Unknown user'}
                       </SelectItem>
                     ))}
@@ -219,21 +220,21 @@ export default function ActivityLogs() {
                 </Select>
               </div>
               <div>
-                <label className="text-sm font-medium mb-1 block">Action Type</label>
+                <label className="text-sm font-medium mb-1 block text-black">Action Type</label>
                 <Select 
                   value={actionFilter} 
                   onValueChange={setActionFilter}
                 >
-                  <SelectTrigger className="w-full bg-white">
-                    <SelectValue placeholder="All Actions" />
+                  <SelectTrigger className="w-full bg-white text-black">
+                    <SelectValue placeholder="All Actions" className="text-black" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Actions</SelectItem>
-                    <SelectItem value="upload">Upload</SelectItem>
-                    <SelectItem value="status_change">Status Change</SelectItem>
-                    <SelectItem value="login">Login</SelectItem>
-                    <SelectItem value="logout">Logout</SelectItem>
-                    <SelectItem value="comment">Comment</SelectItem>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="all" className="text-black">All Actions</SelectItem>
+                    <SelectItem value="upload" className="text-black">Upload</SelectItem>
+                    <SelectItem value="status_change" className="text-black">Status Change</SelectItem>
+                    <SelectItem value="login" className="text-black">Login</SelectItem>
+                    <SelectItem value="logout" className="text-black">Logout</SelectItem>
+                    <SelectItem value="comment" className="text-black">Comment</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

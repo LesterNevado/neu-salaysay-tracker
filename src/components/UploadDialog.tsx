@@ -64,26 +64,26 @@ export function UploadDialog({ isOpen, onClose, userId, onUploadComplete }: Uplo
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md bg-white">
         <DialogHeader>
-          <DialogTitle className="text-xl font-semibold">
+          <DialogTitle className="text-xl font-semibold text-black">
             Upload Salaysay
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="violation-type">Violation Type</Label>
+            <Label htmlFor="violation-type" className="text-black">Violation Type</Label>
             <Select 
               value={selectedViolationType} 
               onValueChange={setSelectedViolationType}
             >
-              <SelectTrigger id="violation-type" className="w-full bg-white">
-                <SelectValue placeholder="Select violation type" />
+              <SelectTrigger id="violation-type" className="w-full bg-white text-black">
+                <SelectValue placeholder="Select violation type" className="text-black" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-white">
                 {VIOLATION_TYPES.map((type) => (
-                  <SelectItem key={type} value={type}>
+                  <SelectItem key={type} value={type} className="text-black">
                     {type}
                   </SelectItem>
                 ))}
