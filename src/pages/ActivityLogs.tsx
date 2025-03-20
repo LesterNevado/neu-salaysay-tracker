@@ -11,7 +11,8 @@ import {
   FileText,
   Filter as FilterIcon,
   LogIn,
-  LogOut
+  LogOut,
+  Trash
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -142,6 +143,8 @@ export default function ActivityLogs() {
         return <LogOut className="h-5 w-5 text-orange-500" />;
       case 'comment':
         return <FileText className="h-5 w-5 text-indigo-500" />;
+      case 'delete':
+        return <Trash className="h-5 w-5 text-red-500" />;
       default:
         return <FileText className="h-5 w-5 text-gray-500" />;
     }
@@ -178,6 +181,7 @@ export default function ActivityLogs() {
       case 'login': return 'Login';
       case 'logout': return 'Logout';
       case 'comment': return 'Comment';
+      case 'delete': return 'Delete';
       default: return actionType.charAt(0).toUpperCase() + actionType.slice(1).replace('_', ' ');
     }
   };
@@ -254,6 +258,7 @@ export default function ActivityLogs() {
                     <SelectItem value="login" className="text-black">Login</SelectItem>
                     <SelectItem value="logout" className="text-black">Logout</SelectItem>
                     <SelectItem value="comment" className="text-black">Comment</SelectItem>
+                    <SelectItem value="delete" className="text-black">Delete</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
