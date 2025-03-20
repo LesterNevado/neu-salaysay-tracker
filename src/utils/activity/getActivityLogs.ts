@@ -131,6 +131,13 @@ export const getActivityLogs = async (
     
     // Format the data to match our ActivityLog type
     const logsWithDetails: ActivityLog[] = activityData.map(log => {
+      // Make sure we have user profile data
+      const userProfile = profileMap[log.user_id] || {
+        email: null,
+        full_name: null,
+        avatar_url: null
+      };
+      
       return {
         id: log.id,
         created_at: log.created_at,
@@ -139,7 +146,7 @@ export const getActivityLogs = async (
         description: log.description,
         related_file_id: log.related_file_id,
         new_status: log.new_status as StatusType | undefined,
-        user: profileMap[log.user_id],
+        user: userProfile,
         file: log.related_file_id ? fileMap[log.related_file_id] : undefined
       };
     });

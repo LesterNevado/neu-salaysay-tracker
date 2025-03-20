@@ -39,6 +39,7 @@ const App: React.FC = () => {
   const [lastLogoutTimestamp, setLastLogoutTimestamp] = useState<number | null>(null);
   const [lastActiveUserId, setLastActiveUserId] = useState<string | null>(null);
   const [hasLoggedInitialSession, setHasLoggedInitialSession] = useState(false);
+  const [lastAuthEvent, setLastAuthEvent] = useState<string | null>(null);
 
   const isGoogleAuth = () => {
     const url = new URL(window.location.href);
@@ -79,9 +80,10 @@ const App: React.FC = () => {
         // Only log if it's the initial session (first load) or after an actual new login
         const isInitialSession = !hasLoggedInitialSession;
         const isGenuineNewLogin = previousLoginStatus === false && 
-                                lastLoginTimestamp === null;
+                               lastLoginTimestamp === null &&
+                               lastAuthEvent === 'SIGNED_IN';
         
-        if (isInitialSession || isGenuineNewLogin) {
+        if ((isInitialSession && !previousLoginStatus) || isGenuineNewLogin) {
           console.log("Genuine login detected, logging activity");
           setLastLoginTimestamp(currentTime);
           setPreviousLoginStatus(true);
@@ -124,11 +126,12 @@ const App: React.FC = () => {
     if (!isLoading) {
       logAuthActivity();
     }
-  }, [session, user, isLoading, previousLoginStatus, lastLoginTimestamp, hasLoggedInitialSession]);
+  }, [session, user, isLoading, previousLoginStatus, lastLoginTimestamp, hasLoggedInitialSession, lastAuthEvent]);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       console.log("Auth state changed:", event, newSession?.user?.email);
+      setLastAuthEvent(event);
       
       if (event === 'SIGNED_OUT') {
         const userId = lastActiveUserId || (user?.id) || (newSession?.user?.id);
