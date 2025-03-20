@@ -64,14 +64,12 @@ export default function ActivityLogs() {
   const [totalCount, setTotalCount] = useState(0);
 
   useEffect(() => {
-    // Redirect if not logged in
     if (!authLoading && !session) {
       navigate('/');
       return;
     }
 
     const fetchData = async () => {
-      // Fetch user profiles for the dropdown
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('*');
@@ -126,7 +124,6 @@ export default function ActivityLogs() {
           return <Clock className="h-5 w-5 text-yellow-500" />;
         }
       case 'login':
-        // Check if description indicates logout using a case-insensitive comparison
         if (activity.description.toLowerCase().includes('logged out')) {
           return <LogOut className="h-5 w-5 text-orange-500" />;
         } else {
@@ -158,7 +155,6 @@ export default function ActivityLogs() {
     }
   };
 
-  // Function to get the display name for a user
   const getUserDisplayName = (userId: string) => {
     const profile = userProfiles.find(p => p.id === userId);
     return profile?.full_name || profile?.email || 'Unknown user';

@@ -54,7 +54,7 @@ export const logLoginActivity = async (userId: string, description: string) => {
     
     console.log(`Logging auth activity for user ${userId}: ${description} (isLogout: ${isLogout})`);
     
-    // Add more detailed information to the description
+    // Create a more distinct description for logout events
     const enhancedDescription = isLogout
       ? `User logged out at ${new Date().toLocaleString()}`
       : description;
@@ -64,7 +64,7 @@ export const logLoginActivity = async (userId: string, description: string) => {
       .from('activity_logs')
       .insert({
         user_id: userId,
-        action_type: 'login', // Keep 'login' for both login and logout to maintain consistency
+        action_type: 'login', // We use 'login' for both login and logout events
         description: enhancedDescription,
         related_file_id: null,
         new_status: null,
