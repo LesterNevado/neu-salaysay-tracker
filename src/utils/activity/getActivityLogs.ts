@@ -81,6 +81,8 @@ export const getActivityLogs = async (
     // Get unique user IDs from the activity logs
     const userIds = [...new Set(activityData.map(log => log.user_id))];
     
+    console.log("Fetching profiles for user IDs:", userIds);
+    
     // Fetch profile information for these users
     const { data: profilesData, error: profilesError } = await supabase
       .from('profiles')
@@ -93,21 +95,43 @@ export const getActivityLogs = async (
     
     console.log("Fetched user profiles for activity logs:", profilesData);
     
+    // Get user metadata from auth.users for potential avatar URLs
+    const { data: userData, error: userError } = await supabase.auth.admin.listUsers();
+    
+    let userMetadataMap = {};
+    
+    if (userError) {
+      console.error('Error fetching user metadata:', userError);
+    } else if (userData) {
+      userData.users.forEach(user => {
+        if (user.id && user.user_metadata) {
+          userMetadataMap[user.id] = user.user_metadata;
+        }
+      });
+      console.log("User metadata map:", userMetadataMap);
+    }
+    
     // Create a map of user IDs to profile data for quick lookup
     const profileMap = {};
     if (profilesData) {
       profilesData.forEach(profile => {
+        // Check if we have Google avatar from user metadata
+        const userMetadata = userMetadataMap[profile.id];
+        const googleAvatarUrl = userMetadata?.avatar_url || userMetadata?.picture;
+        
         profileMap[profile.id] = {
           email: profile.email,
           full_name: profile.full_name,
-          avatar_url: profile.avatar_url
+          avatar_url: googleAvatarUrl || profile.avatar_url
         };
         
         // Log profile information for debugging
         console.log(`Profile for ${profile.id}:`, {
           email: profile.email,
           full_name: profile.full_name,
-          avatar_url: profile.avatar_url
+          avatar_url: profileMap[profile.id].avatar_url,
+          original_avatar_url: profile.avatar_url,
+          google_avatar: googleAvatarUrl
         });
       });
     }
@@ -146,6 +170,13 @@ export const getActivityLogs = async (
         full_name: null,
         avatar_url: null
       };
+
+      // Attempt to get Google avatar URL from auth metadata if available
+      const userMetadata = userMetadataMap[log.user_id];
+      const googleAvatarUrl = userMetadata?.avatar_url || userMetadata?.picture;
+      
+      // Use Google avatar URL if available, otherwise fall back to profile avatar URL
+      const avatarUrl = googleAvatarUrl || userProfile.avatar_url;
       
       return {
         id: log.id,
@@ -155,7 +186,10 @@ export const getActivityLogs = async (
         description: log.description,
         related_file_id: log.related_file_id,
         new_status: log.new_status as StatusType | undefined,
-        user: userProfile,
+        user: {
+          ...userProfile,
+          avatar_url: avatarUrl
+        },
         file: log.related_file_id ? fileMap[log.related_file_id] : undefined
       };
     });

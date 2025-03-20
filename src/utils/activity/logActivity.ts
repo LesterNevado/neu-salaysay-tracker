@@ -45,40 +45,32 @@ export const logActivity = async (
 };
 
 /**
- * Forcefully logs login/logout activity without requiring an active session
+ * Forcefully logs login activity without requiring an active session
  */
-export const logLoginActivity = async (userId: string, description: string) => {
+export const logLoginActivity = async (userId: string) => {
   try {
-    // Determine if this is a login or logout event
-    const isLogout = description.toLowerCase().includes('logged out');
+    console.log(`Logging login activity for user ${userId}`);
     
-    console.log(`Logging auth activity for user ${userId}: ${description} (isLogout: ${isLogout})`);
-    
-    // Create a more distinctive description for login/logout events
-    const enhancedDescription = isLogout
-      ? "User logged out"
-      : "User logged in";
-    
-    // Create a new log entry in Supabase with an explicit action type
+    // Create a new log entry in Supabase with a clean description
     const { data, error } = await supabase
       .from('activity_logs')
       .insert({
         user_id: userId,
-        action_type: isLogout ? 'logout' : 'login', // Using distinct action types
-        description: enhancedDescription,
+        action_type: 'login',
+        description: 'User logged in',
         related_file_id: null,
         new_status: null,
       });
       
     if (error) {
-      console.error("Error logging auth activity to Supabase:", error);
+      console.error("Error logging login activity to Supabase:", error);
       return false;
     } else {
-      console.log("Auth activity logged successfully to Supabase", data);
+      console.log("Login activity logged successfully to Supabase", data);
       return true;
     }
   } catch (err) {
-    console.error("Error logging auth activity:", err);
+    console.error("Error logging login activity:", err);
     return false;
   }
 };
