@@ -56,15 +56,15 @@ export const logLoginActivity = async (userId: string, description: string) => {
     
     // Create a more distinctive description for login/logout events
     const enhancedDescription = isLogout
-      ? `User logged out at ${new Date().toLocaleString()}`
-      : `User logged in at ${new Date().toLocaleString()}`;
+      ? "User logged out"
+      : "User logged in";
     
     // Create a new log entry in Supabase with an explicit action type
     const { data, error } = await supabase
       .from('activity_logs')
       .insert({
         user_id: userId,
-        action_type: isLogout ? 'logout' : 'login', // Using distinct action types for login and logout
+        action_type: isLogout ? 'logout' : 'login', // Using distinct action types
         description: enhancedDescription,
         related_file_id: null,
         new_status: null,
@@ -95,13 +95,12 @@ export const logLogoutActivity = async (userId: string) => {
   console.log(`Explicitly logging logout for user ${userId}`);
   
   try {
-    const timestamp = new Date().toLocaleString();
     const { data, error } = await supabase
       .from('activity_logs')
       .insert({
         user_id: userId,
-        action_type: 'logout', // Using 'logout' instead of 'login'
-        description: `User logged out at ${timestamp}`,
+        action_type: 'logout',
+        description: 'User logged out',
         related_file_id: null,
         new_status: null,
       });

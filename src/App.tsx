@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -33,11 +34,12 @@ const App: React.FC = () => {
   const [session, setSession] = useState(null);
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [previousLoginStatus, setPreviousLoginStatus] = useState(false);
   const [lastActiveUserId, setLastActiveUserId] = useState<string | null>(null);
-  const [hasLoggedInitialSession, setHasLoggedInitialSession] = useState(false);
-  const [lastAuthEvent, setLastAuthEvent] = useState<string | null>(null);
-  const [loginLogged, setLoginLogged] = useState(false);
+  const [hasInitialSessionLoaded, setHasInitialSessionLoaded] = useState(false);
+  
+  // Use these flags to track genuine login/logout events
+  const [hasGenuineLogin, setHasGenuineLogin] = useState(false);
+  const [genuineLoginLogged, setGenuineLoginLogged] = useState(false);
 
   const isGoogleAuth = () => {
     const url = new URL(window.location.href);
@@ -55,7 +57,6 @@ const App: React.FC = () => {
     console.log("Logging out user:", userId);
     
     try {
-      // Add a small delay to ensure the request completes before page navigation
       const logSuccess = await logLogoutActivity(userId);
       
       if (logSuccess) {
@@ -69,12 +70,12 @@ const App: React.FC = () => {
     }
   };
 
-  // We'll keep track of initial authentication separately
+  // Handle login activity logging
   useEffect(() => {
-    // This effect only handles GENUINE new logins
-    if (session && user && lastAuthEvent === 'SIGNED_IN' && !loginLogged) {
+    // Only run when we have a genuine login
+    if (session && user && hasGenuineLogin && !genuineLoginLogged) {
       console.log("Genuine login detected, logging activity");
-      setLoginLogged(true);
+      setGenuineLoginLogged(true);
       
       const authMethod = isGoogleAuth() ? 'Google' : 'direct';
       
@@ -85,6 +86,7 @@ const App: React.FC = () => {
         ).then(logSuccess => {
           if (logSuccess) {
             console.log("Successfully logged login activity to Supabase");
+            toast.success("Successfully signed in");
           } else {
             console.error("Failed to log login activity to Supabase");
           }
@@ -93,53 +95,42 @@ const App: React.FC = () => {
         console.error("Error logging login activity:", err);
       }
     }
-    
-    // Handle logout
-    if (!session && previousLoginStatus && lastActiveUserId) {
-      if (lastAuthEvent === 'SIGNED_OUT') {
-        console.log("Genuine logout detected, logging activity");
-        handleLogout(lastActiveUserId);
-        setPreviousLoginStatus(false);
-      }
-    }
-  }, [session, user, lastAuthEvent, loginLogged]);
+  }, [session, user, hasGenuineLogin, genuineLoginLogged]);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       console.log("Auth state changed:", event, newSession?.user?.email);
-      setLastAuthEvent(event);
       
       if (event === 'SIGNED_OUT') {
         const userId = lastActiveUserId || (user?.id) || (newSession?.user?.id);
         
         if (userId) {
           console.log("SIGNED_OUT event detected for user:", userId);
-          // Log the logout directly here for immediate capture
           await handleLogout(userId);
         }
         
         setSession(null);
         setUser(null);
-        setPreviousLoginStatus(false);
-        setHasLoggedInitialSession(false);
-        setLoginLogged(false);
+        setHasGenuineLogin(false);
+        setGenuineLoginLogged(false);
         
         toast.info("Signed out successfully");
       } else if (event === 'SIGNED_IN') {
+        console.log("Genuine login detected, SIGNED_IN event");
         setSession(newSession);
         setUser(newSession?.user || null);
-        setPreviousLoginStatus(true);
         setLastActiveUserId(newSession?.user?.id || null);
+        setHasGenuineLogin(true);
         
-        toast.success("Successfully signed in");
+        // The toast will be shown in the useEffect that logs the login
       } else if (event === 'INITIAL_SESSION') {
+        // Don't show toast for initial session loading
         setSession(newSession);
         setUser(newSession?.user || null);
         
         if (newSession?.user) {
           setLastActiveUserId(newSession.user.id);
-          setPreviousLoginStatus(true);
-          setHasLoggedInitialSession(true);
+          setHasInitialSessionLoaded(true);
         }
       }
     });
@@ -158,8 +149,7 @@ const App: React.FC = () => {
           setSession(data.session);
           setUser(data.session.user);
           setLastActiveUserId(data.session.user.id);
-          setPreviousLoginStatus(true);
-          setHasLoggedInitialSession(true);
+          setHasInitialSessionLoaded(true);
         } else {
           console.log("No existing session found");
         }

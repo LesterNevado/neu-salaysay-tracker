@@ -91,6 +91,8 @@ export const getActivityLogs = async (
       console.error('Error fetching profiles:', profilesError);
     }
     
+    console.log("Fetched user profiles for activity logs:", profilesData);
+    
     // Create a map of user IDs to profile data for quick lookup
     const profileMap = {};
     if (profilesData) {
@@ -100,6 +102,13 @@ export const getActivityLogs = async (
           full_name: profile.full_name,
           avatar_url: profile.avatar_url
         };
+        
+        // Log profile information for debugging
+        console.log(`Profile for ${profile.id}:`, {
+          email: profile.email,
+          full_name: profile.full_name,
+          avatar_url: profile.avatar_url
+        });
       });
     }
     
