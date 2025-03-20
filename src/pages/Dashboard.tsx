@@ -52,7 +52,10 @@ export default function Dashboard() {
         id: session.user.id
       }));
 
-      const avatarUrl = session.user.user_metadata?.avatar_url || null;
+      // Get avatar URL from auth metadata
+      const avatarUrl = session.user.user_metadata?.avatar_url || 
+                        session.user.user_metadata?.picture || 
+                        null;
 
       const { data: profileData, error } = await supabase
         .from('profiles')
@@ -63,19 +66,39 @@ export default function Dashboard() {
       if (error) {
         console.error("Error fetching user profile:", error);
         
-        if (avatarUrl) {
+        // Create or update profile with avatar URL from auth metadata
+        if (session.user.email) {
           const { error: updateError } = await supabase
             .from('profiles')
             .upsert({
               id: session.user.id,
               full_name: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || "User",
               email: session.user.email,
-              avatar_url: avatarUrl,
+              avatar_url: avatarUrl, // Ensure avatar URL is saved to the profile
+              updated_at: new Date().toISOString(),
             });
             
           if (updateError) {
             console.error("Error creating profile:", updateError);
+          } else {
+            console.log("Created/updated profile with avatar URL:", avatarUrl);
           }
+        }
+      } else if (profileData && (!profileData.avatar_url) && avatarUrl) {
+        // Update existing profile with avatar URL if it's missing
+        console.log("Updating existing profile with avatar URL from auth metadata");
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            avatar_url: avatarUrl,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', session.user.id);
+          
+        if (updateError) {
+          console.error("Error updating profile with avatar URL:", updateError);
+        } else {
+          console.log("Updated profile with avatar URL:", avatarUrl);
         }
       }
 

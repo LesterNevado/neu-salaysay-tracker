@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -77,15 +78,42 @@ const App: React.FC = () => {
       setGenuineLoginLogged(true);
       
       try {
-        logLoginActivity(user.id)
-          .then(logSuccess => {
-            if (logSuccess) {
-              console.log("Successfully logged login activity to Supabase");
-              toast.success("Successfully signed in");
-            } else {
-              console.error("Failed to log login activity to Supabase");
+        // Ensure user profile exists with correct avatar URL
+        const updateUserProfile = async () => {
+          const avatarUrl = user.user_metadata?.avatar_url || 
+                          user.user_metadata?.picture || 
+                          null;
+                          
+          if (avatarUrl) {
+            console.log("Updating user profile with avatar URL on login:", avatarUrl);
+            const { error } = await supabase
+              .from('profiles')
+              .upsert({
+                id: user.id,
+                email: user.email,
+                full_name: user.user_metadata?.full_name || user.email?.split('@')[0] || "User",
+                avatar_url: avatarUrl,
+                updated_at: new Date().toISOString(),
+              });
+              
+            if (error) {
+              console.error("Error updating profile with avatar on login:", error);
             }
-          });
+          }
+        };
+        
+        // Update profile first, then log activity
+        updateUserProfile().then(() => {
+          logLoginActivity(user.id)
+            .then(logSuccess => {
+              if (logSuccess) {
+                console.log("Successfully logged login activity to Supabase");
+                toast.success("Successfully signed in");
+              } else {
+                console.error("Failed to log login activity to Supabase");
+              }
+            });
+        });
       } catch (err) {
         console.error("Error logging login activity:", err);
       }
