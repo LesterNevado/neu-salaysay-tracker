@@ -100,7 +100,7 @@ export const logLogoutActivity = async (userId: string) => {
       .from('activity_logs')
       .insert({
         user_id: userId,
-        action_type: 'logout',
+        action_type: 'logout', // Using 'logout' instead of 'login'
         description: `User logged out at ${timestamp}`,
         related_file_id: null,
         new_status: null,
