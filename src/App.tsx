@@ -38,6 +38,7 @@ const App: React.FC = () => {
   const [lastLoginTimestamp, setLastLoginTimestamp] = useState<number | null>(null);
   const [lastLogoutTimestamp, setLastLogoutTimestamp] = useState<number | null>(null);
   const [lastActiveUserId, setLastActiveUserId] = useState<string | null>(null);
+  const [hasLoggedInitialSession, setHasLoggedInitialSession] = useState(false);
 
   const isGoogleAuth = () => {
     const url = new URL(window.location.href);
@@ -74,14 +75,18 @@ const App: React.FC = () => {
       const currentTime = Date.now();
       
       if (session && user) {
-        const isNewLogin = !previousLoginStatus || 
-                           (lastLoginTimestamp === null || (currentTime - lastLoginTimestamp > 30000));
+        // Check if this is the first login after page load or a brand new login
+        // Only log if it's the initial session (first load) or after an actual new login
+        const isInitialSession = !hasLoggedInitialSession;
+        const isGenuineNewLogin = previousLoginStatus === false && 
+                                lastLoginTimestamp === null;
         
-        if (isNewLogin) {
-          console.log("New login detected, logging activity");
+        if (isInitialSession || isGenuineNewLogin) {
+          console.log("Genuine login detected, logging activity");
           setLastLoginTimestamp(currentTime);
           setPreviousLoginStatus(true);
           setLastActiveUserId(user.id);
+          setHasLoggedInitialSession(true);
           
           const authMethod = isGoogleAuth() ? 'Google' : 'direct';
           
@@ -119,7 +124,7 @@ const App: React.FC = () => {
     if (!isLoading) {
       logAuthActivity();
     }
-  }, [session, user, isLoading, previousLoginStatus, lastLoginTimestamp, lastLogoutTimestamp, lastActiveUserId]);
+  }, [session, user, isLoading, previousLoginStatus, lastLoginTimestamp, hasLoggedInitialSession]);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
@@ -137,15 +142,19 @@ const App: React.FC = () => {
         setSession(null);
         setUser(null);
         setPreviousLoginStatus(false);
+        setHasLoggedInitialSession(false);
         
         toast.info("Signed out successfully");
-      } else {
+      } else if (event === 'SIGNED_IN') {
         setSession(newSession);
         setUser(newSession?.user || null);
+        setPreviousLoginStatus(false); // Reset to allow new login to be logged
+        setLastLoginTimestamp(null);   // Reset timestamp for new login
         
-        if (event === 'SIGNED_IN') {
-          toast.success("Successfully signed in");
-        }
+        toast.success("Successfully signed in");
+      } else if (event === 'INITIAL_SESSION') {
+        setSession(newSession);
+        setUser(newSession?.user || null);
       }
     });
 
