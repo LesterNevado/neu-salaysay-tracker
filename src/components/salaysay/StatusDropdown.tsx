@@ -36,25 +36,25 @@ export function StatusDropdown({
         return (
           <div className="flex items-center">
             <Clock className="mr-2 h-4 w-4 text-yellow-500" />
-            <span>Pending Review</span>
+            <span className="text-black">Pending Review</span>
           </div>
         );
       case "approved":
         return (
           <div className="flex items-center">
             <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
-            <span>Approved</span>
+            <span className="text-black">Approved</span>
           </div>
         );
       case "rejected":
         return (
           <div className="flex items-center">
             <ShieldX className="mr-2 h-4 w-4 text-red-500" />
-            <span>Rejected</span>
+            <span className="text-black">Rejected</span>
           </div>
         );
       default:
-        return <span>Unknown Status</span>;
+        return <span className="text-black">Unknown Status</span>;
     }
   };
 
@@ -104,7 +104,7 @@ export function StatusDropdown({
         <Button
           variant="outline"
           size="sm"
-          className="w-full justify-start h-auto py-1.5 bg-white text-black"
+          className="w-full justify-start h-auto py-1.5 bg-white"
           disabled={isLoading || !canEdit}
         >
           {getStatusDisplay(currentStatus)}

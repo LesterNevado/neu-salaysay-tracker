@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -167,6 +166,22 @@ export default function ActivityLogs() {
     }
   };
 
+  const getUserName = (userId: string) => {
+    const profile = userProfiles.find(profile => profile.id === userId);
+    return profile?.full_name || profile?.email || 'Unknown user';
+  };
+
+  const getActionTypeDisplay = (actionType: string) => {
+    switch (actionType) {
+      case 'upload': return 'Upload';
+      case 'status_change': return 'Status Change';
+      case 'login': return 'Login';
+      case 'logout': return 'Logout';
+      case 'comment': return 'Comment';
+      default: return actionType.charAt(0).toUpperCase() + actionType.slice(1).replace('_', ' ');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-white p-8">
       <div className="max-w-6xl mx-auto">
@@ -207,7 +222,9 @@ export default function ActivityLogs() {
                   onValueChange={setUserFilter}
                 >
                   <SelectTrigger className="w-full bg-white text-black">
-                    <SelectValue placeholder="All Users" className="text-black" />
+                    <SelectValue>
+                      {userFilter === "all" ? "All Users" : getUserName(userFilter)}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent className="bg-white">
                     <SelectItem value="all" className="text-black">All Users</SelectItem>
@@ -226,7 +243,9 @@ export default function ActivityLogs() {
                   onValueChange={setActionFilter}
                 >
                   <SelectTrigger className="w-full bg-white text-black">
-                    <SelectValue placeholder="All Actions" className="text-black" />
+                    <SelectValue>
+                      {actionFilter === "all" ? "All Actions" : getActionTypeDisplay(actionFilter)}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent className="bg-white">
                     <SelectItem value="all" className="text-black">All Actions</SelectItem>
