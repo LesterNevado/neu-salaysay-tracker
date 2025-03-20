@@ -10,7 +10,9 @@ import {
   Clock, 
   User, 
   FileText,
-  Filter as FilterIcon
+  Filter as FilterIcon,
+  LogIn,
+  LogOut
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -125,7 +127,12 @@ export default function ActivityLogs() {
           return <Clock className="h-5 w-5 text-yellow-500" />;
         }
       case 'login':
-        return <User className="h-5 w-5 text-purple-500" />;
+        // Check if description indicates logout
+        if (activity.description.toLowerCase().includes('logged out')) {
+          return <LogOut className="h-5 w-5 text-orange-500" />;
+        } else {
+          return <LogIn className="h-5 w-5 text-purple-500" />;
+        }
       case 'comment':
         return <FileText className="h-5 w-5 text-indigo-500" />;
       default:
@@ -197,7 +204,7 @@ export default function ActivityLogs() {
                   value={userFilter} 
                   onValueChange={setUserFilter}
                 >
-                  <SelectTrigger className="w-full bg-white">
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="All Users" />
                   </SelectTrigger>
                   <SelectContent>
@@ -216,14 +223,14 @@ export default function ActivityLogs() {
                   value={actionFilter} 
                   onValueChange={setActionFilter}
                 >
-                  <SelectTrigger className="w-full bg-white">
+                  <SelectTrigger className="w-full">
                     <SelectValue placeholder="All Actions" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Actions</SelectItem>
                     <SelectItem value="upload">Upload</SelectItem>
                     <SelectItem value="status_change">Status Change</SelectItem>
-                    <SelectItem value="login">Login</SelectItem>
+                    <SelectItem value="login">Login/Logout</SelectItem>
                     <SelectItem value="comment">Comment</SelectItem>
                   </SelectContent>
                 </Select>
@@ -255,8 +262,11 @@ export default function ActivityLogs() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <Avatar className="h-6 w-6">
-                            <AvatarImage src={activity.user?.avatar_url || ""} />
-                            <AvatarFallback className="text-xs">
+                            <AvatarImage 
+                              src={activity.user?.avatar_url || ""} 
+                              alt={activity.user?.full_name || "User"}
+                            />
+                            <AvatarFallback className="text-xs bg-primary text-primary-foreground">
                               {renderUserInitials(activity.user?.full_name)}
                             </AvatarFallback>
                           </Avatar>
@@ -312,8 +322,11 @@ export default function ActivityLogs() {
                             <TableCell>
                               <div className="flex items-center gap-2">
                                 <Avatar className="h-6 w-6">
-                                  <AvatarImage src={activity.user?.avatar_url || ""} />
-                                  <AvatarFallback className="text-xs">
+                                  <AvatarImage 
+                                    src={activity.user?.avatar_url || ""} 
+                                    alt={activity.user?.full_name || "User"}
+                                  />
+                                  <AvatarFallback className="text-xs bg-primary text-primary-foreground">
                                     {renderUserInitials(activity.user?.full_name)}
                                   </AvatarFallback>
                                 </Avatar>

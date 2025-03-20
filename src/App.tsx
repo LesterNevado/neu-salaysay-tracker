@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -9,7 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import ActivityLogs from "./pages/ActivityLogs";
 import NotFound from "./pages/NotFound";
 import { supabase } from "./integrations/supabase/client";
-import { logLoginActivity } from "./utils/activityLogger";
+import { logLoginActivity, logActivity } from "./utils/activityLogger";
 import { toast } from "sonner";
 
 // Create a context for auth state
@@ -35,44 +36,38 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [previousLoginStatus, setPreviousLoginStatus] = useState(false);
   const [lastLoginTimestamp, setLastLoginTimestamp] = useState<number | null>(null);
+  const [lastLogoutTimestamp, setLastLogoutTimestamp] = useState<number | null>(null);
+
+  // Check URL for sign-in source
+  const isGoogleAuth = () => {
+    const url = new URL(window.location.href);
+    return url.hash.includes('google') || 
+           url.searchParams.has('provider=google') || 
+           url.hash.includes('provider=google');
+  };
 
   useEffect(() => {
-    // Set up the Supabase auth listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
-      console.log("Auth state changed:", event, newSession?.user?.email);
+    // Log login or logout activity when necessary
+    const logAuthActivity = async () => {
+      const currentTime = Date.now();
       
-      // Always update the session and user state when auth state changes
-      setSession(newSession);
-      setUser(newSession?.user || null);
-      
-      if (event === 'SIGNED_IN') {
-        // Only log sign-in activity if this is a true new sign-in
-        // We can detect this based on URL or by checking if the user was previously null
-        const currentTime = Date.now();
-        const url = new URL(window.location.href);
-        const isRedirectFromAuth = url.hash.includes('access_token') || 
-                                  url.searchParams.has('access_token') ||
-                                  url.hash.includes('provider=') || 
-                                  url.searchParams.has('provider=');
+      // Handle login activity
+      if (session && user) {
+        // Only log if this is a new login (not just a refresh)
+        const isNewLogin = !previousLoginStatus || 
+                           (lastLoginTimestamp === null || (currentTime - lastLoginTimestamp > 30000));
         
-        // Prevent duplicate logging within a short period (30 seconds)
-        const isNewLogin = !lastLoginTimestamp || (currentTime - lastLoginTimestamp > 30000);
-        
-        if (isRedirectFromAuth && isNewLogin && newSession?.user) {
+        if (isNewLogin) {
+          console.log("New login detected, logging activity");
           setLastLoginTimestamp(currentTime);
+          setPreviousLoginStatus(true);
           
           // Determine auth method
-          const authMethod = url.hash.includes('google') || url.searchParams.has('provider=google') 
-            ? 'Google' 
-            : 'direct';
+          const authMethod = isGoogleAuth() ? 'Google' : 'direct';
           
-          console.log(`Detected new login via ${authMethod}, logging activity...`);
-          
-          // We need to use the special login logger because the regular logger 
-          // might not work correctly during the login transition
           try {
             const logSuccess = await logLoginActivity(
-              newSession.user.id,
+              user.id,
               `User logged in via ${authMethod}`
             );
             
@@ -84,11 +79,61 @@ const App: React.FC = () => {
           } catch (err) {
             console.error("Error logging login activity:", err);
           }
-          
-          toast.success("Successfully signed in");
         }
+      }
+      
+      // Handle logout activity
+      if (!session && previousLoginStatus) {
+        // Only log logout if it's a new logout (not a page refresh)
+        const isNewLogout = lastLogoutTimestamp === null || 
+                          (currentTime - (lastLogoutTimestamp || 0) > 30000);
+        
+        if (isNewLogout) {
+          console.log("New logout detected, logging activity");
+          setLastLogoutTimestamp(currentTime);
+          setPreviousLoginStatus(false);
+          
+          try {
+            // For logout, we can use the regular logActivity since we're not in a session transition
+            if (user) {
+              const logSuccess = await logActivity(
+                'login',
+                'User logged out',
+                null,
+                null
+              );
+              
+              if (logSuccess) {
+                console.log("Successfully logged logout activity to Supabase");
+              } else {
+                console.error("Failed to log logout activity to Supabase");
+              }
+            }
+          } catch (err) {
+            console.error("Error logging logout activity:", err);
+          }
+        }
+      }
+    };
+    
+    // Run the function when session state changes
+    if (!isLoading) {
+      logAuthActivity();
+    }
+  }, [session, user, isLoading, previousLoginStatus, lastLoginTimestamp, lastLogoutTimestamp]);
+
+  useEffect(() => {
+    // Set up the Supabase auth listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      console.log("Auth state changed:", event, newSession?.user?.email);
+      
+      // Always update the session and user state when auth state changes
+      setSession(newSession);
+      setUser(newSession?.user || null);
+      
+      if (event === 'SIGNED_IN') {
+        toast.success("Successfully signed in");
       } else if (event === 'SIGNED_OUT') {
-        setPreviousLoginStatus(false);
         setLastLoginTimestamp(null);
         toast.info("Signed out successfully");
       }
@@ -128,7 +173,7 @@ const App: React.FC = () => {
     return () => {
       subscription.unsubscribe();
     };
-  }, [lastLoginTimestamp]);
+  }, []);
 
   return (
     <React.StrictMode>
