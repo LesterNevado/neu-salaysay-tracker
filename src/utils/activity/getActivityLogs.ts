@@ -95,49 +95,39 @@ export const getActivityLogs = async (
     
     console.log("Fetched user profiles for activity logs:", profilesData);
     
-    // Fetch users' metadata directly from the auth.users() view
-    // This won't work with regular permissions, so we'll use profiles data only
-    
     // Create a map of user IDs to profile data for quick lookup
     const profileMap: Record<string, any> = {};
+    
+    // First, populate the map with profiles data
     if (profilesData) {
       profilesData.forEach(profile => {
-        // Get user session if available (for the current user)
-        const getUserSession = async (userId: string) => {
-          if (userId === (await supabase.auth.getUser()).data.user?.id) {
-            return await supabase.auth.getUser();
-          }
-          return null;
-        };
-        
-        // Try to get avatar URL from auth metadata for the current user
-        getUserSession(profile.id).then(sessionData => {
-          const metadata = sessionData?.data?.user?.user_metadata;
-          const avatarFromMetadata = metadata?.avatar_url || metadata?.picture;
-          
-          if (avatarFromMetadata) {
-            profileMap[profile.id] = {
-              ...profileMap[profile.id],
-              avatar_url: avatarFromMetadata
-            };
-            
-            console.log(`Updated avatar for ${profile.id} from auth metadata:`, avatarFromMetadata);
-          }
-        });
-        
         profileMap[profile.id] = {
           email: profile.email,
           full_name: profile.full_name,
           avatar_url: profile.avatar_url
         };
-        
-        // Log profile information for debugging
-        console.log(`Profile for ${profile.id}:`, {
-          email: profile.email,
-          full_name: profile.full_name,
-          avatar_url: profile.avatar_url
-        });
       });
+    }
+    
+    // Get current user's auth metadata for avatar
+    const { data: userData } = await supabase.auth.getUser();
+    const currentUser = userData?.user;
+    
+    if (currentUser && currentUser.id && profileMap[currentUser.id]) {
+      // Update the avatar URL from the user's metadata if available
+      const avatarFromMetadata = 
+        currentUser.user_metadata?.avatar_url || 
+        currentUser.user_metadata?.picture;
+      
+      if (avatarFromMetadata) {
+        // Update the avatar in the profile map
+        profileMap[currentUser.id] = {
+          ...profileMap[currentUser.id],
+          avatar_url: avatarFromMetadata
+        };
+        
+        console.log(`Updated avatar for ${currentUser.id} from auth metadata:`, avatarFromMetadata);
+      }
     }
     
     // If there are related file IDs, fetch file information
