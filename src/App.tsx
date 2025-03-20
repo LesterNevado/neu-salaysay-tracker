@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -77,20 +76,16 @@ const App: React.FC = () => {
       console.log("Genuine login detected, logging activity");
       setGenuineLoginLogged(true);
       
-      const authMethod = isGoogleAuth() ? 'Google' : 'direct';
-      
       try {
-        logLoginActivity(
-          user.id,
-          `User logged in via ${authMethod}`
-        ).then(logSuccess => {
-          if (logSuccess) {
-            console.log("Successfully logged login activity to Supabase");
-            toast.success("Successfully signed in");
-          } else {
-            console.error("Failed to log login activity to Supabase");
-          }
-        });
+        logLoginActivity(user.id)
+          .then(logSuccess => {
+            if (logSuccess) {
+              console.log("Successfully logged login activity to Supabase");
+              toast.success("Successfully signed in");
+            } else {
+              console.error("Failed to log login activity to Supabase");
+            }
+          });
       } catch (err) {
         console.error("Error logging login activity:", err);
       }

@@ -96,13 +96,25 @@ export const getActivityLogs = async (
     console.log("Fetched user profiles for activity logs:", profilesData);
     
     // Get user metadata from auth.users for potential avatar URLs
-    const { data: userData, error: userError } = await supabase.auth.admin.listUsers();
+    // Fix the typing issues with userData
+    interface UserData {
+      users: Array<{
+        id: string;
+        user_metadata?: {
+          avatar_url?: string;
+          picture?: string;
+        };
+      }>;
+    }
     
-    let userMetadataMap = {};
+    const { data, error: userError } = await supabase.auth.admin.listUsers();
+    const userData = data as UserData | null;
+    
+    let userMetadataMap: Record<string, any> = {};
     
     if (userError) {
       console.error('Error fetching user metadata:', userError);
-    } else if (userData) {
+    } else if (userData && userData.users) {
       userData.users.forEach(user => {
         if (user.id && user.user_metadata) {
           userMetadataMap[user.id] = user.user_metadata;
@@ -112,7 +124,7 @@ export const getActivityLogs = async (
     }
     
     // Create a map of user IDs to profile data for quick lookup
-    const profileMap = {};
+    const profileMap: Record<string, any> = {};
     if (profilesData) {
       profilesData.forEach(profile => {
         // Check if we have Google avatar from user metadata
