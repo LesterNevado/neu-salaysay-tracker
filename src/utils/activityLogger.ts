@@ -46,9 +46,18 @@ export const logActivity = async (
 
 // Function to forcefully log login activity without requiring an active session
 // This is specifically for login events where we need to log the activity after sign-in
+// Also used for logout events since there won't be an active session
 export const logLoginActivity = async (userId: string, description: string) => {
   try {
-    console.log(`Logging login activity for user ${userId}: ${description}`);
+    console.log(`Logging auth activity for user ${userId}: ${description}`);
+    
+    // Determine if this is a login or logout event
+    const isLogout = description.toLowerCase().includes('logged out');
+    
+    // Add more detailed information to the description
+    const enhancedDescription = isLogout
+      ? `${description} at ${new Date().toLocaleString()}`
+      : description;
     
     // Create a new log entry in Supabase
     const { data, error } = await supabase
@@ -56,20 +65,20 @@ export const logLoginActivity = async (userId: string, description: string) => {
       .insert({
         user_id: userId,
         action_type: 'login',
-        description,
+        description: enhancedDescription,
         related_file_id: null,
         new_status: null,
       });
       
     if (error) {
-      console.error("Error logging login activity to Supabase:", error);
+      console.error("Error logging auth activity to Supabase:", error);
       return false;
     } else {
-      console.log("Login activity logged successfully to Supabase", data);
+      console.log("Auth activity logged successfully to Supabase", data);
       return true;
     }
   } catch (err) {
-    console.error("Error logging login activity:", err);
+    console.error("Error logging auth activity:", err);
     return false;
   }
 };

@@ -37,6 +37,7 @@ const App: React.FC = () => {
   const [previousLoginStatus, setPreviousLoginStatus] = useState(false);
   const [lastLoginTimestamp, setLastLoginTimestamp] = useState<number | null>(null);
   const [lastLogoutTimestamp, setLastLogoutTimestamp] = useState<number | null>(null);
+  const [lastActiveUserId, setLastActiveUserId] = useState<string | null>(null);
 
   // Check URL for sign-in source
   const isGoogleAuth = () => {
@@ -44,6 +45,25 @@ const App: React.FC = () => {
     return url.hash.includes('google') || 
            url.searchParams.has('provider=google') || 
            url.hash.includes('provider=google');
+  };
+
+  // Function to log logout activity
+  const handleLogout = async (userId: string) => {
+    console.log("Logging out user:", userId);
+    try {
+      const logSuccess = await logLoginActivity(
+        userId,
+        'User logged out'
+      );
+      
+      if (logSuccess) {
+        console.log("Successfully logged logout activity to Supabase");
+      } else {
+        console.error("Failed to log logout activity to Supabase");
+      }
+    } catch (err) {
+      console.error("Error logging logout activity:", err);
+    }
   };
 
   useEffect(() => {
@@ -61,6 +81,7 @@ const App: React.FC = () => {
           console.log("New login detected, logging activity");
           setLastLoginTimestamp(currentTime);
           setPreviousLoginStatus(true);
+          setLastActiveUserId(user.id);
           
           // Determine auth method
           const authMethod = isGoogleAuth() ? 'Google' : 'direct';
@@ -83,7 +104,7 @@ const App: React.FC = () => {
       }
       
       // Handle logout activity
-      if (!session && previousLoginStatus) {
+      if (!session && previousLoginStatus && lastActiveUserId) {
         // Only log logout if it's a new logout (not a page refresh)
         const isNewLogout = lastLogoutTimestamp === null || 
                           (currentTime - (lastLogoutTimestamp || 0) > 30000);
@@ -93,25 +114,11 @@ const App: React.FC = () => {
           setLastLogoutTimestamp(currentTime);
           setPreviousLoginStatus(false);
           
-          try {
-            // For logout, we can use the regular logActivity since we're not in a session transition
-            if (user) {
-              const logSuccess = await logActivity(
-                'login',
-                'User logged out',
-                null,
-                null
-              );
-              
-              if (logSuccess) {
-                console.log("Successfully logged logout activity to Supabase");
-              } else {
-                console.error("Failed to log logout activity to Supabase");
-              }
-            }
-          } catch (err) {
-            console.error("Error logging logout activity:", err);
-          }
+          // Use the stored user ID for logout event
+          await handleLogout(lastActiveUserId);
+          
+          // Reset last active user ID after logging the logout
+          // setLastActiveUserId(null);
         }
       }
     };
@@ -120,7 +127,7 @@ const App: React.FC = () => {
     if (!isLoading) {
       logAuthActivity();
     }
-  }, [session, user, isLoading, previousLoginStatus, lastLoginTimestamp, lastLogoutTimestamp]);
+  }, [session, user, isLoading, previousLoginStatus, lastLoginTimestamp, lastLogoutTimestamp, lastActiveUserId]);
 
   useEffect(() => {
     // Set up the Supabase auth listener
@@ -134,7 +141,14 @@ const App: React.FC = () => {
       if (event === 'SIGNED_IN') {
         toast.success("Successfully signed in");
       } else if (event === 'SIGNED_OUT') {
-        setLastLoginTimestamp(null);
+        if (lastActiveUserId) {
+          // Store the user ID before clearing session
+          const userId = lastActiveUserId;
+          console.log("SIGNED_OUT event detected for user:", userId);
+          
+          // No need to set lastLoginTimestamp to null here
+          // as the effect will handle the logout activity
+        }
         toast.info("Signed out successfully");
       }
     });
@@ -154,6 +168,7 @@ const App: React.FC = () => {
           console.log("Retrieved existing session:", data.session.user?.email);
           setSession(data.session);
           setUser(data.session.user);
+          setLastActiveUserId(data.session.user.id);
           setPreviousLoginStatus(true);
         } else {
           console.log("No existing session found");

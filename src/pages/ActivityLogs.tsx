@@ -204,7 +204,7 @@ export default function ActivityLogs() {
                   value={userFilter} 
                   onValueChange={setUserFilter}
                 >
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="w-full bg-white">
                     <SelectValue placeholder="All Users" />
                   </SelectTrigger>
                   <SelectContent>
@@ -223,7 +223,7 @@ export default function ActivityLogs() {
                   value={actionFilter} 
                   onValueChange={setActionFilter}
                 >
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="w-full bg-white">
                     <SelectValue placeholder="All Actions" />
                   </SelectTrigger>
                   <SelectContent>
@@ -262,13 +262,16 @@ export default function ActivityLogs() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <Avatar className="h-6 w-6">
-                            <AvatarImage 
-                              src={activity.user?.avatar_url || ""} 
-                              alt={activity.user?.full_name || "User"}
-                            />
-                            <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                              {renderUserInitials(activity.user?.full_name)}
-                            </AvatarFallback>
+                            {activity.user?.avatar_url ? (
+                              <AvatarImage 
+                                src={activity.user?.avatar_url} 
+                                alt={activity.user?.full_name || "User"}
+                              />
+                            ) : (
+                              <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+                                {renderUserInitials(activity.user?.full_name)}
+                              </AvatarFallback>
+                            )}
                           </Avatar>
                           <span className="font-medium">
                             {activity.user?.full_name || activity.user?.email || 'Unknown user'}
@@ -322,13 +325,16 @@ export default function ActivityLogs() {
                             <TableCell>
                               <div className="flex items-center gap-2">
                                 <Avatar className="h-6 w-6">
-                                  <AvatarImage 
-                                    src={activity.user?.avatar_url || ""} 
-                                    alt={activity.user?.full_name || "User"}
-                                  />
-                                  <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                                    {renderUserInitials(activity.user?.full_name)}
-                                  </AvatarFallback>
+                                  {activity.user?.avatar_url ? (
+                                    <AvatarImage 
+                                      src={activity.user?.avatar_url} 
+                                      alt={activity.user?.full_name || "User"}
+                                    />
+                                  ) : (
+                                    <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+                                      {renderUserInitials(activity.user?.full_name)}
+                                    </AvatarFallback>
+                                  )}
                                 </Avatar>
                                 <span>
                                   {activity.user?.full_name || activity.user?.email || 'Unknown user'}
