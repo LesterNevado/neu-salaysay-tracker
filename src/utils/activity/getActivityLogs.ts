@@ -151,6 +151,8 @@ export const getActivityLogs = async (
       };
     });
     
+    console.log('Formatted activity logs with user profiles:', logsWithDetails);
+    
     return {
       logs: logsWithDetails,
       totalCount: count || 0
