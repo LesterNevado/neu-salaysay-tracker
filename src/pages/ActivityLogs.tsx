@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -79,6 +78,18 @@ export default function ActivityLogs() {
         console.error("Error fetching profiles:", profilesError);
         toast.error("Failed to load user profiles");
       } else {
+        if (session?.user) {
+          const { data } = await supabase.auth.getUser();
+          const currentUser = data.user;
+          
+          if (currentUser && profiles) {
+            const profileToUpdate = profiles.find(p => p.id === currentUser.id);
+            if (profileToUpdate && !profileToUpdate.avatar_url && currentUser.user_metadata?.avatar_url) {
+              profileToUpdate.avatar_url = currentUser.user_metadata.avatar_url;
+            }
+          }
+        }
+        
         setUserProfiles(profiles || []);
       }
 
@@ -255,7 +266,7 @@ export default function ActivityLogs() {
                           <Avatar className="h-6 w-6">
                             {activity.user?.avatar_url ? (
                               <AvatarImage 
-                                src={activity.user.avatar_url} 
+                                src={activity.user.avatar_url || ""} 
                                 alt={activity.user?.full_name || "User"} 
                                 className="object-cover"
                               />
@@ -319,7 +330,7 @@ export default function ActivityLogs() {
                                 <Avatar className="h-6 w-6">
                                   {activity.user?.avatar_url ? (
                                     <AvatarImage 
-                                      src={activity.user.avatar_url} 
+                                      src={activity.user.avatar_url || ""} 
                                       alt={activity.user?.full_name || "User"} 
                                       className="object-cover"
                                     />

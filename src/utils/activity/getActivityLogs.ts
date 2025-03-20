@@ -95,10 +95,36 @@ export const getActivityLogs = async (
     
     console.log("Fetched user profiles for activity logs:", profilesData);
     
+    // Fetch users' metadata directly from the auth.users() view
+    // This won't work with regular permissions, so we'll use profiles data only
+    
     // Create a map of user IDs to profile data for quick lookup
     const profileMap: Record<string, any> = {};
     if (profilesData) {
       profilesData.forEach(profile => {
+        // Get user session if available (for the current user)
+        const getUserSession = async (userId: string) => {
+          if (userId === (await supabase.auth.getUser()).data.user?.id) {
+            return await supabase.auth.getUser();
+          }
+          return null;
+        };
+        
+        // Try to get avatar URL from auth metadata for the current user
+        getUserSession(profile.id).then(sessionData => {
+          const metadata = sessionData?.data?.user?.user_metadata;
+          const avatarFromMetadata = metadata?.avatar_url || metadata?.picture;
+          
+          if (avatarFromMetadata) {
+            profileMap[profile.id] = {
+              ...profileMap[profile.id],
+              avatar_url: avatarFromMetadata
+            };
+            
+            console.log(`Updated avatar for ${profile.id} from auth metadata:`, avatarFromMetadata);
+          }
+        });
+        
         profileMap[profile.id] = {
           email: profile.email,
           full_name: profile.full_name,
