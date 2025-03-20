@@ -51,6 +51,9 @@ const App: React.FC = () => {
   const handleLogout = async (userId: string) => {
     console.log("Logging out user:", userId);
     try {
+      // Force a small delay to ensure the logout event is captured
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       const logSuccess = await logLoginActivity(
         userId,
         'User logged out'
@@ -58,6 +61,8 @@ const App: React.FC = () => {
       
       if (logSuccess) {
         console.log("Successfully logged logout activity to Supabase");
+        // Invalidate queries to refresh activity logs
+        queryClient.invalidateQueries();
       } else {
         console.error("Failed to log logout activity to Supabase");
       }
@@ -116,9 +121,6 @@ const App: React.FC = () => {
           
           // Use the stored user ID for logout event
           await handleLogout(lastActiveUserId);
-          
-          // Reset last active user ID after logging the logout
-          // setLastActiveUserId(null);
         }
       }
     };
@@ -134,22 +136,30 @@ const App: React.FC = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       console.log("Auth state changed:", event, newSession?.user?.email);
       
-      // Always update the session and user state when auth state changes
-      setSession(newSession);
-      setUser(newSession?.user || null);
-      
-      if (event === 'SIGNED_IN') {
-        toast.success("Successfully signed in");
-      } else if (event === 'SIGNED_OUT') {
-        if (lastActiveUserId) {
-          // Store the user ID before clearing session
-          const userId = lastActiveUserId;
+      if (event === 'SIGNED_OUT') {
+        // Immediately capture the user ID before clearing state
+        const userId = lastActiveUserId || (user?.id) || (newSession?.user?.id);
+        
+        if (userId) {
           console.log("SIGNED_OUT event detected for user:", userId);
-          
-          // No need to set lastLoginTimestamp to null here
-          // as the effect will handle the logout activity
+          // Log the logout immediately to ensure it's captured
+          await handleLogout(userId);
         }
+        
+        // Now update the state
+        setSession(null);
+        setUser(null);
+        setPreviousLoginStatus(false);
+        
         toast.info("Signed out successfully");
+      } else {
+        // Always update the session and user state when auth state changes
+        setSession(newSession);
+        setUser(newSession?.user || null);
+        
+        if (event === 'SIGNED_IN') {
+          toast.success("Successfully signed in");
+        }
       }
     });
 

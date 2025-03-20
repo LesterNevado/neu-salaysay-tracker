@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -127,7 +126,7 @@ export default function ActivityLogs() {
           return <Clock className="h-5 w-5 text-yellow-500" />;
         }
       case 'login':
-        // Check if description indicates logout
+        // Check if description indicates logout using a case-insensitive comparison
         if (activity.description.toLowerCase().includes('logged out')) {
           return <LogOut className="h-5 w-5 text-orange-500" />;
         } else {
