@@ -1,5 +1,4 @@
 
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -114,21 +113,21 @@ export function StatusDropdown({
       {canEdit && (
         <DropdownMenuContent align="end" className="w-[200px] bg-white">
           <DropdownMenuItem
-            className="cursor-pointer text-black"
+            className="cursor-pointer text-black hover:bg-gray-100"
             onClick={() => updateStatus("pending_review")}
           >
             <Clock className="mr-2 h-4 w-4 text-yellow-500" />
             <span>Pending Review</span>
           </DropdownMenuItem>
           <DropdownMenuItem
-            className="cursor-pointer text-black"
+            className="cursor-pointer text-black hover:bg-gray-100"
             onClick={() => updateStatus("approved")}
           >
             <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
             <span>Approved</span>
           </DropdownMenuItem>
           <DropdownMenuItem
-            className="cursor-pointer text-black"
+            className="cursor-pointer text-black hover:bg-gray-100"
             onClick={() => updateStatus("rejected")}
           >
             <ShieldX className="mr-2 h-4 w-4 text-red-500" />

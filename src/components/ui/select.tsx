@@ -122,7 +122,12 @@ const SelectItem = React.forwardRef<
     )}
     {...props}
   >
-    <span className="w-full">{children}</span>
+    <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
+      <SelectPrimitive.ItemIndicator>
+        <div className="h-2 w-2 rounded-full bg-current" />
+      </SelectPrimitive.ItemIndicator>
+    </span>
+    <span className="w-full pl-5">{children}</span>
   </SelectPrimitive.Item>
 ))
 SelectItem.displayName = SelectPrimitive.Item.displayName
