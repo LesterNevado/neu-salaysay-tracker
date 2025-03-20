@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -9,7 +10,7 @@ import Dashboard from "./pages/Dashboard";
 import ActivityLogs from "./pages/ActivityLogs";
 import NotFound from "./pages/NotFound";
 import { supabase } from "./integrations/supabase/client";
-import { logLoginActivity, logActivity } from "./utils/activity";
+import { logLoginActivity, logLogoutActivity } from "./utils/activity";
 import { toast } from "sonner";
 
 export const AuthContext = React.createContext({
@@ -18,6 +19,7 @@ export const AuthContext = React.createContext({
   isLoading: true
 });
 
+// Define queryClient outside component to avoid recreation on render
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -45,14 +47,16 @@ const App: React.FC = () => {
   };
 
   const handleLogout = async (userId: string) => {
+    if (!userId) {
+      console.error("Cannot log logout: No user ID provided");
+      return;
+    }
+    
     console.log("Logging out user:", userId);
+    
     try {
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      const logSuccess = await logLoginActivity(
-        userId,
-        'User logged out'
-      );
+      // Add a small delay to ensure the request completes before page navigation
+      const logSuccess = await logLogoutActivity(userId);
       
       if (logSuccess) {
         console.log("Successfully logged logout activity to Supabase");
@@ -126,6 +130,7 @@ const App: React.FC = () => {
         
         if (userId) {
           console.log("SIGNED_OUT event detected for user:", userId);
+          // Log the logout directly here for immediate capture
           await handleLogout(userId);
         }
         

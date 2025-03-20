@@ -1,5 +1,5 @@
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -16,10 +16,13 @@ import {
 } from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { AuthContext } from "@/App";
+import { logLogoutActivity } from "@/utils/activity";
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useContext(AuthContext);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [showAllUsers, setShowAllUsers] = useState(false);
@@ -88,6 +91,16 @@ export default function Dashboard() {
   }, [navigate]);
 
   const handleSignOut = async () => {
+    // First log the logout activity before signing out
+    if (userProfile.id) {
+      try {
+        console.log("Logging logout activity before sign out");
+        await logLogoutActivity(userProfile.id);
+      } catch (error) {
+        console.error("Error logging logout:", error);
+      }
+    }
+    
     const { error } = await supabase.auth.signOut();
     if (error) {
       toast({

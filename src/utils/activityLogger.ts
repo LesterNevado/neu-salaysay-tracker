@@ -5,6 +5,7 @@
 import {
   logActivity,
   logLoginActivity,
+  logLogoutActivity,
   getActivityLogs
 } from './activity';
 
@@ -16,6 +17,7 @@ import type {
 export {
   logActivity,
   logLoginActivity,
+  logLogoutActivity,
   getActivityLogs
 };
 

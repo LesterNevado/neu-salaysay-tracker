@@ -82,3 +82,39 @@ export const logLoginActivity = async (userId: string, description: string) => {
     return false;
   }
 };
+
+/**
+ * Specifically logs logout activity, should be called when user signs out
+ */
+export const logLogoutActivity = async (userId: string) => {
+  if (!userId) {
+    console.error("Cannot log logout: No user ID provided");
+    return false;
+  }
+  
+  console.log(`Explicitly logging logout for user ${userId}`);
+  
+  try {
+    const timestamp = new Date().toLocaleString();
+    const { data, error } = await supabase
+      .from('activity_logs')
+      .insert({
+        user_id: userId,
+        action_type: 'logout',
+        description: `User logged out at ${timestamp}`,
+        related_file_id: null,
+        new_status: null,
+      });
+      
+    if (error) {
+      console.error("Error logging logout to Supabase:", error);
+      return false;
+    } else {
+      console.log("Logout logged successfully to Supabase", data);
+      return true;
+    }
+  } catch (err) {
+    console.error("Error logging logout:", err);
+    return false;
+  }
+};

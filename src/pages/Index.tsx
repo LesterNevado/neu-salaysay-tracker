@@ -10,6 +10,7 @@ import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AuthContext } from "@/App";
 import { toast } from "sonner";
+import { logLoginActivity } from "@/utils/activity";
 
 export default function Index() {
   const [isLoading, setIsLoading] = useState(false);
