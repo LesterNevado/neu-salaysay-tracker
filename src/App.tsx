@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -47,8 +48,10 @@ const App: React.FC = () => {
   const handleLogout = async (userId: string) => {
     console.log("Logging out user:", userId);
     try {
+      // Make sure we have a slight delay to give time for the event to be processed
       await new Promise(resolve => setTimeout(resolve, 100));
       
+      // Use the explicit logout activity logging
       const logSuccess = await logLoginActivity(
         userId,
         'User logged out'
@@ -62,6 +65,17 @@ const App: React.FC = () => {
       }
     } catch (err) {
       console.error("Error logging logout activity:", err);
+    }
+  };
+
+  // Handle manual logout
+  const handleManualLogout = async () => {
+    if (user) {
+      const userId = user.id;
+      // Log logout first before clearing session
+      await logLoginActivity(userId, 'User logged out');
+      // Then sign out
+      await supabase.auth.signOut();
     }
   };
 
@@ -134,12 +148,28 @@ const App: React.FC = () => {
         setPreviousLoginStatus(false);
         
         toast.info("Signed out successfully");
-      } else {
+      } else if (event === 'SIGNED_IN') {
         setSession(newSession);
         setUser(newSession?.user || null);
         
-        if (event === 'SIGNED_IN') {
+        if (newSession?.user) {
+          setLastActiveUserId(newSession.user.id);
+          setPreviousLoginStatus(true);
+          setLastLoginTimestamp(Date.now());
           toast.success("Successfully signed in");
+          
+          // Log the login activity
+          await logLoginActivity(
+            newSession.user.id,
+            `User logged in via ${isGoogleAuth() ? 'Google' : 'direct'}`
+          );
+        }
+      } else if (newSession) {
+        // Update session for other auth events
+        setSession(newSession);
+        setUser(newSession.user || null);
+        if (newSession.user) {
+          setLastActiveUserId(newSession.user.id);
         }
       }
     });
@@ -172,8 +202,12 @@ const App: React.FC = () => {
 
     initSession();
 
+    // Expose handleManualLogout to window for debugging
+    window.handleLogout = handleManualLogout;
+
     return () => {
       subscription.unsubscribe();
+      delete window.handleLogout;
     };
   }, []);
 
