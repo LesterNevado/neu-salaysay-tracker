@@ -64,7 +64,7 @@ export const logLoginActivity = async (userId: string, description: string) => {
       .from('activity_logs')
       .insert({
         user_id: userId,
-        action_type: isLogout ? 'login' : 'login', // Using 'login' for both to comply with DB constraints
+        action_type: isLogout ? 'logout' : 'login', // Using distinct action types for login and logout
         description: enhancedDescription,
         related_file_id: null,
         new_status: null,
@@ -100,7 +100,7 @@ export const logLogoutActivity = async (userId: string) => {
       .from('activity_logs')
       .insert({
         user_id: userId,
-        action_type: 'login', // Using 'login' to comply with DB constraints
+        action_type: 'logout',
         description: `User logged out at ${timestamp}`,
         related_file_id: null,
         new_status: null,
