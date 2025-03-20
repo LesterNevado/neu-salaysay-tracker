@@ -109,26 +109,47 @@ export const getActivityLogs = async (
       });
     }
     
-    // Get current user's auth metadata for avatar
-    const { data: userData } = await supabase.auth.getUser();
-    const currentUser = userData?.user;
-    
-    if (currentUser && currentUser.id && profileMap[currentUser.id]) {
-      // Update the avatar URL from the user's metadata if available
-      const avatarFromMetadata = 
-        currentUser.user_metadata?.avatar_url || 
-        currentUser.user_metadata?.picture;
-      
-      if (avatarFromMetadata) {
-        // Update the avatar in the profile map
-        profileMap[currentUser.id] = {
-          ...profileMap[currentUser.id],
-          avatar_url: avatarFromMetadata
-        };
-        
-        console.log(`Updated avatar for ${currentUser.id} from auth metadata:`, avatarFromMetadata);
+    // Fetch all authenticated users (without admin privileges)
+    // We'll try to get avatar URLs from auth metadata for all users
+    const authUsersPromises = userIds.map(async (userId) => {
+      try {
+        // For the current user, we can get their metadata directly
+        if (userId === (await supabase.auth.getUser()).data.user?.id) {
+          return await supabase.auth.getUser();
+        }
+        return null;
+      } catch (error) {
+        console.error(`Error fetching auth user ${userId}:`, error);
+        return null;
       }
-    }
+    });
+    
+    // Resolve all promises
+    const authUsersResults = await Promise.all(authUsersPromises);
+    
+    // Process auth metadata for avatar URLs
+    authUsersResults.forEach(result => {
+      if (result && result.data && result.data.user) {
+        const user = result.data.user;
+        const userId = user.id;
+        
+        // Only update if we already have a profile for this user
+        if (profileMap[userId]) {
+          const avatarFromMetadata = 
+            user.user_metadata?.avatar_url || 
+            user.user_metadata?.picture;
+          
+          if (avatarFromMetadata) {
+            profileMap[userId] = {
+              ...profileMap[userId],
+              avatar_url: avatarFromMetadata
+            };
+            
+            console.log(`Updated avatar for ${userId} from auth metadata:`, avatarFromMetadata);
+          }
+        }
+      }
+    });
     
     // If there are related file IDs, fetch file information
     const fileIds = activityData
