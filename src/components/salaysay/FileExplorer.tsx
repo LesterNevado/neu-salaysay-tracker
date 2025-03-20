@@ -23,6 +23,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { StatusDropdown } from "./StatusDropdown";
+import { logActivity } from "@/utils/activity";
 
 interface SalaysayFile {
   id: string;
@@ -208,6 +209,12 @@ export function FileExplorer({
       if (dbError) {
         throw dbError;
       }
+      
+      await logActivity(
+        'delete',
+        `Deleted salaysay file: ${deletingFile.fileName || deletingFile.file_path}`,
+        deletingFile.id
+      );
       
       setFiles(files.filter(f => f.id !== deletingFile.id));
       
