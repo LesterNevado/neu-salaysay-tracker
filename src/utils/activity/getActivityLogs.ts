@@ -95,55 +95,21 @@ export const getActivityLogs = async (
     
     console.log("Fetched user profiles for activity logs:", profilesData);
     
-    // Get user metadata from auth.users for potential avatar URLs
-    // Fix the typing issues with userData
-    interface UserData {
-      users: Array<{
-        id: string;
-        user_metadata?: {
-          avatar_url?: string;
-          picture?: string;
-        };
-      }>;
-    }
-    
-    const { data, error: userError } = await supabase.auth.admin.listUsers();
-    const userData = data as UserData | null;
-    
-    let userMetadataMap: Record<string, any> = {};
-    
-    if (userError) {
-      console.error('Error fetching user metadata:', userError);
-    } else if (userData && userData.users) {
-      userData.users.forEach(user => {
-        if (user.id && user.user_metadata) {
-          userMetadataMap[user.id] = user.user_metadata;
-        }
-      });
-      console.log("User metadata map:", userMetadataMap);
-    }
-    
     // Create a map of user IDs to profile data for quick lookup
     const profileMap: Record<string, any> = {};
     if (profilesData) {
       profilesData.forEach(profile => {
-        // Check if we have Google avatar from user metadata
-        const userMetadata = userMetadataMap[profile.id];
-        const googleAvatarUrl = userMetadata?.avatar_url || userMetadata?.picture;
-        
         profileMap[profile.id] = {
           email: profile.email,
           full_name: profile.full_name,
-          avatar_url: googleAvatarUrl || profile.avatar_url
+          avatar_url: profile.avatar_url
         };
         
         // Log profile information for debugging
         console.log(`Profile for ${profile.id}:`, {
           email: profile.email,
           full_name: profile.full_name,
-          avatar_url: profileMap[profile.id].avatar_url,
-          original_avatar_url: profile.avatar_url,
-          google_avatar: googleAvatarUrl
+          avatar_url: profile.avatar_url
         });
       });
     }
@@ -154,7 +120,7 @@ export const getActivityLogs = async (
       .filter(id => id !== null);
     
     // Create a map for file data
-    const fileMap = {};
+    const fileMap: Record<string, any> = {};
     
     if (fileIds.length > 0) {
       const { data: filesData, error: filesError } = await supabase
@@ -182,13 +148,6 @@ export const getActivityLogs = async (
         full_name: null,
         avatar_url: null
       };
-
-      // Attempt to get Google avatar URL from auth metadata if available
-      const userMetadata = userMetadataMap[log.user_id];
-      const googleAvatarUrl = userMetadata?.avatar_url || userMetadata?.picture;
-      
-      // Use Google avatar URL if available, otherwise fall back to profile avatar URL
-      const avatarUrl = googleAvatarUrl || userProfile.avatar_url;
       
       return {
         id: log.id,
@@ -199,8 +158,7 @@ export const getActivityLogs = async (
         related_file_id: log.related_file_id,
         new_status: log.new_status as StatusType | undefined,
         user: {
-          ...userProfile,
-          avatar_url: avatarUrl
+          ...userProfile
         },
         file: log.related_file_id ? fileMap[log.related_file_id] : undefined
       };
