@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -83,8 +84,7 @@ export function useFileUpload(userId: string) {
         .insert({
           user_id: userId,
           file_path: data.path,
-          violation_type: violationType,
-          status: 'pending_review'
+          violation_type: violationType
         })
         .select()
         .single();
