@@ -68,28 +68,37 @@ export default function Index() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-white p-4">
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-sky-100">
+      {/* Background illustration elements */}
+      <div className="absolute inset-0 w-full h-full">
+        <img 
+          src="/lovable-uploads/293516be-9102-44b1-b402-4533e6bac217.png" 
+          alt="Background illustration" 
+          className="w-full h-full object-cover"
+        />
+      </div>
+      
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
+        className="w-full max-w-md z-10"
       >
-        <Card className="backdrop-blur-sm bg-white/90 shadow-xl border-0 p-8">
-          <CardContent className="p-0 space-y-6">
+        <Card className="backdrop-blur-sm bg-blue-900/80 border-0 shadow-xl overflow-hidden">
+          <CardContent className="p-8 space-y-6">
             <div className="flex justify-center">
               <img 
                 src="/lovable-uploads/42a0c089-7817-4d54-b180-12a27a76a70f.png" 
                 alt="NEU Logo" 
-                className="w-36 h-36"
+                className="w-24 h-24"
               />
             </div>
             
             <div className="text-center space-y-2">
-              <h1 className="text-2xl font-semibold text-gray-800">
+              <h1 className="text-2xl font-semibold text-white">
                 Welcome to NEU-STAT
               </h1>
-              <p className="text-gray-600 text-sm">
+              <p className="text-gray-200 text-sm">
                 Salaysay Tracking And Archival Tool
               </p>
             </div>
@@ -104,7 +113,7 @@ export default function Index() {
             <Button
               onClick={handleGoogleSignIn}
               disabled={isLoading}
-              className="w-full flex items-center justify-center gap-2 bg-white hover:bg-gray-50 text-gray-700 border border-gray-300"
+              className="w-full flex items-center justify-center gap-2 bg-gray-200 hover:bg-white text-gray-800 border-0"
               variant="outline"
             >
               <svg viewBox="0 0 24 24" className="w-5 h-5" xmlns="http://www.w3.org/2000/svg">
