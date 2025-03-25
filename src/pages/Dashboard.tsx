@@ -1,10 +1,9 @@
-
 import { useEffect, useState, useCallback, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { Send, User, Users, ActivitySquare, FileIcon, Filter, Calendar, Search } from "lucide-react";
+import { Send, User, Users, ActivitySquare, FileIcon, Filter, Calendar, Search, ChevronDown } from "lucide-react";
 import { UploadDialog } from "@/components/UploadDialog";
 import { FileExplorer } from "@/components/salaysay/FileExplorer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -26,6 +25,7 @@ import { Switch } from "@/components/ui/switch";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { AuthContext } from "@/App";
 import { logLogoutActivity } from "@/utils/activity";
 import { VIOLATION_TYPES } from "@/components/upload/types";
@@ -66,7 +66,6 @@ export default function Dashboard() {
     id: null,
   });
 
-  // Fetch users for the filter dropdown when showing all users is enabled
   useEffect(() => {
     if (showAllUsers) {
       const fetchUsers = async () => {
@@ -203,10 +202,12 @@ export default function Dashboard() {
   };
 
   const toggleShowAllUsers = () => {
-    setShowAllUsers(prev => !prev);
-    if (!showAllUsers) {
-      setFilters(prev => ({ ...prev, userId: null }));
-    }
+    setShowAllUsers(prev => {
+      if (prev) {
+        setFilters(prevFilters => ({ ...prevFilters, userId: null }));
+      }
+      return !prev;
+    });
   };
 
   const handleFilterChange = (violationType: string, checked: boolean) => {
@@ -224,15 +225,23 @@ export default function Dashboard() {
       ...prev,
       [type === 'start' ? 'startDate' : 'endDate']: date
     }));
-    // Close the calendar after date selection
     setCalendarOpen(null);
   };
 
   const handleUserFilterChange = (userId: string) => {
-    setFilters(prev => ({
-      ...prev,
-      userId: userId === 'all' ? null : userId
-    }));
+    if (userId === 'all') {
+      setFilters(prev => ({
+        ...prev,
+        userId: null
+      }));
+    } else {
+      const selectedUser = usersList.find(user => user.id === userId);
+      setFilters(prev => ({
+        ...prev,
+        userId: userId,
+        selectedUserName: selectedUser?.name || "Unknown User"
+      }));
+    }
   };
 
   const handleFileNameFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -268,17 +277,13 @@ export default function Dashboard() {
   const getActiveFiltersCount = () => {
     let count = 0;
     
-    // Count active violation types
     count += Object.values(filters.violationTypes).filter(Boolean).length;
     
-    // Count date filters
     if (filters.startDate) count++;
     if (filters.endDate) count++;
     
-    // Count user filter
     if (filters.userId) count++;
     
-    // Count filename filter
     if (filters.fileName) count++;
     
     return count;
@@ -380,129 +385,147 @@ export default function Dashboard() {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-80 p-4" align="end">
-                  <div className="space-y-5">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-medium text-sm">Filters</h4>
-                      {hasActiveFilters && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={clearFilters} 
-                          className="text-xs text-blue-500 hover:text-blue-700 p-0 h-auto"
-                        >
-                          Clear all
-                        </Button>
-                      )}
-                    </div>
-
-                    {/* File Name Filter */}
-                    <div className="space-y-2">
-                      <h5 className="text-sm font-medium">Filter by File Name</h5>
-                      <div className="relative">
-                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
-                        <Input
-                          placeholder="Search by file name"
-                          value={fileNameFilter}
-                          onChange={handleFileNameFilterChange}
-                          className="pl-8"
-                        />
+                  <ScrollArea className="max-h-[70vh] pr-3">
+                    <div className="space-y-5">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-medium text-sm">Filters</h4>
+                        {hasActiveFilters && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={clearFilters} 
+                            className="text-xs text-blue-500 hover:text-blue-700 p-0 h-auto"
+                          >
+                            Clear all
+                          </Button>
+                        )}
                       </div>
-                    </div>
 
-                    {/* Date Range Filter */}
-                    <div className="space-y-2">
-                      <h5 className="text-sm font-medium mb-2">Date Range</h5>
-                      <div className="grid grid-cols-2 gap-2">
-                        <Popover open={calendarOpen === 'start'} onOpenChange={(open) => open ? setCalendarOpen('start') : setCalendarOpen(null)}>
-                          <PopoverTrigger asChild>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className={`justify-start text-left font-normal ${filters.startDate ? 'bg-blue-50 border-blue-200' : ''}`}
-                            >
-                              <Calendar className="mr-2 h-4 w-4" />
-                              {filters.startDate ? format(filters.startDate, 'PP') : <span>Start date</span>}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <CalendarComponent
-                              mode="single"
-                              selected={filters.startDate || undefined}
-                              onSelect={(date) => handleDateChange(date, 'start')}
-                              initialFocus
-                              className="p-3 pointer-events-auto"
-                            />
-                          </PopoverContent>
-                        </Popover>
-                        
-                        <Popover open={calendarOpen === 'end'} onOpenChange={(open) => open ? setCalendarOpen('end') : setCalendarOpen(null)}>
-                          <PopoverTrigger asChild>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              className={`justify-start text-left font-normal ${filters.endDate ? 'bg-blue-50 border-blue-200' : ''}`}
-                            >
-                              <Calendar className="mr-2 h-4 w-4" />
-                              {filters.endDate ? format(filters.endDate, 'PP') : <span>End date</span>}
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <CalendarComponent
-                              mode="single"
-                              selected={filters.endDate || undefined}
-                              onSelect={(date) => handleDateChange(date, 'end')}
-                              initialFocus
-                              className="p-3 pointer-events-auto"
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      </div>
-                    </div>
-
-                    {/* User Filter - Only show when "Show all users" is enabled */}
-                    {showAllUsers && (
                       <div className="space-y-2">
-                        <h5 className="text-sm font-medium">Filter by User</h5>
-                        <Select
-                          value={filters.userId || 'all'}
-                          onValueChange={handleUserFilterChange}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select a user" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Users</SelectItem>
-                            {usersList.map((user) => (
-                              <SelectItem key={user.id} value={user.id}>
-                                {user.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <h5 className="text-sm font-medium">Filter by File Name</h5>
+                        <div className="relative">
+                          <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+                          <Input
+                            placeholder="Search by file name"
+                            value={fileNameFilter}
+                            onChange={handleFileNameFilterChange}
+                            className="pl-8"
+                          />
+                        </div>
                       </div>
-                    )}
 
-                    {/* Violation Type Filters */}
-                    <div className="space-y-2">
-                      <h5 className="text-sm font-medium">Filter by Violation Type</h5>
-                      <div className="space-y-3">
-                        {VIOLATION_TYPES.map((type) => (
-                          <div key={type} className="flex items-center space-x-2">
-                            <Checkbox 
-                              id={`filter-${type}`} 
-                              checked={filters.violationTypes[type]} 
-                              onCheckedChange={(checked) => 
-                                handleFilterChange(type, checked === true)
-                              }
-                            />
-                            <Label htmlFor={`filter-${type}`} className="text-sm">
-                              {type}
-                            </Label>
+                      <div className="space-y-2">
+                        <h5 className="text-sm font-medium mb-2">Date Range</h5>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Popover 
+                            open={calendarOpen === 'start'} 
+                            onOpenChange={(open) => !open && setCalendarOpen(null)}
+                          >
+                            <PopoverTrigger asChild>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => setCalendarOpen('start')}
+                                className={`justify-start text-left font-normal ${filters.startDate ? 'bg-blue-50 border-blue-200' : ''}`}
+                              >
+                                <Calendar className="mr-2 h-4 w-4" />
+                                {filters.startDate ? format(filters.startDate, 'PP') : <span>Start date</span>}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <CalendarComponent
+                                mode="single"
+                                selected={filters.startDate || undefined}
+                                onSelect={(date) => {
+                                  handleDateChange(date, 'start');
+                                  setCalendarOpen(null);
+                                }}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                          
+                          <Popover 
+                            open={calendarOpen === 'end'} 
+                            onOpenChange={(open) => !open && setCalendarOpen(null)}
+                          >
+                            <PopoverTrigger asChild>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => setCalendarOpen('end')}
+                                className={`justify-start text-left font-normal ${filters.endDate ? 'bg-blue-50 border-blue-200' : ''}`}
+                              >
+                                <Calendar className="mr-2 h-4 w-4" />
+                                {filters.endDate ? format(filters.endDate, 'PP') : <span>End date</span>}
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <CalendarComponent
+                                mode="single"
+                                selected={filters.endDate || undefined}
+                                onSelect={(date) => {
+                                  handleDateChange(date, 'end');
+                                  setCalendarOpen(null);
+                                }}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      </div>
+
+                      {showAllUsers && (
+                        <div className="space-y-2">
+                          <h5 className="text-sm font-medium">Filter by User</h5>
+                          <div className="relative">
+                            <Select
+                              value={filters.userId || 'all'}
+                              onValueChange={handleUserFilterChange}
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Select a user">
+                                  {filters.userId 
+                                    ? usersList.find(user => user.id === filters.userId)?.name || "Select a user" 
+                                    : "All Users"}
+                                </SelectValue>
+                              </SelectTrigger>
+                              <SelectContent className="max-h-60">
+                                <ScrollArea className="h-full max-h-[200px]">
+                                  <SelectItem value="all">All Users</SelectItem>
+                                  {usersList.map((user) => (
+                                    <SelectItem key={user.id} value={user.id}>
+                                      {user.name}
+                                    </SelectItem>
+                                  ))}
+                                </ScrollArea>
+                              </SelectContent>
+                            </Select>
                           </div>
-                        ))}
+                        </div>
+                      )}
+
+                      <div className="space-y-2">
+                        <h5 className="text-sm font-medium">Filter by Violation Type</h5>
+                        <div className="space-y-3">
+                          {VIOLATION_TYPES.map((type) => (
+                            <div key={type} className="flex items-center space-x-2">
+                              <Checkbox 
+                                id={`filter-${type}`} 
+                                checked={filters.violationTypes[type]} 
+                                onCheckedChange={(checked) => 
+                                  handleFilterChange(type, checked === true)
+                                }
+                              />
+                              <Label htmlFor={`filter-${type}`} className="text-sm">
+                                {type}
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  </ScrollArea>
                 </PopoverContent>
               </Popover>
             </div>

@@ -13,6 +13,7 @@ export interface ActivityLogFilters {
   page?: number;
   itemsPerPage?: number;
   fileName?: string;
+  selectedUserName?: string;
 }
 
 export interface ActivityLogResult {

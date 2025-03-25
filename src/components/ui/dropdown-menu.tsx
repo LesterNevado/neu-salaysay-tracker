@@ -4,6 +4,7 @@ import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu"
 import { Check, ChevronRight, Circle } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 const DropdownMenu = DropdownMenuPrimitive.Root
 
@@ -68,7 +69,15 @@ const DropdownMenuContent = React.forwardRef<
         className
       )}
       {...props}
-    />
+    >
+      {props.children && props["data-scrollable"] ? (
+        <ScrollArea className="max-h-[var(--radix-dropdown-menu-content-available-height)] max-w-[var(--radix-dropdown-menu-content-available-width)]">
+          {props.children}
+        </ScrollArea>
+      ) : (
+        props.children
+      )}
+    </DropdownMenuPrimitive.Content>
   </DropdownMenuPrimitive.Portal>
 ))
 DropdownMenuContent.displayName = DropdownMenuPrimitive.Content.displayName
