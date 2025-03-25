@@ -14,10 +14,17 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Switch } from "@/components/ui/switch";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { AuthContext } from "@/App";
 import { logLogoutActivity } from "@/utils/activity";
+import { VIOLATION_TYPES } from "@/components/upload/types";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -26,6 +33,12 @@ export default function Dashboard() {
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [showAllUsers, setShowAllUsers] = useState(false);
+  const [isFilterPopoverOpen, setIsFilterPopoverOpen] = useState(false);
+  const [filters, setFilters] = useState<{
+    violationTypes: Record<string, boolean>;
+  }>({
+    violationTypes: VIOLATION_TYPES.reduce((acc, type) => ({ ...acc, [type]: false }), {})
+  });
   const [userProfile, setUserProfile] = useState<{
     email: string | null;
     fullName: string | null;
@@ -154,6 +167,17 @@ export default function Dashboard() {
     setShowAllUsers(prev => !prev);
   };
 
+  // Additional filter function
+  const handleFilterChange = (violationType: string, checked: boolean) => {
+    setFilters(prev => ({
+      ...prev,
+      violationTypes: {
+        ...prev.violationTypes,
+        [violationType]: checked,
+      },
+    }));
+  };
+
   return (
     <div className="min-h-screen bg-[#BBDEFB]">
       <header className="h-16 bg-[#0E254E] text-white flex items-center justify-between px-6 shadow-md">
@@ -238,10 +262,35 @@ export default function Dashboard() {
                   onCheckedChange={toggleShowAllUsers}
                 />
               </div>
-              <Button variant="outline" size="sm" className="flex items-center gap-1 border-gray-200">
-                <Filter className="h-3.5 w-3.5" />
-                Filter
-              </Button>
+              <Popover open={isFilterPopoverOpen} onOpenChange={setIsFilterPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="flex items-center gap-1 border-gray-200">
+                    <Filter className="h-3.5 w-3.5" />
+                    Filter
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-4" align="end">
+                  <div className="space-y-3">
+                    <h4 className="font-medium text-sm">Filter by Violation Type</h4>
+                    <div className="space-y-2">
+                      {VIOLATION_TYPES.map((type) => (
+                        <div key={type} className="flex items-center space-x-2">
+                          <Checkbox 
+                            id={`filter-${type}`} 
+                            checked={filters.violationTypes[type]} 
+                            onCheckedChange={(checked) => 
+                              handleFilterChange(type, checked === true)
+                            }
+                          />
+                          <Label htmlFor={`filter-${type}`} className="text-sm">
+                            {type}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
 

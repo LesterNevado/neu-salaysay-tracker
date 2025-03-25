@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Trash, FileIcon, Loader2 } from "lucide-react";
+import { Trash, FileIcon, Loader2, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { 
@@ -14,7 +14,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { logActivity } from "@/utils/activity";
 
 type SalaysayFile = {
   id: string;
@@ -35,9 +43,16 @@ export function FileExplorer({ userId, refreshTrigger, showAllUsers }: {
   showAllUsers: boolean;
 }) {
   const [files, setFiles] = useState<SalaysayFile[]>([]);
+  const [filteredFiles, setFilteredFiles] = useState<SalaysayFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [fileToDelete, setFileToDelete] = useState<SalaysayFile | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [filters, setFilters] = useState<{
+    violationTypes: Record<string, boolean>;
+  }>({
+    violationTypes: {},
+  });
+  const [isFilterPopoverOpen, setIsFilterPopoverOpen] = useState(false);
   
   useEffect(() => {
     const fetchFiles = async () => {
@@ -66,6 +81,19 @@ export function FileExplorer({ userId, refreshTrigger, showAllUsers }: {
           })) || [];
           
           setFiles(processedData);
+          setFilteredFiles(processedData);
+          
+          // Extract unique violation types for filters
+          const uniqueViolationTypes: Record<string, boolean> = {};
+          processedData.forEach(file => {
+            if (file.violation_type) {
+              uniqueViolationTypes[file.violation_type] = true;
+            }
+          });
+          setFilters(prev => ({
+            ...prev,
+            violationTypes: uniqueViolationTypes,
+          }));
         }
       } catch (error) {
         console.error("Unexpected error:", error);
@@ -78,9 +106,72 @@ export function FileExplorer({ userId, refreshTrigger, showAllUsers }: {
     fetchFiles();
   }, [userId, refreshTrigger, showAllUsers]);
 
+  // Apply filters when they change
+  useEffect(() => {
+    applyFilters();
+  }, [filters, files]);
+
+  const applyFilters = () => {
+    // Check if any violation type filters are active
+    const hasActiveViolationFilters = Object.values(filters.violationTypes).some(value => value);
+    
+    // If no filters are active, show all files
+    if (!hasActiveViolationFilters) {
+      setFilteredFiles(files);
+      return;
+    }
+    
+    // Apply filters
+    const result = files.filter(file => {
+      // Check violation type
+      const passesViolationType = filters.violationTypes[file.violation_type];
+      return passesViolationType;
+    });
+    
+    setFilteredFiles(result);
+  };
+
+  const handleFilterChange = (violationType: string, checked: boolean) => {
+    setFilters(prev => ({
+      ...prev,
+      violationTypes: {
+        ...prev.violationTypes,
+        [violationType]: checked,
+      },
+    }));
+  };
+
   const handleDeleteClick = (file: SalaysayFile) => {
     setFileToDelete(file);
     setIsDeleteDialogOpen(true);
+  };
+
+  const handleViewFile = async (file: SalaysayFile) => {
+    try {
+      // Get file URL from storage
+      const { data: urlData, error: urlError } = await supabase.storage
+        .from('salaysay-uploads')
+        .createSignedUrl(file.file_path, 60); // URL valid for 60 seconds
+      
+      if (urlError) {
+        console.error("Error generating signed URL:", urlError);
+        toast.error("Failed to generate file URL. Please try again.");
+        return;
+      }
+      
+      // Log the view activity
+      await logActivity(
+        'view',
+        `Viewed salaysay for ${file.violation_type}`,
+        file.id
+      );
+      
+      // Open the file in a new tab
+      window.open(urlData.signedUrl, '_blank');
+    } catch (error) {
+      console.error("Error viewing file:", error);
+      toast.error("An error occurred while trying to view the file.");
+    }
   };
 
   const confirmDelete = async () => {
@@ -89,7 +180,7 @@ export function FileExplorer({ userId, refreshTrigger, showAllUsers }: {
     try {
       // Delete from storage
       const { error: storageError } = await supabase.storage
-        .from('salaysay')
+        .from('salaysay-uploads')
         .remove([fileToDelete.file_path]);
       
       if (storageError) {
@@ -110,8 +201,16 @@ export function FileExplorer({ userId, refreshTrigger, showAllUsers }: {
         return;
       }
       
+      // Log the delete activity
+      await logActivity(
+        'delete',
+        `Deleted salaysay for ${fileToDelete.violation_type}`,
+        fileToDelete.id
+      );
+      
       // Update the file list
       setFiles(files.filter(file => file.id !== fileToDelete.id));
+      setFilteredFiles(filteredFiles.filter(file => file.id !== fileToDelete.id));
       toast.success("File deleted successfully.");
     } catch (error) {
       console.error("Error during deletion:", error);
@@ -146,7 +245,7 @@ export function FileExplorer({ userId, refreshTrigger, showAllUsers }: {
 
   return (
     <>
-      {files.map((file) => (
+      {filteredFiles.map((file) => (
         <tr key={file.id} className="border-t border-gray-100 hover:bg-gray-50">
           <td className="px-4 py-3 text-sm">
             <div className="flex items-center gap-2">
@@ -163,7 +262,15 @@ export function FileExplorer({ userId, refreshTrigger, showAllUsers }: {
             {file.violation_type || "Dress Code Violation"}
           </td>
           <td className="px-4 py-3 text-sm">
-            <div className="flex justify-end">
+            <div className="flex justify-end gap-2">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => handleViewFile(file)}
+                className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
               <Button 
                 variant="ghost" 
                 size="sm" 
