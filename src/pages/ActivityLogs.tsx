@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,7 +11,10 @@ import {
   LogOut,
   Trash,
   Eye,
-  User
+  User,
+  Calendar,
+  X,
+  ChevronDown
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -49,6 +53,23 @@ import { ActivityLog } from "@/types/activity.types";
 import { toast } from 'sonner';
 import { getActivityLogs } from "@/utils/activity";
 import { AuthContext } from "@/App";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+} from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export default function ActivityLogs() {
   const navigate = useNavigate();
@@ -58,11 +79,22 @@ export default function ActivityLogs() {
   const [userFilter, setUserFilter] = useState<string>("all");
   const [actionFilter, setActionFilter] = useState<string>("all");
   const [violationTypeFilter, setViolationTypeFilter] = useState<string>("all");
+  const [startDate, setStartDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [userProfiles, setUserProfiles] = useState<Profile[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const [violationTypes, setViolationTypes] = useState<string[]>([]);
+  const [selectedViolationTypes, setSelectedViolationTypes] = useState<string[]>([]);
+  const [activeFilters, setActiveFilters] = useState(0);
+
+  // Initialize the form
+  const form = useForm({
+    defaultValues: {
+      violationTypes: [] as string[],
+    },
+  });
 
   useEffect(() => {
     if (!authLoading && !session) {
@@ -112,18 +144,35 @@ export default function ActivityLogs() {
     if (session) {
       fetchData();
     }
-  }, [navigate, userFilter, actionFilter, violationTypeFilter, currentPage, session, authLoading]);
+  }, [navigate, userFilter, actionFilter, violationTypeFilter, currentPage, session, authLoading, startDate, endDate]);
+
+  // Calculate active filters count
+  useEffect(() => {
+    let count = 0;
+    if (userFilter !== 'all') count++;
+    if (actionFilter !== 'all') count++;
+    if (violationTypeFilter !== 'all') count++;
+    if (startDate !== null) count++;
+    if (endDate !== null) count++;
+    setActiveFilters(count);
+  }, [userFilter, actionFilter, violationTypeFilter, startDate, endDate]);
 
   const fetchActivityLogs = async () => {
     setLoading(true);
     try {
-      const { logs, totalCount } = await getActivityLogs(
+      // Format dates for the API
+      const formattedStartDate = startDate ? startDate.toISOString() : null;
+      const formattedEndDate = endDate ? new Date(endDate.setHours(23, 59, 59, 999)).toISOString() : null;
+      
+      const { logs, totalCount } = await getActivityLogs({
         userFilter, 
         actionFilter,
         violationTypeFilter,
-        currentPage, 
+        startDate: formattedStartDate,
+        endDate: formattedEndDate,
+        page: currentPage, 
         itemsPerPage
-      );
+      });
       
       setActivities(logs);
       setTotalCount(totalCount);
@@ -136,6 +185,15 @@ export default function ActivityLogs() {
   };
   
   const totalPages = Math.ceil(totalCount / itemsPerPage);
+
+  const clearFilters = () => {
+    setUserFilter('all');
+    setActionFilter('all');
+    setViolationTypeFilter('all');
+    setStartDate(null);
+    setEndDate(null);
+    setCurrentPage(1);
+  };
 
   const getActionIcon = (activity: ActivityLog) => {
     switch (activity.action_type) {
@@ -223,7 +281,7 @@ export default function ActivityLogs() {
       <div className="text-sm text-muted-foreground mt-1">
         <strong>File:</strong> {fileName} ({violationType})
         {activity.file && activity.file.uploader && (
-          <div className="text-xs text-muted-foreground">
+          <div className="text-xs text-muted-foreground mt-1">
             <strong>Uploaded by:</strong> {activity.file.uploader.full_name || activity.file.uploader.email || 'Unknown user'}
           </div>
         )}
@@ -256,79 +314,162 @@ export default function ActivityLogs() {
           <CardHeader className="pb-3">
             <div className="flex justify-between items-center">
               <CardTitle>System Activity</CardTitle>
-              <div className="flex items-center">
-                <FilterIcon className="h-4 w-4 mr-2 text-muted-foreground" />
-                <span className="text-sm text-muted-foreground">Filters</span>
+              <div className="flex items-center gap-3">
+                {activeFilters > 0 && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={clearFilters}
+                    className="flex items-center gap-1 text-sm"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                    Clear {activeFilters} filter{activeFilters !== 1 ? 's' : ''}
+                  </Button>
+                )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="flex items-center gap-2">
+                      <FilterIcon className="h-4 w-4" />
+                      <span>Filters</span>
+                      {activeFilters > 0 && (
+                        <span className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs">
+                          {activeFilters}
+                        </span>
+                      )}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-80 p-4 bg-white" align="end">
+                    <div className="space-y-4">
+                      <h4 className="font-medium">Filter Activity Logs</h4>
+                      
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium block text-black">User</label>
+                        <Select 
+                          value={userFilter} 
+                          onValueChange={setUserFilter}
+                        >
+                          <SelectTrigger className="w-full bg-white text-black">
+                            <SelectValue>
+                              {userFilter === "all" ? "All Users" : getUserName(userFilter)}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent className="bg-white">
+                            <SelectItem value="all" className="text-black">All Users</SelectItem>
+                            {userProfiles.map(profile => (
+                              <SelectItem key={profile.id} value={profile.id} className="text-black">
+                                {profile.full_name || profile.email || 'Unknown user'}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium block text-black">Action Type</label>
+                        <Select 
+                          value={actionFilter} 
+                          onValueChange={setActionFilter}
+                        >
+                          <SelectTrigger className="w-full bg-white text-black">
+                            <SelectValue>
+                              {actionFilter === "all" ? "All Actions" : getActionTypeDisplay(actionFilter)}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent className="bg-white">
+                            <SelectItem value="all" className="text-black">All Actions</SelectItem>
+                            <SelectItem value="upload" className="text-black">Upload</SelectItem>
+                            <SelectItem value="view" className="text-black">View</SelectItem>
+                            <SelectItem value="login" className="text-black">Login</SelectItem>
+                            <SelectItem value="logout" className="text-black">Logout</SelectItem>
+                            <SelectItem value="delete" className="text-black">Delete</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium block text-black">Violation Type</label>
+                        <Select 
+                          value={violationTypeFilter} 
+                          onValueChange={setViolationTypeFilter}
+                        >
+                          <SelectTrigger className="w-full bg-white text-black">
+                            <SelectValue>
+                              {violationTypeFilter === "all" ? "All Violation Types" : violationTypeFilter}
+                            </SelectValue>
+                          </SelectTrigger>
+                          <SelectContent className="bg-white">
+                            <SelectItem value="all" className="text-black">All Violation Types</SelectItem>
+                            {violationTypes.map(type => (
+                              <SelectItem key={type} value={type} className="text-black">
+                                {type}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium block text-black">Date Range</label>
+                        <div className="flex gap-2">
+                          <div className="flex-1">
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  className={`w-full justify-start text-left font-normal ${!startDate && "text-muted-foreground"}`}
+                                >
+                                  <Calendar className="mr-2 h-4 w-4" />
+                                  {startDate ? format(startDate, "PP") : "Start date"}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0 bg-white" align="start">
+                                <CalendarComponent
+                                  mode="single"
+                                  selected={startDate}
+                                  onSelect={setStartDate}
+                                  initialFocus
+                                />
+                              </PopoverContent>
+                            </Popover>
+                          </div>
+                          <div className="flex-1">
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  className={`w-full justify-start text-left font-normal ${!endDate && "text-muted-foreground"}`}
+                                >
+                                  <Calendar className="mr-2 h-4 w-4" />
+                                  {endDate ? format(endDate, "PP") : "End date"}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0 bg-white" align="start">
+                                <CalendarComponent
+                                  mode="single"
+                                  selected={endDate}
+                                  onSelect={setEndDate}
+                                  initialFocus
+                                />
+                              </PopoverContent>
+                            </Popover>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex justify-between pt-2">
+                        <Button variant="outline" onClick={clearFilters}>Clear all</Button>
+                        <Button onClick={() => {
+                          setCurrentPage(1);
+                          fetchActivityLogs();
+                        }}>Apply Filters</Button>
+                      </div>
+                    </div>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <div>
-                <label className="text-sm font-medium mb-1 block text-black">User</label>
-                <Select 
-                  value={userFilter} 
-                  onValueChange={setUserFilter}
-                >
-                  <SelectTrigger className="w-full bg-white text-black">
-                    <SelectValue>
-                      {userFilter === "all" ? "All Users" : getUserName(userFilter)}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    <SelectItem value="all" className="text-black">All Users</SelectItem>
-                    {userProfiles.map(profile => (
-                      <SelectItem key={profile.id} value={profile.id} className="text-black">
-                        {profile.full_name || profile.email || 'Unknown user'}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-1 block text-black">Action Type</label>
-                <Select 
-                  value={actionFilter} 
-                  onValueChange={setActionFilter}
-                >
-                  <SelectTrigger className="w-full bg-white text-black">
-                    <SelectValue>
-                      {actionFilter === "all" ? "All Actions" : getActionTypeDisplay(actionFilter)}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    <SelectItem value="all" className="text-black">All Actions</SelectItem>
-                    <SelectItem value="upload" className="text-black">Upload</SelectItem>
-                    <SelectItem value="view" className="text-black">View</SelectItem>
-                    <SelectItem value="login" className="text-black">Login</SelectItem>
-                    <SelectItem value="logout" className="text-black">Logout</SelectItem>
-                    <SelectItem value="delete" className="text-black">Delete</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-1 block text-black">Violation Type</label>
-                <Select 
-                  value={violationTypeFilter} 
-                  onValueChange={setViolationTypeFilter}
-                >
-                  <SelectTrigger className="w-full bg-white text-black">
-                    <SelectValue>
-                      {violationTypeFilter === "all" ? "All Violation Types" : violationTypeFilter}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    <SelectItem value="all" className="text-black">All Violation Types</SelectItem>
-                    {violationTypes.map(type => (
-                      <SelectItem key={type} value={type} className="text-black">
-                        {type}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
             <Tabs defaultValue="list" className="w-full">
               <TabsList className="mb-4">
                 <TabsTrigger value="list">List View</TabsTrigger>
@@ -375,6 +516,26 @@ export default function ActivityLogs() {
                           {formatDate(activity.created_at)}
                         </p>
                         {renderFileInfo(activity)}
+                        {activity.action_type === "delete" && activity.deleted_file_info && (
+                          <div className="mt-2 flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">Uploaded by:</span>
+                            <Avatar className="h-5 w-5">
+                              {activity.user?.avatar_url ? (
+                                <AvatarImage 
+                                  src={activity.user.avatar_url} 
+                                  alt={activity.user?.full_name || "User"} 
+                                />
+                              ) : (
+                                <AvatarFallback className="text-xs bg-blue-500 text-white">
+                                  {renderUserInitials(activity.user?.full_name)}
+                                </AvatarFallback>
+                              )}
+                            </Avatar>
+                            <span className="text-xs font-medium">
+                              {activity.user?.full_name || activity.user?.email || 'Unknown user'}
+                            </span>
+                          </div>
+                        )}
                         {activity.file && activity.file.uploader && (
                           <div className="mt-2 flex items-center gap-2">
                             <span className="text-xs text-muted-foreground">Uploaded by:</span>
@@ -484,6 +645,25 @@ export default function ActivityLogs() {
                                   </Avatar>
                                   <span className="text-sm">
                                     {activity.file.uploader.full_name || activity.file.uploader.email || 'Unknown'}
+                                  </span>
+                                </div>
+                              ) : activity.action_type === "delete" && activity.user ? (
+                                <div className="flex items-center gap-2">
+                                  <Avatar className="h-6 w-6">
+                                    {activity.user.avatar_url ? (
+                                      <AvatarImage 
+                                        src={activity.user.avatar_url || ""} 
+                                        alt={activity.user.full_name || "User"} 
+                                        className="object-cover"
+                                      />
+                                    ) : (
+                                      <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+                                        <User className="h-3 w-3" />
+                                      </AvatarFallback>
+                                    )}
+                                  </Avatar>
+                                  <span className="text-sm">
+                                    {activity.user.full_name || activity.user.email || 'Unknown'}
                                   </span>
                                 </div>
                               ) : (

@@ -6,13 +6,15 @@ import { ActivityLogFilters, ActivityLogResult, ActionType, StatusType } from ".
 /**
  * Fetches activity logs with optional filtering and pagination
  */
-export const getActivityLogs = async (
-  userFilter: string = 'all',
-  actionFilter: string = 'all',
-  violationTypeFilter: string = 'all',
-  page: number = 1,
-  itemsPerPage: number = 10
-): Promise<ActivityLogResult> => {
+export const getActivityLogs = async ({
+  userFilter = 'all',
+  actionFilter = 'all',
+  violationTypeFilter = 'all',
+  startDate = null,
+  endDate = null,
+  page = 1,
+  itemsPerPage = 10
+}: ActivityLogFilters): Promise<ActivityLogResult> => {
   try {
     // Calculate pagination parameters
     const from = (page - 1) * itemsPerPage;
@@ -30,6 +32,14 @@ export const getActivityLogs = async (
     
     if (actionFilter !== 'all') {
       countQuery = countQuery.eq('action_type', actionFilter);
+    }
+    
+    if (startDate) {
+      countQuery = countQuery.gte('created_at', startDate);
+    }
+    
+    if (endDate) {
+      countQuery = countQuery.lte('created_at', endDate);
     }
     
     const { count, error: countError } = await countQuery;
@@ -62,6 +72,14 @@ export const getActivityLogs = async (
       query = query.eq('action_type', actionFilter);
     }
     
+    if (startDate) {
+      query = query.gte('created_at', startDate);
+    }
+    
+    if (endDate) {
+      query = query.lte('created_at', endDate);
+    }
+    
     // Apply pagination
     query = query.range(from, to);
     
@@ -81,8 +99,6 @@ export const getActivityLogs = async (
     // We need to get profile information separately
     // Get unique user IDs from the activity logs
     const userIds = [...new Set(activityData.map(log => log.user_id))];
-    
-    console.log("Fetching profiles for user IDs:", userIds);
     
     // Fetch profile information for these users
     const { data: profilesData, error: profilesError } = await supabase
@@ -163,16 +179,10 @@ export const getActivityLogs = async (
     activityData.forEach(log => {
       if (log.action_type === 'delete' && log.description) {
         // Try to extract file information from the description
-        const match = log.description.match(/Deleted\s+salaysay\s+for\s+(.+)/i);
-        if (match && match[1]) {
+        const match = log.description.match(/Deleted\s+salaysay\s+for\s+(.+?)\s+\(filename:\s+(.+?)\)/i);
+        if (match && match[1] && match[2]) {
           const violationType = match[1];
-          
-          // Extract filename from description if available
-          let fileName = "Unknown file";
-          const fileNameMatch = log.description.match(/filename:\s*([^\s]+)/i);
-          if (fileNameMatch && fileNameMatch[1]) {
-            fileName = fileNameMatch[1];
-          }
+          const fileName = match[2];
           
           deletedFilesInfo[log.id] = {
             violation_type: violationType,
@@ -250,16 +260,10 @@ export const getActivityLogs = async (
       
       // If file info is not found but this is a delete action, try to reconstruct it
       if (!fileInfo && log.action_type === 'delete' && log.description) {
-        const match = log.description.match(/Deleted\s+salaysay\s+for\s+(.+)/i);
-        if (match && match[1]) {
+        const match = log.description.match(/Deleted\s+salaysay\s+for\s+(.+?)\s+\(filename:\s+(.+?)\)/i);
+        if (match && match[1] && match[2]) {
           const violationType = match[1];
-          
-          // Extract filename from description if available
-          let fileName = "Unknown file";
-          const fileNameMatch = log.description.match(/filename:\s*([^\s]+)/i);
-          if (fileNameMatch && fileNameMatch[1]) {
-            fileName = fileNameMatch[1];
-          }
+          const fileName = match[2];
           
           fileInfo = {
             violation_type: violationType,

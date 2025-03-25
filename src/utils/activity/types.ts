@@ -7,6 +7,9 @@ export type StatusType = string | null;
 export interface ActivityLogFilters {
   userFilter?: string;
   actionFilter?: string;
+  violationTypeFilter?: string;
+  startDate?: string | null;
+  endDate?: string | null;
   page?: number;
   itemsPerPage?: number;
 }
