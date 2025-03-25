@@ -37,15 +37,7 @@ export type Database = {
           related_file_id?: string | null
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "activity_logs_related_file_id_fkey"
-            columns: ["related_file_id"]
-            isOneToOne: false
-            referencedRelation: "salaysay_submissions"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       profiles: {
         Row: {
@@ -108,21 +100,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      violation_types: {
-        Row: {
-          id: number
-          name: string
-        }
-        Insert: {
-          id?: number
-          name: string
-        }
-        Update: {
-          id?: number
-          name?: string
-        }
-        Relationships: []
       }
     }
     Views: {
