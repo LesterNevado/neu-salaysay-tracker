@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { Send, User, Users, ActivitySquare, FileIcon, Filter, Calendar } from "lucide-react";
+import { Send, User, Users, ActivitySquare, FileIcon, Filter, Calendar, Search } from "lucide-react";
 import { UploadDialog } from "@/components/UploadDialog";
 import { FileExplorer } from "@/components/salaysay/FileExplorer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -38,19 +38,21 @@ export default function Dashboard() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [showAllUsers, setShowAllUsers] = useState(false);
   const [isFilterPopoverOpen, setIsFilterPopoverOpen] = useState(false);
-  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState<'start' | 'end' | null>(null);
   const [usersList, setUsersList] = useState<{id: string, name: string}[]>([]);
-  const [selectedUser, setSelectedUser] = useState<string | null>(null);
+  const [fileNameFilter, setFileNameFilter] = useState("");
   const [filters, setFilters] = useState<{
     violationTypes: Record<string, boolean>;
     startDate: Date | null;
     endDate: Date | null;
     userId: string | null;
+    fileName: string;
   }>({
     violationTypes: VIOLATION_TYPES.reduce((acc, type) => ({ ...acc, [type]: false }), {}),
     startDate: null,
     endDate: null,
-    userId: null
+    userId: null,
+    fileName: ""
   });
   const [userProfile, setUserProfile] = useState<{
     email: string | null;
@@ -222,6 +224,8 @@ export default function Dashboard() {
       ...prev,
       [type === 'start' ? 'startDate' : 'endDate']: date
     }));
+    // Close the calendar after date selection
+    setCalendarOpen(null);
   };
 
   const handleUserFilterChange = (userId: string) => {
@@ -231,19 +235,31 @@ export default function Dashboard() {
     }));
   };
 
+  const handleFileNameFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setFileNameFilter(value);
+    setFilters(prev => ({
+      ...prev,
+      fileName: value
+    }));
+  };
+
   const clearFilters = () => {
     setFilters({
       violationTypes: VIOLATION_TYPES.reduce((acc, type) => ({ ...acc, [type]: false }), {}),
       startDate: null,
       endDate: null,
-      userId: null
+      userId: null,
+      fileName: ""
     });
+    setFileNameFilter("");
   };
 
   const hasActiveFilters = Object.values(filters.violationTypes).some(val => val) || 
     filters.startDate !== null || 
     filters.endDate !== null ||
-    filters.userId !== null;
+    filters.userId !== null ||
+    filters.fileName !== "";
 
   const activeViolationTypeFilters = Object.entries(filters.violationTypes)
     .filter(([_, isActive]) => isActive)
@@ -261,6 +277,9 @@ export default function Dashboard() {
     
     // Count user filter
     if (filters.userId) count++;
+    
+    // Count filename filter
+    if (filters.fileName) count++;
     
     return count;
   };
@@ -376,11 +395,25 @@ export default function Dashboard() {
                       )}
                     </div>
 
+                    {/* File Name Filter */}
+                    <div className="space-y-2">
+                      <h5 className="text-sm font-medium">Filter by File Name</h5>
+                      <div className="relative">
+                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+                        <Input
+                          placeholder="Search by file name"
+                          value={fileNameFilter}
+                          onChange={handleFileNameFilterChange}
+                          className="pl-8"
+                        />
+                      </div>
+                    </div>
+
                     {/* Date Range Filter */}
                     <div className="space-y-2">
                       <h5 className="text-sm font-medium mb-2">Date Range</h5>
                       <div className="grid grid-cols-2 gap-2">
-                        <Popover open={isDatePickerOpen === true} onOpenChange={(open) => open ? setIsDatePickerOpen(true) : setIsDatePickerOpen(false)}>
+                        <Popover open={calendarOpen === 'start'} onOpenChange={(open) => open ? setCalendarOpen('start') : setCalendarOpen(null)}>
                           <PopoverTrigger asChild>
                             <Button 
                               variant="outline" 
@@ -402,7 +435,7 @@ export default function Dashboard() {
                           </PopoverContent>
                         </Popover>
                         
-                        <Popover open={isDatePickerOpen === false} onOpenChange={(open) => open ? setIsDatePickerOpen(false) : setIsDatePickerOpen(false)}>
+                        <Popover open={calendarOpen === 'end'} onOpenChange={(open) => open ? setCalendarOpen('end') : setCalendarOpen(null)}>
                           <PopoverTrigger asChild>
                             <Button 
                               variant="outline" 
@@ -498,6 +531,7 @@ export default function Dashboard() {
                       endDate: filters.endDate ? format(filters.endDate, 'yyyy-MM-dd') : null
                     }}
                     userFilter={filters.userId}
+                    fileNameFilter={filters.fileName}
                   />
                 )}
               </tbody>

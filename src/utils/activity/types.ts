@@ -12,6 +12,7 @@ export interface ActivityLogFilters {
   endDate?: string | null;
   page?: number;
   itemsPerPage?: number;
+  fileName?: string;
 }
 
 export interface ActivityLogResult {

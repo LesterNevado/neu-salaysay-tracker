@@ -39,7 +39,8 @@ export function FileExplorer({
   showAllUsers,
   violationTypeFilters = [],
   dateRangeFilter = { startDate: null, endDate: null },
-  userFilter = null
+  userFilter = null,
+  fileNameFilter = ""
 }: { 
   userId: string;
   refreshTrigger: number;
@@ -47,6 +48,7 @@ export function FileExplorer({
   violationTypeFilters?: string[];
   dateRangeFilter?: { startDate: string | null, endDate: string | null };
   userFilter?: string | null;
+  fileNameFilter?: string;
 }) {
   const [files, setFiles] = useState<SalaysayFile[]>([]);
   const [filteredFiles, setFilteredFiles] = useState<SalaysayFile[]>([]);
@@ -113,7 +115,7 @@ export function FileExplorer({
           setFiles(processedData);
           
           // Apply initial filtering
-          applyFilters(processedData, violationTypeFilters);
+          applyFilters(processedData, violationTypeFilters, fileNameFilter);
         }
       } catch (error) {
         console.error("Unexpected error:", error);
@@ -128,22 +130,29 @@ export function FileExplorer({
 
   // Apply filters when they change
   useEffect(() => {
-    applyFilters(files, violationTypeFilters);
-  }, [violationTypeFilters, files]);
+    applyFilters(files, violationTypeFilters, fileNameFilter);
+  }, [violationTypeFilters, files, fileNameFilter]);
 
-  const applyFilters = (files: SalaysayFile[], violationTypeFilters: string[]) => {
+  const applyFilters = (files: SalaysayFile[], violationTypeFilters: string[], fileNameFilter: string) => {
     if (!files.length) return;
     
-    // If no filters are active, show all files
-    if (!violationTypeFilters.length) {
-      setFilteredFiles(files);
-      return;
-    }
+    let filtered = files;
     
     // Apply violation type filters
-    const filtered = files.filter(file => 
-      violationTypeFilters.includes(file.violation_type)
-    );
+    if (violationTypeFilters.length) {
+      filtered = filtered.filter(file => 
+        violationTypeFilters.includes(file.violation_type)
+      );
+    }
+    
+    // Apply filename filter
+    if (fileNameFilter.trim()) {
+      const searchTerm = fileNameFilter.toLowerCase();
+      filtered = filtered.filter(file => {
+        const fileName = file.file_name || file.file_path.split('/').pop() || '';
+        return fileName.toLowerCase().includes(searchTerm);
+      });
+    }
     
     setFilteredFiles(filtered);
   };
@@ -267,7 +276,7 @@ export function FileExplorer({
     );
   }
 
-  if (filteredFiles.length === 0 && (violationTypeFilters.length > 0 || dateRangeFilter.startDate || dateRangeFilter.endDate || userFilter)) {
+  if (filteredFiles.length === 0 && (violationTypeFilters.length > 0 || dateRangeFilter.startDate || dateRangeFilter.endDate || userFilter || fileNameFilter)) {
     return (
       <tr>
         <td colSpan={5} className="px-4 py-8 text-center text-gray-500">

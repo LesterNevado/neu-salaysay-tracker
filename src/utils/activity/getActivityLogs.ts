@@ -13,7 +13,8 @@ export const getActivityLogs = async ({
   startDate = null,
   endDate = null,
   page = 1,
-  itemsPerPage = 10
+  itemsPerPage = 10,
+  fileName = ''
 }: ActivityLogFilters): Promise<ActivityLogResult> => {
   try {
     // Calculate pagination parameters
@@ -279,19 +280,26 @@ export const getActivityLogs = async ({
         }
       }
       
-      // Get uploader profile if available
+      // Get uploader profile if available (but don't include redundant uploader info)
       let uploaderProfile;
-      if (fileInfo && fileInfo.user_id) {
+      if (fileInfo && fileInfo.user_id && fileInfo.user_id !== log.user_id) {
         uploaderProfile = profileMap[fileInfo.user_id];
       }
       
-      // Add uploader info to file object if available
+      // Add uploader info to file object if available and it's not the same user
       if (fileInfo && uploaderProfile) {
         fileInfo.uploader = {
           full_name: uploaderProfile.full_name,
           email: uploaderProfile.email,
           avatar_url: uploaderProfile.avatar_url
         };
+      }
+      
+      // Apply file name filter if provided
+      if (fileName && fileInfo) {
+        if (!fileInfo.file_name?.toLowerCase().includes(fileName.toLowerCase())) {
+          return null; // This log entry doesn't match the file name filter
+        }
       }
       
       return {
@@ -308,7 +316,7 @@ export const getActivityLogs = async ({
         file: fileInfo,
         deleted_file_info: deletedFileInfo
       };
-    });
+    }).filter(Boolean) as ActivityLog[]; // Filter out any null entries (from file name filter)
     
     // Apply violation type filter if specified
     let filteredLogs = logsWithDetails;
@@ -326,7 +334,7 @@ export const getActivityLogs = async ({
     
     return {
       logs: filteredLogs,
-      totalCount: violationTypeFilter !== 'all' ? filteredLogs.length : (count || 0)
+      totalCount: violationTypeFilter !== 'all' || fileName ? filteredLogs.length : (count || 0)
     };
   } catch (error) {
     console.error('Error fetching activity logs:', error);
