@@ -1,8 +1,19 @@
+
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
-import { FileIcon, Loader2, Trash2, Users, ArrowUp, ArrowDown } from "lucide-react";
-import { format } from "date-fns";
+import { 
+  FileIcon, 
+  Loader2, 
+  Trash2, 
+  Users, 
+  ArrowUp, 
+  ArrowDown,
+  Calendar,
+  Filter,
+  X
+} from "lucide-react";
+import { format, parseISO, isValid, startOfDay, endOfDay } from "date-fns";
 import { useToast } from "@/components/ui/use-toast";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -22,22 +33,37 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { StatusDropdown } from "./StatusDropdown";
 import { logActivity } from "@/utils/activity";
+import { 
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Badge } from "@/components/ui/badge";
+import { VIOLATION_TYPES } from "../upload/types";
 
 interface SalaysayFile {
   id: string;
   created_at: string;
   file_path: string;
   violation_type: string;
-  status: string;
   fileName: string;
   user_id: string;
   user_email?: string;
   profiles?: { email: string };
 }
 
-type SortField = 'fileName' | 'created_at' | 'violation_type' | 'status';
+type SortField = 'fileName' | 'created_at' | 'violation_type';
 type SortDirection = 'asc' | 'desc';
 
 interface FileExplorerProps {
@@ -60,14 +86,73 @@ export function FileExplorer({
   const [isDeleting, setIsDeleting] = useState(false);
   const [sortField, setSortField] = useState<SortField>('created_at');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  
+  // Filters
+  const [userFilter, setUserFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [startDateFilter, setStartDateFilter] = useState<Date | undefined>(undefined);
+  const [endDateFilter, setEndDateFilter] = useState<Date | undefined>(undefined);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<string[]>([]);
+  const [userProfiles, setUserProfiles] = useState<any[]>([]);
+  
   const fileViewerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
     if (userId) {
+      fetchUserProfiles();
       fetchFiles();
     }
   }, [userId, refreshTrigger, showAllUsers]);
+
+  useEffect(() => {
+    updateActiveFilters();
+  }, [userFilter, typeFilter, startDateFilter, endDateFilter, searchQuery]);
+
+  const updateActiveFilters = () => {
+    const filters: string[] = [];
+    
+    if (userFilter !== "all") {
+      const user = userProfiles.find(profile => profile.id === userFilter);
+      filters.push(`User: ${user?.email || user?.full_name || userFilter}`);
+    }
+    
+    if (typeFilter !== "all") {
+      filters.push(`Type: ${typeFilter}`);
+    }
+    
+    if (startDateFilter) {
+      filters.push(`From: ${format(startDateFilter, 'dd/MM/yyyy')}`);
+    }
+    
+    if (endDateFilter) {
+      filters.push(`To: ${format(endDateFilter, 'dd/MM/yyyy')}`);
+    }
+    
+    if (searchQuery) {
+      filters.push(`Search: ${searchQuery}`);
+    }
+    
+    setActiveFilters(filters);
+  };
+
+  const fetchUserProfiles = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, email, full_name');
+        
+      if (error) {
+        throw error;
+      }
+      
+      setUserProfiles(data || []);
+    } catch (error) {
+      console.error('Error fetching user profiles:', error);
+    }
+  };
 
   const checkFileExists = async (filePath: string): Promise<boolean> => {
     try {
@@ -112,12 +197,31 @@ export function FileExplorer({
           profiles:user_id (
             email
           )
-        `)
-        .order('created_at', { ascending: false });
+        `);
       
+      // Apply database filters
       if (!showAllUsers) {
         query = query.eq('user_id', userId);
+      } else if (userFilter !== "all") {
+        query = query.eq('user_id', userFilter);
       }
+      
+      if (typeFilter !== "all") {
+        query = query.eq('violation_type', typeFilter);
+      }
+      
+      if (startDateFilter) {
+        const startDate = startOfDay(startDateFilter).toISOString();
+        query = query.gte('created_at', startDate);
+      }
+      
+      if (endDateFilter) {
+        const endDate = endOfDay(endDateFilter).toISOString();
+        query = query.lte('created_at', endDate);
+      }
+      
+      // Sort by creation date by default
+      query = query.order('created_at', { ascending: false });
       
       const { data, error } = await query;
 
@@ -140,9 +244,20 @@ export function FileExplorer({
         })
       );
 
-      setFiles(filesWithExistenceCheck.filter((file): file is NonNullable<typeof file> => 
+      let filteredFiles = filesWithExistenceCheck.filter((file): file is NonNullable<typeof file> => 
         file !== null
-      ));
+      );
+      
+      // Apply client-side search filter
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        filteredFiles = filteredFiles.filter(file => 
+          file.fileName.toLowerCase().includes(query) || 
+          file.violation_type.toLowerCase().includes(query)
+        );
+      }
+
+      setFiles(filteredFiles);
     } catch (error) {
       console.error('Error fetching files:', error);
       toast({
@@ -167,6 +282,13 @@ export function FileExplorer({
       if (error) {
         throw error;
       }
+
+      // Log the view activity
+      await logActivity(
+        'view',
+        `Viewed salaysay file: ${filePath.split('/').pop() || filePath}`,
+        fileId
+      );
 
       window.open(data.signedUrl, '_blank');
     } catch (error) {
@@ -236,22 +358,12 @@ export function FileExplorer({
     }
   };
 
-  const handleStatusChange = (fileId: string, newStatus: string) => {
-    setFiles(files.map(file => 
-      file.id === fileId ? {...file, status: newStatus} : file
-    ));
-  };
-
   const formatDate = (dateString: string) => {
     try {
       return format(new Date(dateString), 'dd/MM/yyyy h:mm a');
     } catch {
       return dateString;
     }
-  };
-
-  const canEditStatus = (fileUserId: string) => {
-    return showAllUsers || fileUserId === userId;
   };
 
   const canDeleteFile = (fileUserId: string) => {
@@ -286,10 +398,6 @@ export function FileExplorer({
           compareA = a.violation_type.toLowerCase();
           compareB = b.violation_type.toLowerCase();
           break;
-        case 'status':
-          compareA = a.status.toLowerCase();
-          compareB = b.status.toLowerCase();
-          break;
         default:
           compareA = a.created_at;
           compareB = b.created_at;
@@ -309,6 +417,44 @@ export function FileExplorer({
     return sortDirection === 'asc' 
       ? <ArrowUp className="h-4 w-4 ml-1" /> 
       : <ArrowDown className="h-4 w-4 ml-1" />;
+  };
+
+  const clearFilters = () => {
+    setUserFilter("all");
+    setTypeFilter("all");
+    setStartDateFilter(undefined);
+    setEndDateFilter(undefined);
+    setSearchQuery("");
+    fetchFiles();
+  };
+
+  const removeFilter = (index: number) => {
+    const filterType = activeFilters[index].split(':')[0].trim();
+    
+    switch (filterType) {
+      case 'User':
+        setUserFilter('all');
+        break;
+      case 'Type':
+        setTypeFilter('all');
+        break;
+      case 'From':
+        setStartDateFilter(undefined);
+        break;
+      case 'To':
+        setEndDateFilter(undefined);
+        break;
+      case 'Search':
+        setSearchQuery('');
+        break;
+    }
+    
+    fetchFiles();
+  };
+
+  const applyFilters = () => {
+    fetchFiles();
+    setIsFiltersOpen(false);
   };
 
   if (loading) {
@@ -336,6 +482,149 @@ export function FileExplorer({
           <AlertDescription>{viewError}</AlertDescription>
         </Alert>
       )}
+      
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex flex-wrap gap-2">
+          {activeFilters.map((filter, index) => (
+            <Badge key={index} variant="secondary" className="px-3 py-1">
+              {filter}
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-4 w-4 ml-1 hover:bg-transparent p-0"
+                onClick={() => removeFilter(index)}
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            </Badge>
+          ))}
+        </div>
+        
+        <div className="flex space-x-2">
+          {activeFilters.length > 0 && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={clearFilters}
+              className="text-xs"
+            >
+              Clear All Filters
+            </Button>
+          )}
+          
+          <Popover open={isFiltersOpen} onOpenChange={setIsFiltersOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="flex items-center gap-1">
+                <Filter className="h-4 w-4" />
+                <span>Filter</span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80">
+              <div className="space-y-4">
+                <h4 className="font-medium">Filter Files</h4>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="search">Search</Label>
+                  <Input
+                    id="search"
+                    placeholder="Search by filename or type"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                
+                {showAllUsers && (
+                  <div className="space-y-2">
+                    <Label htmlFor="user">User</Label>
+                    <Select value={userFilter} onValueChange={setUserFilter}>
+                      <SelectTrigger id="user">
+                        <SelectValue placeholder="Select a user" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Users</SelectItem>
+                        {userProfiles.map(profile => (
+                          <SelectItem key={profile.id} value={profile.id}>
+                            {profile.full_name || profile.email || 'Unknown user'}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                
+                <div className="space-y-2">
+                  <Label htmlFor="type">Violation Type</Label>
+                  <Select value={typeFilter} onValueChange={setTypeFilter}>
+                    <SelectTrigger id="type">
+                      <SelectValue placeholder="Select a type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      {VIOLATION_TYPES.map(type => (
+                        <SelectItem key={type} value={type}>{type}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Date Range</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal"
+                        >
+                          <Calendar className="mr-2 h-4 w-4" />
+                          {startDateFilter ? format(startDateFilter, 'PPP') : <span>From</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <CalendarComponent
+                          mode="single"
+                          selected={startDateFilter}
+                          onSelect={setStartDateFilter}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal"
+                        >
+                          <Calendar className="mr-2 h-4 w-4" />
+                          {endDateFilter ? format(endDateFilter, 'PPP') : <span>To</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <CalendarComponent
+                          mode="single"
+                          selected={endDateFilter}
+                          onSelect={setEndDateFilter}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </div>
+                
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setIsFiltersOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button size="sm" onClick={applyFilters}>
+                    Apply Filters
+                  </Button>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+      </div>
       
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
@@ -369,15 +658,7 @@ export function FileExplorer({
                     <SortIcon field="violation_type" />
                   </button>
                 </th>
-                <th className="px-4 py-2 text-left font-medium">
-                  <button 
-                    className="flex items-center focus:outline-none"
-                    onClick={() => handleSort('status')}
-                  >
-                    Status
-                    <SortIcon field="status" />
-                  </button>
-                </th>
+                
                 {showAllUsers && (
                   <th className="px-4 py-2 text-left font-medium">Uploaded By</th>
                 )}
@@ -412,14 +693,7 @@ export function FileExplorer({
                   <td className="px-4 py-3 text-gray-600">
                     {file.violation_type}
                   </td>
-                  <td className="px-4 py-3">
-                    <StatusDropdown 
-                      fileId={file.id}
-                      currentStatus={file.status as "pending_review" | "approved" | "rejected"}
-                      canEdit={canEditStatus(file.user_id)}
-                      onStatusChange={(newStatus) => handleStatusChange(file.id, newStatus)}
-                    />
-                  </td>
+                  
                   {showAllUsers && (
                     <td className="px-4 py-3 text-gray-600">
                       <div className="flex items-center">

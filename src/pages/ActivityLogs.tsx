@@ -1,18 +1,16 @@
+
 import { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { 
   Upload, 
-  ShieldCheck, 
-  ShieldX, 
-  Clock, 
-  User, 
   FileText,
   Filter as FilterIcon,
   LogIn,
   LogOut,
-  Trash
+  Trash,
+  Eye
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -129,14 +127,8 @@ export default function ActivityLogs() {
     switch (activity.action_type) {
       case 'upload':
         return <Upload className="h-5 w-5 text-blue-500" />;
-      case 'status_change':
-        if (activity.new_status === 'approved') {
-          return <ShieldCheck className="h-5 w-5 text-green-500" />;
-        } else if (activity.new_status === 'rejected') {
-          return <ShieldX className="h-5 w-5 text-red-500" />;
-        } else {
-          return <Clock className="h-5 w-5 text-yellow-500" />;
-        }
+      case 'view':
+        return <Eye className="h-5 w-5 text-purple-500" />;
       case 'login':
         return <LogIn className="h-5 w-5 text-purple-500" />;
       case 'logout':
@@ -177,7 +169,7 @@ export default function ActivityLogs() {
   const getActionTypeDisplay = (actionType: string) => {
     switch (actionType) {
       case 'upload': return 'Upload';
-      case 'status_change': return 'Status Change';
+      case 'view': return 'View';
       case 'login': return 'Login';
       case 'logout': return 'Logout';
       case 'comment': return 'Comment';
@@ -254,7 +246,7 @@ export default function ActivityLogs() {
                   <SelectContent className="bg-white">
                     <SelectItem value="all" className="text-black">All Actions</SelectItem>
                     <SelectItem value="upload" className="text-black">Upload</SelectItem>
-                    <SelectItem value="status_change" className="text-black">Status Change</SelectItem>
+                    <SelectItem value="view" className="text-black">View</SelectItem>
                     <SelectItem value="login" className="text-black">Login</SelectItem>
                     <SelectItem value="logout" className="text-black">Logout</SelectItem>
                     <SelectItem value="comment" className="text-black">Comment</SelectItem>
