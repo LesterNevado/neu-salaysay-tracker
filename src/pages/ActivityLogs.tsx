@@ -179,26 +179,26 @@ export default function ActivityLogs() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-white p-8">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
-          <div className="flex items-center gap-3">
-            <img 
-              src="/lovable-uploads/42a0c089-7817-4d54-b180-12a27a76a70f.png" 
-              alt="NEU Logo" 
-              className="w-16 h-16"
-            />
-            <h1 className="text-3xl font-bold text-gray-800">Activity Logs</h1>
-          </div>
-          <Button
-            variant="outline"
-            className="gap-2"
-            onClick={() => navigate('/dashboard')}
-          >
-            Back to Dashboard
-          </Button>
+    <div className="min-h-screen bg-[#BBDEFB]">
+      <header className="h-16 bg-[#0E254E] text-white flex items-center justify-between px-6 shadow-md">
+        <div className="flex items-center gap-3">
+          <img 
+            src="/lovable-uploads/42a0c089-7817-4d54-b180-12a27a76a70f.png" 
+            alt="NEU Logo" 
+            className="w-8 h-8"
+          />
+          <h1 className="text-xl font-bold">NEU-STAT</h1>
         </div>
+        <Button
+          variant="outline"
+          className="bg-white/10 hover:bg-white/20 text-white border-transparent"
+          onClick={() => navigate('/dashboard')}
+        >
+          Back to Dashboard
+        </Button>
+      </header>
 
+      <div className="container mx-auto py-6 px-6 max-w-6xl">
         <Card className="mb-6">
           <CardHeader className="pb-3">
             <div className="flex justify-between items-center">

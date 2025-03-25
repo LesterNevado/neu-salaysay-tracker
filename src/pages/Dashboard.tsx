@@ -1,9 +1,10 @@
+
 import { useEffect, useState, useCallback, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { Send, User, Users, ActivitySquare, FileIcon, Filter, Trash } from "lucide-react";
+import { Send, User, Users, ActivitySquare, FileIcon, Filter } from "lucide-react";
 import { UploadDialog } from "@/components/UploadDialog";
 import { FileExplorer } from "@/components/salaysay/FileExplorer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -17,15 +18,6 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { AuthContext } from "@/App";
 import { logLogoutActivity } from "@/utils/activity";
-import {
-  SidebarProvider,
-  Sidebar,
-  SidebarContent,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-  SidebarHeader,
-} from "@/components/ui/sidebar";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -163,147 +155,116 @@ export default function Dashboard() {
   };
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full">
-        <Sidebar collapsible="icon" className="bg-[#BBDEFB] border-r border-[#BBDEFB]">
-          <SidebarHeader className="h-[64px] flex items-center justify-center border-b border-[#BBDEFB]/30">
-            <img 
-              src="/lovable-uploads/42a0c089-7817-4d54-b180-12a27a76a70f.png" 
-              alt="NEU Logo" 
-              className="w-10 h-10"
-            />
-          </SidebarHeader>
-          <SidebarContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  isActive={true}
-                  tooltip="Dashboard"
-                >
-                  <User className="h-5 w-5" />
-                  <span>Dashboard</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton 
-                  onClick={() => navigate('/activity-logs')}
-                  tooltip="Activity Logs"
-                >
-                  <ActivitySquare className="h-5 w-5" />
-                  <span>Activity Logs</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarContent>
-        </Sidebar>
-
-        <div className="flex-1 flex flex-col">
-          <header className="h-16 bg-[#0E254E] text-white flex items-center justify-between px-6 shadow-md">
-            <h1 className="text-xl font-bold">NEU-STAT</h1>
-            <div className="flex items-center gap-4">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="cursor-pointer">
-                      <Avatar>
-                        <AvatarImage src={userProfile.avatarUrl || ""} alt={userProfile.fullName || "User"} />
-                        <AvatarFallback className="bg-gray-200 text-gray-700">
-                          {getInitials()}
-                        </AvatarFallback>
-                      </Avatar>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent className="bg-white p-3 shadow-lg border rounded-md">
-                    <div className="space-y-1">
-                      <p className="font-medium text-sm">{userProfile.fullName || "User"}</p>
-                      <p className="text-xs text-gray-500">{userProfile.email}</p>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <Button
-                onClick={handleSignOut}
-                variant="outline"
-                className="bg-white/10 hover:bg-white/20 text-white border-transparent"
+    <div className="min-h-screen bg-[#BBDEFB]">
+      <header className="h-16 bg-[#0E254E] text-white flex items-center justify-between px-6 shadow-md">
+        <div className="flex items-center gap-3">
+          <img 
+            src="/lovable-uploads/42a0c089-7817-4d54-b180-12a27a76a70f.png" 
+            alt="NEU Logo" 
+            className="w-8 h-8"
+          />
+          <h1 className="text-xl font-bold">NEU-STAT</h1>
+        </div>
+        <div className="flex items-center gap-4">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="cursor-pointer">
+                  <Avatar>
+                    <AvatarImage src={userProfile.avatarUrl || ""} alt={userProfile.fullName || "User"} />
+                    <AvatarFallback className="bg-gray-200 text-gray-700">
+                      {getInitials()}
+                    </AvatarFallback>
+                  </Avatar>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent className="bg-white p-3 shadow-lg border rounded-md">
+                <div className="space-y-1">
+                  <p className="font-medium text-sm">{userProfile.fullName || "User"}</p>
+                  <p className="text-xs text-gray-500">{userProfile.email}</p>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <Button
+            onClick={handleSignOut}
+            variant="outline"
+            className="bg-white/10 hover:bg-white/20 text-white border-transparent"
+          >
+            Sign Out
+          </Button>
+        </div>
+      </header>
+      
+      <div className="container mx-auto px-6 py-6 max-w-6xl">
+        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Salaysay Tracking And Archival Tool</h2>
+            <div className="flex gap-3">
+              <Button 
+                onClick={() => navigate('/activity-logs')} 
+                variant="outline" 
+                className="flex items-center gap-2 border-gray-200"
               >
-                Sign Out
+                <ActivitySquare className="h-4 w-4" />
+                Activity Logs
+              </Button>
+              <Button 
+                onClick={handleSubmitSalaysay} 
+                className="flex items-center gap-2 bg-[#0E254E] hover:bg-[#0E254E]/90"
+              >
+                <Send className="h-4 w-4" />
+                Submit Salaysay
               </Button>
             </div>
-          </header>
-          
-          <div className="flex-1 p-6 bg-[#F0F8FF]">
-            <div className="max-w-6xl mx-auto space-y-6">
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-semibold">Salaysay Tracking And Archival Tool</h2>
-                  <div className="flex gap-3">
-                    <Button 
-                      onClick={() => navigate('/activity-logs')} 
-                      variant="outline" 
-                      className="flex items-center gap-2 border-gray-200"
-                    >
-                      <ActivitySquare className="h-4 w-4" />
-                      Activity Logs
-                    </Button>
-                    <Button 
-                      onClick={handleSubmitSalaysay} 
-                      className="flex items-center gap-2 bg-[#0E254E] hover:bg-[#0E254E]/90"
-                    >
-                      <Send className="h-4 w-4" />
-                      Submit Salaysay
-                    </Button>
-                  </div>
-                </div>
-                <p className="text-gray-600">
-                  NEU-STAT is New Era University's official Salaysay Tracking System, enabling seamless submission, monitoring, and approval of Salaysay documents.
-                </p>
-              </div>
+          </div>
+          <p className="text-gray-600">
+            NEU-STAT is New Era University's official Salaysay Tracking System, enabling seamless submission, monitoring, and approval of Salaysay documents.
+          </p>
+        </div>
 
-              <div className="bg-white rounded-lg shadow-sm p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-semibold">Your Salaysay Files</h2>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <Label htmlFor="show-all-users" className="text-sm flex items-center gap-2">
-                        <Users className="h-4 w-4" />
-                        Show all users' files
-                      </Label>
-                      <Switch 
-                        id="show-all-users" 
-                        checked={showAllUsers} 
-                        onCheckedChange={toggleShowAllUsers}
-                      />
-                    </div>
-                    <Button variant="outline" size="sm" className="flex items-center gap-1 border-gray-200">
-                      <Filter className="h-3.5 w-3.5" />
-                      Filter
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="border rounded-lg overflow-hidden">
-                  <table className="w-full">
-                    <thead className="bg-gray-50 text-sm">
-                      <tr>
-                        <th className="text-left px-4 py-3 font-medium text-gray-500">File Name</th>
-                        <th className="text-left px-4 py-3 font-medium text-gray-500">Date Uploaded</th>
-                        <th className="text-left px-4 py-3 font-medium text-gray-500">Violation Type</th>
-                        <th className="text-left px-4 py-3 font-medium text-gray-500">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {userProfile.id && (
-                        <FileExplorer 
-                          userId={userProfile.id} 
-                          refreshTrigger={refreshTrigger} 
-                          showAllUsers={showAllUsers}
-                        />
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Your Salaysay Files</h2>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Label htmlFor="show-all-users" className="text-sm flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Show all users' files
+                </Label>
+                <Switch 
+                  id="show-all-users" 
+                  checked={showAllUsers} 
+                  onCheckedChange={toggleShowAllUsers}
+                />
               </div>
+              <Button variant="outline" size="sm" className="flex items-center gap-1 border-gray-200">
+                <Filter className="h-3.5 w-3.5" />
+                Filter
+              </Button>
             </div>
+          </div>
+
+          <div className="border rounded-lg overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gray-50 text-sm">
+                <tr>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500">File Name</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500">Date Uploaded</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500">Violation Type</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {userProfile.id && (
+                  <FileExplorer 
+                    userId={userProfile.id} 
+                    refreshTrigger={refreshTrigger} 
+                    showAllUsers={showAllUsers}
+                  />
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -314,6 +275,6 @@ export default function Dashboard() {
         userId={userProfile.id || ""}
         onUploadComplete={refreshFileExplorer}
       />
-    </SidebarProvider>
+    </div>
   );
 }
