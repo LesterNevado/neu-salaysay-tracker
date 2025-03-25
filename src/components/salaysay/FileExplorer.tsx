@@ -23,6 +23,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { logActivity } from "@/utils/activity";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 type SalaysayFile = {
   id: string;
@@ -34,6 +35,8 @@ type SalaysayFile = {
   file_size?: number;  // Optional since it might not be in the database
   profiles?: {
     full_name: string;
+    avatar_url?: string;
+    email?: string;
   }
 };
 
@@ -53,6 +56,7 @@ export function FileExplorer({ userId, refreshTrigger, showAllUsers }: {
     violationTypes: {},
   });
   const [isFilterPopoverOpen, setIsFilterPopoverOpen] = useState(false);
+  const [userProfiles, setUserProfiles] = useState<Record<string, any>>({});
   
   useEffect(() => {
     const fetchFiles = async () => {
@@ -60,7 +64,7 @@ export function FileExplorer({ userId, refreshTrigger, showAllUsers }: {
       try {
         let query = supabase
           .from('salaysay_submissions')
-          .select('*, profiles(full_name)')
+          .select('*, profiles(*)')
           .order('created_at', { ascending: false });
         
         // If not showing all users, filter by the current user's ID
@@ -80,6 +84,22 @@ export function FileExplorer({ userId, refreshTrigger, showAllUsers }: {
             file_name: item.file_path.split('/').pop() || item.file_path,
           })) || [];
           
+          // Fetch user profiles for all uploaders
+          const userIds = [...new Set(processedData.map(file => file.user_id))];
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, full_name, avatar_url, email')
+            .in('id', userIds);
+            
+          // Create a map of user IDs to profiles
+          const profileMap: Record<string, any> = {};
+          if (profiles) {
+            profiles.forEach(profile => {
+              profileMap[profile.id] = profile;
+            });
+          }
+          
+          setUserProfiles(profileMap);
           setFiles(processedData);
           setFilteredFiles(processedData);
           
@@ -159,7 +179,7 @@ export function FileExplorer({ userId, refreshTrigger, showAllUsers }: {
         return;
       }
       
-      // Log the view activity
+      // Log the view activity with detailed file name
       await logActivity(
         'view',
         `Viewed salaysay for ${file.violation_type}`,
@@ -189,6 +209,13 @@ export function FileExplorer({ userId, refreshTrigger, showAllUsers }: {
         return;
       }
       
+      // Log the delete activity with detailed filename
+      await logActivity(
+        'delete',
+        `Deleted salaysay for ${fileToDelete.violation_type}`,
+        fileToDelete.id
+      );
+      
       // Delete from database
       const { error: dbError } = await supabase
         .from('salaysay_submissions')
@@ -200,13 +227,6 @@ export function FileExplorer({ userId, refreshTrigger, showAllUsers }: {
         console.error(dbError);
         return;
       }
-      
-      // Log the delete activity
-      await logActivity(
-        'delete',
-        `Deleted salaysay for ${fileToDelete.violation_type}`,
-        fileToDelete.id
-      );
       
       // Update the file list
       setFiles(files.filter(file => file.id !== fileToDelete.id));
@@ -221,10 +241,22 @@ export function FileExplorer({ userId, refreshTrigger, showAllUsers }: {
     }
   };
 
+  const getUploaderInitials = (file: SalaysayFile) => {
+    const profile = userProfiles[file.user_id];
+    if (!profile || !profile.full_name) return "U";
+    
+    return profile.full_name
+      .split(" ")
+      .map(name => name[0])
+      .join("")
+      .toUpperCase()
+      .substring(0, 2);
+  };
+
   if (loading) {
     return (
       <tr>
-        <td colSpan={4} className="px-4 py-8 text-center">
+        <td colSpan={5} className="px-4 py-8 text-center">
           <div className="flex justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
           </div>
@@ -236,7 +268,7 @@ export function FileExplorer({ userId, refreshTrigger, showAllUsers }: {
   if (files.length === 0) {
     return (
       <tr>
-        <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
+        <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
           No salaysay files found. Click "Submit Salaysay" to upload a new file.
         </td>
       </tr>
@@ -245,44 +277,69 @@ export function FileExplorer({ userId, refreshTrigger, showAllUsers }: {
 
   return (
     <>
-      {filteredFiles.map((file) => (
-        <tr key={file.id} className="border-t border-gray-100 hover:bg-gray-50">
-          <td className="px-4 py-3 text-sm">
-            <div className="flex items-center gap-2">
-              <FileIcon className="h-4 w-4 text-red-500" />
-              <span className="font-medium text-gray-700 truncate max-w-[300px]">
-                {file.file_name || file.file_path.split('/').pop() || file.file_path}
-              </span>
-            </div>
-          </td>
-          <td className="px-4 py-3 text-sm text-gray-600">
-            {format(new Date(file.created_at), "dd/MM/yyyy h:mm a")}
-          </td>
-          <td className="px-4 py-3 text-sm text-gray-600">
-            {file.violation_type || "Dress Code Violation"}
-          </td>
-          <td className="px-4 py-3 text-sm">
-            <div className="flex justify-end gap-2">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => handleViewFile(file)}
-                className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"
-              >
-                <Eye className="h-4 w-4" />
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => handleDeleteClick(file)}
-                className="text-red-500 hover:text-red-700 hover:bg-red-50"
-              >
-                <Trash className="h-4 w-4" />
-              </Button>
-            </div>
-          </td>
-        </tr>
-      ))}
+      {filteredFiles.map((file) => {
+        const uploader = userProfiles[file.user_id];
+        
+        return (
+          <tr key={file.id} className="border-t border-gray-100 hover:bg-gray-50">
+            <td className="px-4 py-3 text-sm">
+              <div className="flex items-center gap-2">
+                <FileIcon className="h-4 w-4 text-red-500" />
+                <span className="font-medium text-gray-700 truncate max-w-[300px]">
+                  {file.file_name || file.file_path.split('/').pop() || file.file_path}
+                </span>
+              </div>
+            </td>
+            <td className="px-4 py-3 text-sm text-gray-600">
+              {format(new Date(file.created_at), "dd/MM/yyyy h:mm a")}
+            </td>
+            <td className="px-4 py-3 text-sm text-gray-600">
+              {file.violation_type || "Dress Code Violation"}
+            </td>
+            <td className="px-4 py-3 text-sm text-gray-600">
+              {uploader ? (
+                <div className="flex items-center gap-2">
+                  <Avatar className="h-6 w-6">
+                    {uploader.avatar_url ? (
+                      <AvatarImage 
+                        src={uploader.avatar_url} 
+                        alt={uploader.full_name || "User"} 
+                      />
+                    ) : (
+                      <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                        {getUploaderInitials(file)}
+                      </AvatarFallback>
+                    )}
+                  </Avatar>
+                  <span>{uploader.full_name || uploader.email || "Unknown user"}</span>
+                </div>
+              ) : (
+                <span>Unknown user</span>
+              )}
+            </td>
+            <td className="px-4 py-3 text-sm">
+              <div className="flex justify-end gap-2">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => handleViewFile(file)}
+                  className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                >
+                  <Eye className="h-4 w-4" />
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => handleDeleteClick(file)}
+                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                >
+                  <Trash className="h-4 w-4" />
+                </Button>
+              </div>
+            </td>
+          </tr>
+        )
+      })}
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>

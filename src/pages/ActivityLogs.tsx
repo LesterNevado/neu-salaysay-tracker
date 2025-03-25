@@ -110,7 +110,6 @@ export default function ActivityLogs() {
         itemsPerPage
       );
       
-      console.log("Fetched activity logs:", logs);
       setActivities(logs);
       setTotalCount(totalCount);
     } catch (error) {
@@ -176,6 +175,16 @@ export default function ActivityLogs() {
       case 'delete': return 'Delete';
       default: return actionType.charAt(0).toUpperCase() + actionType.slice(1).replace('_', ' ');
     }
+  };
+
+  const renderFileInfo = (activity: ActivityLog) => {
+    if (!activity.file) return null;
+    
+    return (
+      <div className="text-sm text-muted-foreground mt-1">
+        <strong>File:</strong> {activity.file.file_name || activity.file.file_path.split('/').pop()} ({activity.file.violation_type})
+      </div>
+    );
   };
 
   return (
@@ -301,11 +310,7 @@ export default function ActivityLogs() {
                         <p className="text-sm text-muted-foreground mt-1">
                           {formatDate(activity.created_at)}
                         </p>
-                        {activity.file && (
-                          <div className="text-sm text-muted-foreground mt-1">
-                            File: {activity.file.violation_type}
-                          </div>
-                        )}
+                        {activity.file && renderFileInfo(activity)}
                       </div>
                     </div>
                   ))
@@ -320,19 +325,20 @@ export default function ActivityLogs() {
                         <TableHead>Action</TableHead>
                         <TableHead>User</TableHead>
                         <TableHead>Description</TableHead>
+                        <TableHead>File</TableHead>
                         <TableHead>Date & Time</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {loading ? (
                         <TableRow>
-                          <TableCell colSpan={4} className="text-center">
+                          <TableCell colSpan={5} className="text-center">
                             Loading activities...
                           </TableCell>
                         </TableRow>
                       ) : activities.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={4} className="text-center">
+                          <TableCell colSpan={5} className="text-center">
                             No activity logs found with the current filters.
                           </TableCell>
                         </TableRow>
@@ -363,6 +369,18 @@ export default function ActivityLogs() {
                               </div>
                             </TableCell>
                             <TableCell>{activity.description}</TableCell>
+                            <TableCell>
+                              {activity.file ? (
+                                <div className="text-sm">
+                                  {activity.file.file_name || activity.file.file_path.split('/').pop()} 
+                                  <div className="text-xs text-muted-foreground">
+                                    {activity.file.violation_type}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground text-sm">-</span>
+                              )}
+                            </TableCell>
                             <TableCell>{formatDate(activity.created_at)}</TableCell>
                           </TableRow>
                         ))

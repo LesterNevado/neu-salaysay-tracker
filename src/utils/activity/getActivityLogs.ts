@@ -93,8 +93,6 @@ export const getActivityLogs = async (
       console.error('Error fetching profiles:', profilesError);
     }
     
-    console.log("Fetched user profiles for activity logs:", profilesData);
-    
     // Create a map of user IDs to profile data for quick lookup
     const profileMap: Record<string, any> = {};
     
@@ -144,8 +142,6 @@ export const getActivityLogs = async (
               ...profileMap[userId],
               avatar_url: avatarFromMetadata
             };
-            
-            console.log(`Updated avatar for ${userId} from auth metadata:`, avatarFromMetadata);
           }
         }
       }
@@ -154,7 +150,7 @@ export const getActivityLogs = async (
     // If there are related file IDs, fetch file information
     const fileIds = activityData
       .map(log => log.related_file_id)
-      .filter(id => id !== null);
+      .filter(id => id !== null && id !== undefined);
     
     // Create a map for file data
     const fileMap: Record<string, any> = {};
@@ -162,18 +158,24 @@ export const getActivityLogs = async (
     if (fileIds.length > 0) {
       const { data: filesData, error: filesError } = await supabase
         .from('salaysay_submissions')
-        .select('id, violation_type, file_path')
+        .select('id, violation_type, file_path, user_id')
         .in('id', fileIds);
         
       if (filesError) {
         console.error('Error fetching files:', filesError);
       } else if (filesData) {
-        filesData.forEach(file => {
+        // For each file, we also want to get the uploader's information
+        for (const file of filesData) {
+          // Extract filename from the file_path
+          const fileName = file.file_path.split('/').pop() || file.file_path;
+          
           fileMap[file.id] = {
             violation_type: file.violation_type,
-            file_path: file.file_path
+            file_path: file.file_path,
+            file_name: fileName,
+            user_id: file.user_id
           };
-        });
+        }
       }
     }
     
@@ -186,6 +188,8 @@ export const getActivityLogs = async (
         avatar_url: null
       };
       
+      const fileInfo = log.related_file_id ? fileMap[log.related_file_id] : undefined;
+      
       return {
         id: log.id,
         created_at: log.created_at,
@@ -197,11 +201,9 @@ export const getActivityLogs = async (
         user: {
           ...userProfile
         },
-        file: log.related_file_id ? fileMap[log.related_file_id] : undefined
+        file: fileInfo
       };
     });
-    
-    console.log('Formatted activity logs with user profiles:', logsWithDetails);
     
     return {
       logs: logsWithDetails,
