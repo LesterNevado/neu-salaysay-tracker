@@ -72,7 +72,7 @@ export default function Index() {
       {/* Background illustration elements */}
       <div className="absolute inset-0 w-full h-full">
         <img 
-          src="/lovable-uploads/293516be-9102-44b1-b402-4533e6bac217.png" 
+          src="/lovable-uploads/48235189-18d7-4964-8f91-cd59ed708e5f.png" 
           alt="Background illustration" 
           className="w-full h-full object-cover"
         />
@@ -84,7 +84,7 @@ export default function Index() {
         transition={{ duration: 0.5 }}
         className="w-full max-w-md z-10"
       >
-        <Card className="backdrop-blur-sm bg-blue-900/80 border-0 shadow-xl overflow-hidden">
+        <Card className="backdrop-blur-sm bg-white/80 border-0 shadow-xl overflow-hidden">
           <CardContent className="p-8 space-y-6">
             <div className="flex justify-center">
               <img 
@@ -95,10 +95,10 @@ export default function Index() {
             </div>
             
             <div className="text-center space-y-2">
-              <h1 className="text-2xl font-semibold text-white">
+              <h1 className="text-2xl font-semibold text-gray-800">
                 Welcome to NEU-STAT
               </h1>
-              <p className="text-gray-200 text-sm">
+              <p className="text-gray-600 text-sm">
                 Salaysay Tracking And Archival Tool
               </p>
             </div>
