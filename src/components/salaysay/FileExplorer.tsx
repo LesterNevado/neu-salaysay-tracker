@@ -20,10 +20,10 @@ type SalaysayFile = {
   id: string;
   created_at: string;
   user_id: string;
-  file_name: string;
   file_path: string;
-  file_size: number;
   violation_type: string;
+  file_name?: string; // Derived property
+  file_size?: number;  // Optional since it might not be in the database
   profiles?: {
     full_name: string;
   }
@@ -44,7 +44,7 @@ export function FileExplorer({ userId, refreshTrigger, showAllUsers }: {
       setLoading(true);
       try {
         let query = supabase
-          .from('salaysay_files')
+          .from('salaysay_submissions')
           .select('*, profiles(full_name)')
           .order('created_at', { ascending: false });
         
@@ -59,7 +59,13 @@ export function FileExplorer({ userId, refreshTrigger, showAllUsers }: {
           console.error("Error fetching files:", error);
           toast.error("Failed to load files. Please try again.");
         } else {
-          setFiles(data || []);
+          // Process the data to add file_name from file_path
+          const processedData = data?.map(item => ({
+            ...item,
+            file_name: item.file_path.split('/').pop() || item.file_path,
+          })) || [];
+          
+          setFiles(processedData);
         }
       } catch (error) {
         console.error("Unexpected error:", error);
@@ -94,7 +100,7 @@ export function FileExplorer({ userId, refreshTrigger, showAllUsers }: {
       
       // Delete from database
       const { error: dbError } = await supabase
-        .from('salaysay_files')
+        .from('salaysay_submissions')
         .delete()
         .eq('id', fileToDelete.id);
       
@@ -146,7 +152,7 @@ export function FileExplorer({ userId, refreshTrigger, showAllUsers }: {
             <div className="flex items-center gap-2">
               <FileIcon className="h-4 w-4 text-red-500" />
               <span className="font-medium text-gray-700 truncate max-w-[300px]">
-                {file.file_name}
+                {file.file_name || file.file_path.split('/').pop() || file.file_path}
               </span>
             </div>
           </td>
@@ -176,7 +182,7 @@ export function FileExplorer({ userId, refreshTrigger, showAllUsers }: {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete {fileToDelete?.file_name}.
+              This will permanently delete {fileToDelete?.file_name || fileToDelete?.file_path.split('/').pop()}.
               This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
