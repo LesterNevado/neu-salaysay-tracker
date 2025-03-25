@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -95,7 +94,6 @@ export default function ActivityLogs() {
         setUserProfiles(profiles || []);
       }
 
-      // Fetch all violation types to populate filter
       const { data: files, error: filesError } = await supabase
         .from('salaysay_submissions')
         .select('violation_type')
@@ -149,8 +147,6 @@ export default function ActivityLogs() {
         return <LogIn className="h-5 w-5 text-purple-500" />;
       case 'logout':
         return <LogOut className="h-5 w-5 text-orange-500" />;
-      case 'comment':
-        return <FileText className="h-5 w-5 text-indigo-500" />;
       case 'delete':
         return <Trash className="h-5 w-5 text-red-500" />;
       default:
@@ -188,7 +184,6 @@ export default function ActivityLogs() {
       case 'view': return 'View';
       case 'login': return 'Login';
       case 'logout': return 'Logout';
-      case 'comment': return 'Comment';
       case 'delete': return 'Delete';
       default: return actionType.charAt(0).toUpperCase() + actionType.slice(1).replace('_', ' ');
     }
@@ -307,7 +302,6 @@ export default function ActivityLogs() {
                     <SelectItem value="view" className="text-black">View</SelectItem>
                     <SelectItem value="login" className="text-black">Login</SelectItem>
                     <SelectItem value="logout" className="text-black">Logout</SelectItem>
-                    <SelectItem value="comment" className="text-black">Comment</SelectItem>
                     <SelectItem value="delete" className="text-black">Delete</SelectItem>
                   </SelectContent>
                 </Select>
