@@ -82,38 +82,38 @@ export default function Index() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-md z-10"
+        className="w-full max-w-[888px] z-10"
       >
-        <Card className="backdrop-blur-sm bg-white/80 border-0 shadow-xl overflow-hidden">
-          <CardContent className="p-8 space-y-6">
-            <div className="flex justify-center">
-              <img 
-                src="/lovable-uploads/42a0c089-7817-4d54-b180-12a27a76a70f.png" 
-                alt="NEU Logo" 
-                className="w-24 h-24"
-              />
-            </div>
+        <div className="w-full rounded-[20px] overflow-hidden bg-gradient-to-b from-[rgba(27,82,181,1)] to-[rgba(13,36,77,1)] relative p-10">
+          <div className="flex flex-col items-center justify-center">
+            {/* NEU Logo */}
+            <img 
+              src="/lovable-uploads/42a0c089-7817-4d54-b180-12a27a76a70f.png" 
+              alt="NEU Logo" 
+              className="w-[181px] h-[181px] mb-3"
+            />
             
-            <div className="text-center space-y-2">
-              <h1 className="text-2xl font-semibold text-gray-800">
-                Welcome to NEU-STAT
-              </h1>
-              <p className="text-gray-600 text-sm">
-                Salaysay Tracking And Archival Tool
-              </p>
-            </div>
+            {/* Title and subtitle */}
+            <h1 className="text-[48px] font-bold text-white text-center w-full max-w-[534px] mt-3">
+              Welcome to NEU-STAT
+            </h1>
+            <p className="text-[24px] font-bold text-white text-center w-full max-w-[425px]">
+              Salaysay Tracking And Archival Tool
+            </p>
 
+            {/* Error message */}
             {error && (
-              <Alert variant="destructive">
+              <Alert variant="destructive" className="mt-6 max-w-md">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
 
+            {/* Google Sign In Button */}
             <Button
               onClick={handleGoogleSignIn}
               disabled={isLoading}
-              className="w-full flex items-center justify-center gap-2 bg-gray-200 hover:bg-white text-gray-800 border-0"
+              className="mt-8 w-full max-w-md flex items-center justify-center gap-2 bg-white hover:bg-gray-100 text-gray-800 border-0"
               variant="outline"
             >
               <svg viewBox="0 0 24 24" className="w-5 h-5" xmlns="http://www.w3.org/2000/svg">
@@ -124,8 +124,8 @@ export default function Index() {
               </svg>
               {isLoading ? "Signing in..." : "Sign in with Google"}
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </motion.div>
     </div>
   );
