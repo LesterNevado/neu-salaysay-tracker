@@ -121,20 +121,13 @@ export default function ActivityLogs() {
     try {
       const { logs, totalCount } = await getActivityLogs(
         userFilter, 
-        actionFilter, 
+        actionFilter,
+        violationTypeFilter,
         currentPage, 
         itemsPerPage
       );
       
-      // Filter logs by violation type if selected
-      let filteredLogs = logs;
-      if (violationTypeFilter !== 'all') {
-        filteredLogs = logs.filter(log => 
-          log.file && log.file.violation_type === violationTypeFilter
-        );
-      }
-      
-      setActivities(filteredLogs);
+      setActivities(logs);
       setTotalCount(totalCount);
     } catch (error) {
       console.error('Error:', error);
@@ -201,15 +194,40 @@ export default function ActivityLogs() {
     }
   };
 
-  const renderFileInfo = (activity: ActivityLog) => {
-    if (!activity.file) return null;
+  const getFileName = (activity: ActivityLog) => {
+    if (activity.file && activity.file.file_name) {
+      return activity.file.file_name;
+    }
     
-    const fileName = activity.file.file_name || activity.file.file_path.split('/').pop() || activity.file.file_path;
+    if (activity.deleted_file_info && activity.deleted_file_info.file_name) {
+      return activity.deleted_file_info.file_name;
+    }
+    
+    return activity.file?.file_path.split('/').pop() || 'Unknown file';
+  };
+
+  const getViolationType = (activity: ActivityLog) => {
+    if (activity.file && activity.file.violation_type) {
+      return activity.file.violation_type;
+    }
+    
+    if (activity.deleted_file_info && activity.deleted_file_info.violation_type) {
+      return activity.deleted_file_info.violation_type;
+    }
+    
+    return 'Unknown type';
+  };
+
+  const renderFileInfo = (activity: ActivityLog) => {
+    if (!activity.file && !activity.deleted_file_info) return null;
+    
+    const fileName = getFileName(activity);
+    const violationType = getViolationType(activity);
     
     return (
       <div className="text-sm text-muted-foreground mt-1">
-        <strong>File:</strong> {fileName} ({activity.file.violation_type})
-        {activity.file.uploader && (
+        <strong>File:</strong> {fileName} ({violationType})
+        {activity.file && activity.file.uploader && (
           <div className="text-xs text-muted-foreground">
             <strong>Uploaded by:</strong> {activity.file.uploader.full_name || activity.file.uploader.email || 'Unknown user'}
           </div>
@@ -362,7 +380,27 @@ export default function ActivityLogs() {
                         <p className="text-sm text-muted-foreground mt-1">
                           {formatDate(activity.created_at)}
                         </p>
-                        {activity.file && renderFileInfo(activity)}
+                        {renderFileInfo(activity)}
+                        {activity.file && activity.file.uploader && (
+                          <div className="mt-2 flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">Uploaded by:</span>
+                            <Avatar className="h-5 w-5">
+                              {activity.file.uploader.avatar_url ? (
+                                <AvatarImage 
+                                  src={activity.file.uploader.avatar_url} 
+                                  alt={activity.file.uploader.full_name || "User"} 
+                                />
+                              ) : (
+                                <AvatarFallback className="text-xs bg-blue-500 text-white">
+                                  {renderUserInitials(activity.file.uploader.full_name)}
+                                </AvatarFallback>
+                              )}
+                            </Avatar>
+                            <span className="text-xs font-medium">
+                              {activity.file.uploader.full_name || activity.file.uploader.email || 'Unknown user'}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))
@@ -423,11 +461,11 @@ export default function ActivityLogs() {
                             </TableCell>
                             <TableCell>{activity.description}</TableCell>
                             <TableCell>
-                              {activity.file ? (
+                              {(activity.file || activity.deleted_file_info) ? (
                                 <div className="text-sm">
-                                  {activity.file.file_name || activity.file.file_path.split('/').pop()} 
+                                  {getFileName(activity)}
                                   <div className="text-xs text-muted-foreground">
-                                    {activity.file.violation_type}
+                                    {getViolationType(activity)}
                                   </div>
                                 </div>
                               ) : (

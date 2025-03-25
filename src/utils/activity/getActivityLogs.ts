@@ -9,6 +9,7 @@ import { ActivityLogFilters, ActivityLogResult, ActionType, StatusType } from ".
 export const getActivityLogs = async (
   userFilter: string = 'all',
   actionFilter: string = 'all',
+  violationTypeFilter: string = 'all',
   page: number = 1,
   itemsPerPage: number = 10
 ): Promise<ActivityLogResult> => {
@@ -155,10 +156,10 @@ export const getActivityLogs = async (
     // Create a map for file data
     const fileMap: Record<string, any> = {};
     
-    // Also fetch file metadata from the description to preserve information for deleted files
-    const deletedFilesMap: Record<string, any> = {};
+    // Store deleted file information extracted from descriptions
+    const deletedFilesInfo: Record<string, any> = {};
     
-    // Process delete operation descriptions that contain file information
+    // Process delete operation descriptions to extract file information
     activityData.forEach(log => {
       if (log.action_type === 'delete' && log.description) {
         // Try to extract file information from the description
@@ -166,13 +167,25 @@ export const getActivityLogs = async (
         if (match && match[1]) {
           const violationType = match[1];
           
-          // For deleted files where the related_file_id still exists in description
+          // Extract filename from description if available
+          let fileName = "Unknown file";
+          const fileNameMatch = log.description.match(/filename:\s*([^\s]+)/i);
+          if (fileNameMatch && fileNameMatch[1]) {
+            fileName = fileNameMatch[1];
+          }
+          
+          deletedFilesInfo[log.id] = {
+            violation_type: violationType,
+            file_name: fileName
+          };
+          
+          // For deleted files where the related_file_id still exists
           if (log.related_file_id) {
-            deletedFilesMap[log.related_file_id] = {
+            fileMap[log.related_file_id] = {
               violation_type: violationType,
-              file_path: 'deleted-file', // Placeholder
-              file_name: `File for ${violationType}`, // Use violation type as fallback
-              user_id: log.user_id // User who deleted is usually the uploader
+              file_path: 'deleted-file',
+              file_name: fileName,
+              user_id: log.user_id
             };
           }
         }
@@ -204,10 +217,20 @@ export const getActivityLogs = async (
       }
       
       // Next, check if any file IDs are missing from the result (might be deleted)
-      // and add information from our deletedFilesMap if available
+      // and add information from our fileMap if available
       fileIds.forEach(fileId => {
-        if (fileId && !fileMap[fileId] && deletedFilesMap[fileId]) {
-          fileMap[fileId] = deletedFilesMap[fileId];
+        if (fileId && !fileMap[fileId]) {
+          // Check if we have any deleted file info for this ID
+          const logWithThisFileId = activityData.find(log => log.related_file_id === fileId);
+          if (logWithThisFileId && deletedFilesInfo[logWithThisFileId.id]) {
+            const deletedInfo = deletedFilesInfo[logWithThisFileId.id];
+            fileMap[fileId] = {
+              violation_type: deletedInfo.violation_type,
+              file_path: 'deleted-file',
+              file_name: deletedInfo.file_name,
+              user_id: logWithThisFileId.user_id
+            };
+          }
         }
       });
     }
@@ -223,17 +246,31 @@ export const getActivityLogs = async (
       
       // Get file info if available
       let fileInfo = log.related_file_id ? fileMap[log.related_file_id] : undefined;
+      let deletedFileInfo = deletedFilesInfo[log.id];
       
       // If file info is not found but this is a delete action, try to reconstruct it
       if (!fileInfo && log.action_type === 'delete' && log.description) {
         const match = log.description.match(/Deleted\s+salaysay\s+for\s+(.+)/i);
         if (match && match[1]) {
           const violationType = match[1];
+          
+          // Extract filename from description if available
+          let fileName = "Unknown file";
+          const fileNameMatch = log.description.match(/filename:\s*([^\s]+)/i);
+          if (fileNameMatch && fileNameMatch[1]) {
+            fileName = fileNameMatch[1];
+          }
+          
           fileInfo = {
             violation_type: violationType,
             file_path: 'deleted-file',
-            file_name: `File for ${violationType}`,
+            file_name: fileName,
             user_id: log.user_id
+          };
+          
+          deletedFileInfo = {
+            violation_type: violationType,
+            file_name: fileName
           };
         }
       }
@@ -264,13 +301,28 @@ export const getActivityLogs = async (
         user: {
           ...userProfile
         },
-        file: fileInfo
+        file: fileInfo,
+        deleted_file_info: deletedFileInfo
       };
     });
     
+    // Apply violation type filter if specified
+    let filteredLogs = logsWithDetails;
+    if (violationTypeFilter !== 'all') {
+      filteredLogs = logsWithDetails.filter(log => {
+        if (log.file && log.file.violation_type === violationTypeFilter) {
+          return true;
+        }
+        if (log.deleted_file_info && log.deleted_file_info.violation_type === violationTypeFilter) {
+          return true;
+        }
+        return false;
+      });
+    }
+    
     return {
-      logs: logsWithDetails,
-      totalCount: count || 0
+      logs: filteredLogs,
+      totalCount: violationTypeFilter !== 'all' ? filteredLogs.length : (count || 0)
     };
   } catch (error) {
     console.error('Error fetching activity logs:', error);

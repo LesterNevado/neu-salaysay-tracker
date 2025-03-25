@@ -209,11 +209,16 @@ export function FileExplorer({ userId, refreshTrigger, showAllUsers }: {
         return;
       }
       
+      // Get the filename before deleting
+      const fileName = fileToDelete.file_name || fileToDelete.file_path.split('/').pop() || fileToDelete.file_path;
+      
       // Log the delete activity with detailed filename
       await logActivity(
         'delete',
         `Deleted salaysay for ${fileToDelete.violation_type}`,
-        fileToDelete.id
+        fileToDelete.id,
+        null,
+        fileName
       );
       
       // Delete from database

@@ -23,4 +23,8 @@ export interface ActivityLog {
       avatar_url: string;
     }
   };
+  deleted_file_info?: {
+    file_name: string;
+    violation_type: string;
+  };
 }

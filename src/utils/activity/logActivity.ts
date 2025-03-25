@@ -9,7 +9,8 @@ export const logActivity = async (
   action: ActionType, 
   description: string, 
   fileId?: string, 
-  newStatus?: StatusType
+  newStatus?: StatusType,
+  fileName?: string
 ) => {
   try {
     const { data: { session } } = await supabase.auth.getSession();
@@ -26,7 +27,7 @@ export const logActivity = async (
       .insert({
         user_id: session.user.id,
         action_type: action,
-        description,
+        description: fileName && action === 'delete' ? `${description} (filename: ${fileName})` : description,
         related_file_id: fileId || null,
         new_status: newStatus || null,
       });
