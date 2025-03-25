@@ -14,13 +14,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { logActivity } from "@/utils/activity";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -40,24 +33,25 @@ type SalaysayFile = {
   }
 };
 
-export function FileExplorer({ userId, refreshTrigger, showAllUsers }: { 
+export function FileExplorer({ 
+  userId, 
+  refreshTrigger, 
+  showAllUsers,
+  violationTypeFilters = []
+}: { 
   userId: string;
   refreshTrigger: number;
   showAllUsers: boolean;
+  violationTypeFilters?: string[];
 }) {
   const [files, setFiles] = useState<SalaysayFile[]>([]);
   const [filteredFiles, setFilteredFiles] = useState<SalaysayFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [fileToDelete, setFileToDelete] = useState<SalaysayFile | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [filters, setFilters] = useState<{
-    violationTypes: Record<string, boolean>;
-  }>({
-    violationTypes: {},
-  });
-  const [isFilterPopoverOpen, setIsFilterPopoverOpen] = useState(false);
   const [userProfiles, setUserProfiles] = useState<Record<string, any>>({});
   
+  // Fetch files and apply filters when component loads or refreshTrigger changes
   useEffect(() => {
     const fetchFiles = async () => {
       setLoading(true);
@@ -101,19 +95,9 @@ export function FileExplorer({ userId, refreshTrigger, showAllUsers }: {
           
           setUserProfiles(profileMap);
           setFiles(processedData);
-          setFilteredFiles(processedData);
           
-          // Extract unique violation types for filters
-          const uniqueViolationTypes: Record<string, boolean> = {};
-          processedData.forEach(file => {
-            if (file.violation_type) {
-              uniqueViolationTypes[file.violation_type] = true;
-            }
-          });
-          setFilters(prev => ({
-            ...prev,
-            violationTypes: uniqueViolationTypes,
-          }));
+          // Apply initial filtering
+          applyFilters(processedData, violationTypeFilters);
         }
       } catch (error) {
         console.error("Unexpected error:", error);
@@ -128,37 +112,24 @@ export function FileExplorer({ userId, refreshTrigger, showAllUsers }: {
 
   // Apply filters when they change
   useEffect(() => {
-    applyFilters();
-  }, [filters, files]);
+    applyFilters(files, violationTypeFilters);
+  }, [violationTypeFilters, files]);
 
-  const applyFilters = () => {
-    // Check if any violation type filters are active
-    const hasActiveViolationFilters = Object.values(filters.violationTypes).some(value => value);
+  const applyFilters = (files: SalaysayFile[], violationTypeFilters: string[]) => {
+    if (!files.length) return;
     
     // If no filters are active, show all files
-    if (!hasActiveViolationFilters) {
+    if (!violationTypeFilters.length) {
       setFilteredFiles(files);
       return;
     }
     
-    // Apply filters
-    const result = files.filter(file => {
-      // Check violation type
-      const passesViolationType = filters.violationTypes[file.violation_type];
-      return passesViolationType;
-    });
+    // Apply violation type filters
+    const filtered = files.filter(file => 
+      violationTypeFilters.includes(file.violation_type)
+    );
     
-    setFilteredFiles(result);
-  };
-
-  const handleFilterChange = (violationType: string, checked: boolean) => {
-    setFilters(prev => ({
-      ...prev,
-      violationTypes: {
-        ...prev.violationTypes,
-        [violationType]: checked,
-      },
-    }));
+    setFilteredFiles(filtered);
   };
 
   const handleDeleteClick = (file: SalaysayFile) => {
@@ -198,6 +169,9 @@ export function FileExplorer({ userId, refreshTrigger, showAllUsers }: {
     if (!fileToDelete) return;
     
     try {
+      // Store filename before deleting for logging purposes
+      const fileName = fileToDelete.file_name || fileToDelete.file_path.split('/').pop() || fileToDelete.file_path;
+      
       // Delete from storage
       const { error: storageError } = await supabase.storage
         .from('salaysay-uploads')
@@ -208,9 +182,6 @@ export function FileExplorer({ userId, refreshTrigger, showAllUsers }: {
         console.error(storageError);
         return;
       }
-      
-      // Get the filename before deleting
-      const fileName = fileToDelete.file_name || fileToDelete.file_path.split('/').pop() || fileToDelete.file_path;
       
       // Log the delete activity with detailed filename
       await logActivity(
@@ -280,6 +251,16 @@ export function FileExplorer({ userId, refreshTrigger, showAllUsers }: {
     );
   }
 
+  if (filteredFiles.length === 0 && violationTypeFilters.length > 0) {
+    return (
+      <tr>
+        <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+          No files match your selected filters.
+        </td>
+      </tr>
+    );
+  }
+
   return (
     <>
       {filteredFiles.map((file) => {
@@ -290,7 +271,7 @@ export function FileExplorer({ userId, refreshTrigger, showAllUsers }: {
             <td className="px-4 py-3 text-sm">
               <div className="flex items-center gap-2">
                 <FileIcon className="h-4 w-4 text-red-500" />
-                <span className="font-medium text-gray-700 truncate max-w-[300px]">
+                <span className="font-medium text-gray-700 truncate max-w-[200px]">
                   {file.file_name || file.file_path.split('/').pop() || file.file_path}
                 </span>
               </div>

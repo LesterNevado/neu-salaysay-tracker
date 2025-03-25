@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useCallback, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -167,7 +166,6 @@ export default function Dashboard() {
     setShowAllUsers(prev => !prev);
   };
 
-  // Additional filter function
   const handleFilterChange = (violationType: string, checked: boolean) => {
     setFilters(prev => ({
       ...prev,
@@ -177,6 +175,18 @@ export default function Dashboard() {
       },
     }));
   };
+
+  const clearFilters = () => {
+    setFilters({
+      violationTypes: VIOLATION_TYPES.reduce((acc, type) => ({ ...acc, [type]: false }), {})
+    });
+  };
+
+  const hasActiveFilters = Object.values(filters.violationTypes).some(val => val);
+
+  const activeViolationTypeFilters = Object.entries(filters.violationTypes)
+    .filter(([_, isActive]) => isActive)
+    .map(([type]) => type);
 
   return (
     <div className="min-h-screen bg-[#BBDEFB]">
@@ -264,15 +274,31 @@ export default function Dashboard() {
               </div>
               <Popover open={isFilterPopoverOpen} onOpenChange={setIsFilterPopoverOpen}>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="flex items-center gap-1 border-gray-200">
-                    <Filter className="h-3.5 w-3.5" />
-                    Filter
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className={`flex items-center gap-1 border-gray-200 ${hasActiveFilters ? 'bg-blue-50 border-blue-200' : ''}`}
+                  >
+                    <Filter className={`h-3.5 w-3.5 ${hasActiveFilters ? 'text-blue-500' : ''}`} />
+                    Filter {hasActiveFilters && <span className="ml-1 text-xs bg-blue-500 text-white rounded-full w-4 h-4 flex items-center justify-center">{Object.values(filters.violationTypes).filter(Boolean).length}</span>}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-56 p-4" align="end">
-                  <div className="space-y-3">
-                    <h4 className="font-medium text-sm">Filter by Violation Type</h4>
-                    <div className="space-y-2">
+                <PopoverContent className="w-72 p-4" align="end">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium text-sm">Filter by Violation Type</h4>
+                      {hasActiveFilters && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={clearFilters} 
+                          className="text-xs text-blue-500 hover:text-blue-700 p-0 h-auto"
+                        >
+                          Clear all
+                        </Button>
+                      )}
+                    </div>
+                    <div className="space-y-3">
                       {VIOLATION_TYPES.map((type) => (
                         <div key={type} className="flex items-center space-x-2">
                           <Checkbox 
@@ -301,6 +327,7 @@ export default function Dashboard() {
                   <th className="text-left px-4 py-3 font-medium text-gray-500">File Name</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-500">Date Uploaded</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-500">Violation Type</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500">Uploaded By</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-500">Actions</th>
                 </tr>
               </thead>
@@ -310,6 +337,7 @@ export default function Dashboard() {
                     userId={userProfile.id} 
                     refreshTrigger={refreshTrigger} 
                     showAllUsers={showAllUsers}
+                    violationTypeFilters={activeViolationTypeFilters}
                   />
                 )}
               </tbody>

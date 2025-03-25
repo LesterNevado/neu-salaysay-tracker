@@ -3,7 +3,7 @@ export interface ActivityLog {
   id: string;
   created_at: string;
   user_id: string;
-  action_type: 'upload' | 'view' | 'login' | 'logout' | 'comment' | 'delete';
+  action_type: 'upload' | 'view' | 'login' | 'logout' | 'delete';
   description: string;
   related_file_id?: string;
   new_status?: string | null;

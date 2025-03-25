@@ -1,7 +1,7 @@
 
 import { ActivityLog } from "@/types/activity.types";
 
-export type ActionType = 'upload' | 'view' | 'login' | 'logout' | 'comment' | 'delete';
+export type ActionType = 'upload' | 'view' | 'login' | 'logout' | 'delete';
 export type StatusType = string | null;
 
 export interface ActivityLogFilters {
