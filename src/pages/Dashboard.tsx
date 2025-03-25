@@ -384,9 +384,9 @@ export default function Dashboard() {
                     Filter {hasActiveFilters && <span className="ml-1 text-xs bg-blue-500 text-white rounded-full w-4 h-4 flex items-center justify-center">{getActiveFiltersCount()}</span>}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-80 p-4" align="end">
-                  <ScrollArea className="max-h-[70vh] pr-3">
-                    <div className="space-y-5">
+                <PopoverContent className="w-80 p-0" align="end">
+                  <ScrollArea className="h-[70vh] max-h-[500px]">
+                    <div className="p-4 space-y-5">
                       <div className="flex items-center justify-between">
                         <h4 className="font-medium text-sm">Filters</h4>
                         {hasActiveFilters && (
@@ -438,7 +438,6 @@ export default function Dashboard() {
                                 selected={filters.startDate || undefined}
                                 onSelect={(date) => {
                                   handleDateChange(date, 'start');
-                                  setCalendarOpen(null);
                                 }}
                                 initialFocus
                               />
@@ -466,7 +465,6 @@ export default function Dashboard() {
                                 selected={filters.endDate || undefined}
                                 onSelect={(date) => {
                                   handleDateChange(date, 'end');
-                                  setCalendarOpen(null);
                                 }}
                                 initialFocus
                               />
