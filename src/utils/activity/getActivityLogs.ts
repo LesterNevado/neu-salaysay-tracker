@@ -147,7 +147,7 @@ export const getActivityLogs = async (
       }
     });
     
-    // If there are related file IDs, fetch file information
+    // Get any related file IDs
     const fileIds = activityData
       .map(log => log.related_file_id)
       .filter(id => id !== null && id !== undefined);
@@ -155,7 +155,32 @@ export const getActivityLogs = async (
     // Create a map for file data
     const fileMap: Record<string, any> = {};
     
+    // Also fetch file metadata from the description to preserve information for deleted files
+    const deletedFilesMap: Record<string, any> = {};
+    
+    // Process delete operation descriptions that contain file information
+    activityData.forEach(log => {
+      if (log.action_type === 'delete' && log.description) {
+        // Try to extract file information from the description
+        const match = log.description.match(/Deleted\s+salaysay\s+for\s+(.+)/i);
+        if (match && match[1]) {
+          const violationType = match[1];
+          
+          // For deleted files where the related_file_id still exists in description
+          if (log.related_file_id) {
+            deletedFilesMap[log.related_file_id] = {
+              violation_type: violationType,
+              file_path: 'deleted-file', // Placeholder
+              file_name: `File for ${violationType}`, // Use violation type as fallback
+              user_id: log.user_id // User who deleted is usually the uploader
+            };
+          }
+        }
+      }
+    });
+    
     if (fileIds.length > 0) {
+      // First, try to fetch existing files
       const { data: filesData, error: filesError } = await supabase
         .from('salaysay_submissions')
         .select('id, violation_type, file_path, user_id')
@@ -164,7 +189,7 @@ export const getActivityLogs = async (
       if (filesError) {
         console.error('Error fetching files:', filesError);
       } else if (filesData) {
-        // For each file, we also want to get the uploader's information
+        // For each file, extract filename and capture user info
         for (const file of filesData) {
           // Extract filename from the file_path
           const fileName = file.file_path.split('/').pop() || file.file_path;
@@ -177,18 +202,56 @@ export const getActivityLogs = async (
           };
         }
       }
+      
+      // Next, check if any file IDs are missing from the result (might be deleted)
+      // and add information from our deletedFilesMap if available
+      fileIds.forEach(fileId => {
+        if (fileId && !fileMap[fileId] && deletedFilesMap[fileId]) {
+          fileMap[fileId] = deletedFilesMap[fileId];
+        }
+      });
     }
     
     // Format the data to match our ActivityLog type
     const logsWithDetails: ActivityLog[] = activityData.map(log => {
-      // Make sure we have user profile data
+      // Get user profile data
       const userProfile = profileMap[log.user_id] || {
         email: null,
         full_name: null,
         avatar_url: null
       };
       
-      const fileInfo = log.related_file_id ? fileMap[log.related_file_id] : undefined;
+      // Get file info if available
+      let fileInfo = log.related_file_id ? fileMap[log.related_file_id] : undefined;
+      
+      // If file info is not found but this is a delete action, try to reconstruct it
+      if (!fileInfo && log.action_type === 'delete' && log.description) {
+        const match = log.description.match(/Deleted\s+salaysay\s+for\s+(.+)/i);
+        if (match && match[1]) {
+          const violationType = match[1];
+          fileInfo = {
+            violation_type: violationType,
+            file_path: 'deleted-file',
+            file_name: `File for ${violationType}`,
+            user_id: log.user_id
+          };
+        }
+      }
+      
+      // Get uploader profile if available
+      let uploaderProfile;
+      if (fileInfo && fileInfo.user_id) {
+        uploaderProfile = profileMap[fileInfo.user_id];
+      }
+      
+      // Add uploader info to file object if available
+      if (fileInfo && uploaderProfile) {
+        fileInfo.uploader = {
+          full_name: uploaderProfile.full_name,
+          email: uploaderProfile.email,
+          avatar_url: uploaderProfile.avatar_url
+        };
+      }
       
       return {
         id: log.id,

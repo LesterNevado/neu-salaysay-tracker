@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,7 +10,8 @@ import {
   LogIn,
   LogOut,
   Trash,
-  Eye
+  Eye,
+  User
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -56,10 +58,12 @@ export default function ActivityLogs() {
   const [loading, setLoading] = useState(true);
   const [userFilter, setUserFilter] = useState<string>("all");
   const [actionFilter, setActionFilter] = useState<string>("all");
+  const [violationTypeFilter, setViolationTypeFilter] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [userProfiles, setUserProfiles] = useState<Profile[]>([]);
   const [totalCount, setTotalCount] = useState(0);
+  const [violationTypes, setViolationTypes] = useState<string[]>([]);
 
   useEffect(() => {
     if (!authLoading && !session) {
@@ -91,13 +95,26 @@ export default function ActivityLogs() {
         setUserProfiles(profiles || []);
       }
 
+      // Fetch all violation types to populate filter
+      const { data: files, error: filesError } = await supabase
+        .from('salaysay_submissions')
+        .select('violation_type')
+        .order('violation_type');
+        
+      if (filesError) {
+        console.error("Error fetching violation types:", filesError);
+      } else if (files) {
+        const uniqueTypes = [...new Set(files.map(file => file.violation_type))];
+        setViolationTypes(uniqueTypes);
+      }
+
       await fetchActivityLogs();
     };
 
     if (session) {
       fetchData();
     }
-  }, [navigate, userFilter, actionFilter, currentPage, session, authLoading]);
+  }, [navigate, userFilter, actionFilter, violationTypeFilter, currentPage, session, authLoading]);
 
   const fetchActivityLogs = async () => {
     setLoading(true);
@@ -109,7 +126,15 @@ export default function ActivityLogs() {
         itemsPerPage
       );
       
-      setActivities(logs);
+      // Filter logs by violation type if selected
+      let filteredLogs = logs;
+      if (violationTypeFilter !== 'all') {
+        filteredLogs = logs.filter(log => 
+          log.file && log.file.violation_type === violationTypeFilter
+        );
+      }
+      
+      setActivities(filteredLogs);
       setTotalCount(totalCount);
     } catch (error) {
       console.error('Error:', error);
@@ -184,6 +209,11 @@ export default function ActivityLogs() {
     return (
       <div className="text-sm text-muted-foreground mt-1">
         <strong>File:</strong> {fileName} ({activity.file.violation_type})
+        {activity.file.uploader && (
+          <div className="text-xs text-muted-foreground">
+            <strong>Uploaded by:</strong> {activity.file.uploader.full_name || activity.file.uploader.email || 'Unknown user'}
+          </div>
+        )}
       </div>
     );
   };
@@ -220,7 +250,7 @@ export default function ActivityLogs() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div>
                 <label className="text-sm font-medium mb-1 block text-black">User</label>
                 <Select 
@@ -261,6 +291,27 @@ export default function ActivityLogs() {
                     <SelectItem value="logout" className="text-black">Logout</SelectItem>
                     <SelectItem value="comment" className="text-black">Comment</SelectItem>
                     <SelectItem value="delete" className="text-black">Delete</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block text-black">Violation Type</label>
+                <Select 
+                  value={violationTypeFilter} 
+                  onValueChange={setViolationTypeFilter}
+                >
+                  <SelectTrigger className="w-full bg-white text-black">
+                    <SelectValue>
+                      {violationTypeFilter === "all" ? "All Violation Types" : violationTypeFilter}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="all" className="text-black">All Violation Types</SelectItem>
+                    {violationTypes.map(type => (
+                      <SelectItem key={type} value={type} className="text-black">
+                        {type}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -327,19 +378,20 @@ export default function ActivityLogs() {
                         <TableHead>User</TableHead>
                         <TableHead>Description</TableHead>
                         <TableHead>File</TableHead>
+                        <TableHead>Uploaded By</TableHead>
                         <TableHead>Date & Time</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {loading ? (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center">
+                          <TableCell colSpan={6} className="text-center">
                             Loading activities...
                           </TableCell>
                         </TableRow>
                       ) : activities.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center">
+                          <TableCell colSpan={6} className="text-center">
                             No activity logs found with the current filters.
                           </TableCell>
                         </TableRow>
@@ -377,6 +429,30 @@ export default function ActivityLogs() {
                                   <div className="text-xs text-muted-foreground">
                                     {activity.file.violation_type}
                                   </div>
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground text-sm">-</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {activity.file && activity.file.uploader ? (
+                                <div className="flex items-center gap-2">
+                                  <Avatar className="h-6 w-6">
+                                    {activity.file.uploader.avatar_url ? (
+                                      <AvatarImage 
+                                        src={activity.file.uploader.avatar_url || ""} 
+                                        alt={activity.file.uploader.full_name || "User"} 
+                                        className="object-cover"
+                                      />
+                                    ) : (
+                                      <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+                                        <User className="h-3 w-3" />
+                                      </AvatarFallback>
+                                    )}
+                                  </Avatar>
+                                  <span className="text-sm">
+                                    {activity.file.uploader.full_name || activity.file.uploader.email || 'Unknown'}
+                                  </span>
                                 </div>
                               ) : (
                                 <span className="text-muted-foreground text-sm">-</span>

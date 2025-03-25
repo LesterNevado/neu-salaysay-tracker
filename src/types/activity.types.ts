@@ -17,5 +17,10 @@ export interface ActivityLog {
     file_path: string;
     file_name?: string;
     user_id?: string;
+    uploader?: {
+      full_name: string;
+      email: string;
+      avatar_url: string;
+    }
   };
 }
