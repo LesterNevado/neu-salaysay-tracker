@@ -27,7 +27,7 @@ export const logActivity = async (
       .insert({
         user_id: session.user.id,
         action_type: action,
-        description: action === 'delete' ? description : (fileName && action === 'delete' ? `${description} (filename: ${fileName})` : description),
+        description: action === 'delete' ? description : description,
         related_file_id: fileId || null,
         new_status: newStatus || null,
       });
