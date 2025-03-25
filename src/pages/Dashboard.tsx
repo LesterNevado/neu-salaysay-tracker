@@ -290,8 +290,8 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#BBDEFB]">
-      <header className="h-16 bg-[#0E254E] text-white flex items-center justify-between px-6 shadow-md">
+    <div className="min-h-screen bg-[#BBDEFB] overflow-auto">
+      <header className="h-16 bg-[#0E254E] text-white flex items-center justify-between px-6 shadow-md sticky top-0 z-10">
         <div className="flex items-center gap-3">
           <img 
             src="/lovable-uploads/42a0c089-7817-4d54-b180-12a27a76a70f.png" 
