@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -89,7 +88,6 @@ export default function ActivityLogs() {
   const [selectedViolationTypes, setSelectedViolationTypes] = useState<string[]>([]);
   const [activeFilters, setActiveFilters] = useState(0);
 
-  // Initialize the form
   const form = useForm({
     defaultValues: {
       violationTypes: [] as string[],
@@ -146,7 +144,6 @@ export default function ActivityLogs() {
     }
   }, [navigate, userFilter, actionFilter, violationTypeFilter, currentPage, session, authLoading, startDate, endDate]);
 
-  // Calculate active filters count
   useEffect(() => {
     let count = 0;
     if (userFilter !== 'all') count++;
@@ -160,7 +157,6 @@ export default function ActivityLogs() {
   const fetchActivityLogs = async () => {
     setLoading(true);
     try {
-      // Format dates for the API
       const formattedStartDate = startDate ? startDate.toISOString() : null;
       const formattedEndDate = endDate ? new Date(endDate.setHours(23, 59, 59, 999)).toISOString() : null;
       
@@ -280,7 +276,7 @@ export default function ActivityLogs() {
     return (
       <div className="text-sm text-muted-foreground mt-1">
         <strong>File:</strong> {fileName} ({violationType})
-        {activity.file && activity.file.uploader && (
+        {activity.file && activity.file.uploader && activity.action_type !== 'delete' && (
           <div className="text-xs text-muted-foreground mt-1">
             <strong>Uploaded by:</strong> {activity.file.uploader.full_name || activity.file.uploader.email || 'Unknown user'}
           </div>
@@ -290,8 +286,8 @@ export default function ActivityLogs() {
   };
 
   return (
-    <div className="min-h-screen bg-[#BBDEFB]">
-      <header className="h-16 bg-[#0E254E] text-white flex items-center justify-between px-6 shadow-md">
+    <div className="min-h-screen bg-[#BBDEFB] overflow-auto">
+      <header className="h-16 bg-[#0E254E] text-white flex items-center justify-between px-6 shadow-md sticky top-0 z-10">
         <div className="flex items-center gap-3">
           <img 
             src="/lovable-uploads/42a0c089-7817-4d54-b180-12a27a76a70f.png" 
@@ -518,22 +514,7 @@ export default function ActivityLogs() {
                         {renderFileInfo(activity)}
                         {activity.action_type === "delete" && activity.deleted_file_info && (
                           <div className="mt-2 flex items-center gap-2">
-                            <span className="text-xs text-muted-foreground">Uploaded by:</span>
-                            <Avatar className="h-5 w-5">
-                              {activity.user?.avatar_url ? (
-                                <AvatarImage 
-                                  src={activity.user.avatar_url} 
-                                  alt={activity.user?.full_name || "User"} 
-                                />
-                              ) : (
-                                <AvatarFallback className="text-xs bg-blue-500 text-white">
-                                  {renderUserInitials(activity.user?.full_name)}
-                                </AvatarFallback>
-                              )}
-                            </Avatar>
-                            <span className="text-xs font-medium">
-                              {activity.user?.full_name || activity.user?.email || 'Unknown user'}
-                            </span>
+                            {/* Removed "Uploaded by:" element for delete logs */}
                           </div>
                         )}
                         {activity.file && activity.file.uploader && (
