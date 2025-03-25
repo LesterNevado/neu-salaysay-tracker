@@ -84,7 +84,7 @@ export default function Index() {
         transition={{ duration: 0.5 }}
         className="w-full max-w-[888px] z-10"
       >
-        <div className="w-full rounded-[20px] overflow-hidden bg-gradient-to-b from-[rgba(27,82,181,1)] to-[rgba(13,36,77,1)] relative p-10">
+        <div className="w-full rounded-[20px] overflow-hidden bg-gradient-to-b from-[rgba(27,82,181,0.5)] to-[rgba(13,36,77,0.5)] relative p-10">
           <div className="flex flex-col items-center justify-center">
             {/* NEU Logo */}
             <img 
