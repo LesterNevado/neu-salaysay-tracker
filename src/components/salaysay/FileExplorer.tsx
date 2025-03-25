@@ -37,12 +37,16 @@ export function FileExplorer({
   userId, 
   refreshTrigger, 
   showAllUsers,
-  violationTypeFilters = []
+  violationTypeFilters = [],
+  dateRangeFilter = { startDate: null, endDate: null },
+  userFilter = null
 }: { 
   userId: string;
   refreshTrigger: number;
   showAllUsers: boolean;
   violationTypeFilters?: string[];
+  dateRangeFilter?: { startDate: string | null, endDate: string | null };
+  userFilter?: string | null;
 }) {
   const [files, setFiles] = useState<SalaysayFile[]>([]);
   const [filteredFiles, setFilteredFiles] = useState<SalaysayFile[]>([]);
@@ -64,6 +68,18 @@ export function FileExplorer({
         // If not showing all users, filter by the current user's ID
         if (!showAllUsers) {
           query = query.eq('user_id', userId);
+        } else if (userFilter) {
+          // If showing all users and a user filter is applied
+          query = query.eq('user_id', userFilter);
+        }
+
+        // Apply date range filter if provided
+        if (dateRangeFilter.startDate) {
+          query = query.gte('created_at', `${dateRangeFilter.startDate}T00:00:00`);
+        }
+        
+        if (dateRangeFilter.endDate) {
+          query = query.lte('created_at', `${dateRangeFilter.endDate}T23:59:59`);
         }
 
         const { data, error } = await query;
@@ -108,7 +124,7 @@ export function FileExplorer({
     };
 
     fetchFiles();
-  }, [userId, refreshTrigger, showAllUsers]);
+  }, [userId, refreshTrigger, showAllUsers, userFilter, dateRangeFilter.startDate, dateRangeFilter.endDate]);
 
   // Apply filters when they change
   useEffect(() => {
@@ -251,7 +267,7 @@ export function FileExplorer({
     );
   }
 
-  if (filteredFiles.length === 0 && violationTypeFilters.length > 0) {
+  if (filteredFiles.length === 0 && (violationTypeFilters.length > 0 || dateRangeFilter.startDate || dateRangeFilter.endDate || userFilter)) {
     return (
       <tr>
         <td colSpan={5} className="px-4 py-8 text-center text-gray-500">

@@ -1,9 +1,10 @@
+
 import { useEffect, useState, useCallback, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { Send, User, Users, ActivitySquare, FileIcon, Filter } from "lucide-react";
+import { Send, User, Users, ActivitySquare, FileIcon, Filter, Calendar } from "lucide-react";
 import { UploadDialog } from "@/components/UploadDialog";
 import { FileExplorer } from "@/components/salaysay/FileExplorer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -20,7 +21,11 @@ import {
 } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AuthContext } from "@/App";
 import { logLogoutActivity } from "@/utils/activity";
 import { VIOLATION_TYPES } from "@/components/upload/types";
@@ -33,10 +38,19 @@ export default function Dashboard() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [showAllUsers, setShowAllUsers] = useState(false);
   const [isFilterPopoverOpen, setIsFilterPopoverOpen] = useState(false);
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [usersList, setUsersList] = useState<{id: string, name: string}[]>([]);
+  const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [filters, setFilters] = useState<{
     violationTypes: Record<string, boolean>;
+    startDate: Date | null;
+    endDate: Date | null;
+    userId: string | null;
   }>({
-    violationTypes: VIOLATION_TYPES.reduce((acc, type) => ({ ...acc, [type]: false }), {})
+    violationTypes: VIOLATION_TYPES.reduce((acc, type) => ({ ...acc, [type]: false }), {}),
+    startDate: null,
+    endDate: null,
+    userId: null
   });
   const [userProfile, setUserProfile] = useState<{
     email: string | null;
@@ -49,6 +63,30 @@ export default function Dashboard() {
     avatarUrl: null,
     id: null,
   });
+
+  // Fetch users for the filter dropdown when showing all users is enabled
+  useEffect(() => {
+    if (showAllUsers) {
+      const fetchUsers = async () => {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, full_name, email')
+          .order('full_name', { ascending: true });
+          
+        if (error) {
+          console.error("Error fetching users:", error);
+          return;
+        }
+        
+        setUsersList(data.map(user => ({
+          id: user.id,
+          name: user.full_name || user.email || "Unknown user"
+        })));
+      };
+      
+      fetchUsers();
+    }
+  }, [showAllUsers]);
 
   useEffect(() => {
     const checkUser = async () => {
@@ -164,6 +202,9 @@ export default function Dashboard() {
 
   const toggleShowAllUsers = () => {
     setShowAllUsers(prev => !prev);
+    if (!showAllUsers) {
+      setFilters(prev => ({ ...prev, userId: null }));
+    }
   };
 
   const handleFilterChange = (violationType: string, checked: boolean) => {
@@ -176,17 +217,53 @@ export default function Dashboard() {
     }));
   };
 
+  const handleDateChange = (date: Date | null, type: 'start' | 'end') => {
+    setFilters(prev => ({
+      ...prev,
+      [type === 'start' ? 'startDate' : 'endDate']: date
+    }));
+  };
+
+  const handleUserFilterChange = (userId: string) => {
+    setFilters(prev => ({
+      ...prev,
+      userId: userId === 'all' ? null : userId
+    }));
+  };
+
   const clearFilters = () => {
     setFilters({
-      violationTypes: VIOLATION_TYPES.reduce((acc, type) => ({ ...acc, [type]: false }), {})
+      violationTypes: VIOLATION_TYPES.reduce((acc, type) => ({ ...acc, [type]: false }), {}),
+      startDate: null,
+      endDate: null,
+      userId: null
     });
   };
 
-  const hasActiveFilters = Object.values(filters.violationTypes).some(val => val);
+  const hasActiveFilters = Object.values(filters.violationTypes).some(val => val) || 
+    filters.startDate !== null || 
+    filters.endDate !== null ||
+    filters.userId !== null;
 
   const activeViolationTypeFilters = Object.entries(filters.violationTypes)
     .filter(([_, isActive]) => isActive)
     .map(([type]) => type);
+
+  const getActiveFiltersCount = () => {
+    let count = 0;
+    
+    // Count active violation types
+    count += Object.values(filters.violationTypes).filter(Boolean).length;
+    
+    // Count date filters
+    if (filters.startDate) count++;
+    if (filters.endDate) count++;
+    
+    // Count user filter
+    if (filters.userId) count++;
+    
+    return count;
+  };
 
   return (
     <div className="min-h-screen bg-[#BBDEFB]">
@@ -280,13 +357,13 @@ export default function Dashboard() {
                     className={`flex items-center gap-1 border-gray-200 ${hasActiveFilters ? 'bg-blue-50 border-blue-200' : ''}`}
                   >
                     <Filter className={`h-3.5 w-3.5 ${hasActiveFilters ? 'text-blue-500' : ''}`} />
-                    Filter {hasActiveFilters && <span className="ml-1 text-xs bg-blue-500 text-white rounded-full w-4 h-4 flex items-center justify-center">{Object.values(filters.violationTypes).filter(Boolean).length}</span>}
+                    Filter {hasActiveFilters && <span className="ml-1 text-xs bg-blue-500 text-white rounded-full w-4 h-4 flex items-center justify-center">{getActiveFiltersCount()}</span>}
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-72 p-4" align="end">
-                  <div className="space-y-4">
+                <PopoverContent className="w-80 p-4" align="end">
+                  <div className="space-y-5">
                     <div className="flex items-center justify-between">
-                      <h4 className="font-medium text-sm">Filter by Violation Type</h4>
+                      <h4 className="font-medium text-sm">Filters</h4>
                       {hasActiveFilters && (
                         <Button 
                           variant="ghost" 
@@ -298,21 +375,99 @@ export default function Dashboard() {
                         </Button>
                       )}
                     </div>
-                    <div className="space-y-3">
-                      {VIOLATION_TYPES.map((type) => (
-                        <div key={type} className="flex items-center space-x-2">
-                          <Checkbox 
-                            id={`filter-${type}`} 
-                            checked={filters.violationTypes[type]} 
-                            onCheckedChange={(checked) => 
-                              handleFilterChange(type, checked === true)
-                            }
-                          />
-                          <Label htmlFor={`filter-${type}`} className="text-sm">
-                            {type}
-                          </Label>
-                        </div>
-                      ))}
+
+                    {/* Date Range Filter */}
+                    <div className="space-y-2">
+                      <h5 className="text-sm font-medium mb-2">Date Range</h5>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Popover open={isDatePickerOpen === true} onOpenChange={(open) => open ? setIsDatePickerOpen(true) : setIsDatePickerOpen(false)}>
+                          <PopoverTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className={`justify-start text-left font-normal ${filters.startDate ? 'bg-blue-50 border-blue-200' : ''}`}
+                            >
+                              <Calendar className="mr-2 h-4 w-4" />
+                              {filters.startDate ? format(filters.startDate, 'PP') : <span>Start date</span>}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <CalendarComponent
+                              mode="single"
+                              selected={filters.startDate || undefined}
+                              onSelect={(date) => handleDateChange(date, 'start')}
+                              initialFocus
+                              className="p-3 pointer-events-auto"
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        
+                        <Popover open={isDatePickerOpen === false} onOpenChange={(open) => open ? setIsDatePickerOpen(false) : setIsDatePickerOpen(false)}>
+                          <PopoverTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className={`justify-start text-left font-normal ${filters.endDate ? 'bg-blue-50 border-blue-200' : ''}`}
+                            >
+                              <Calendar className="mr-2 h-4 w-4" />
+                              {filters.endDate ? format(filters.endDate, 'PP') : <span>End date</span>}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <CalendarComponent
+                              mode="single"
+                              selected={filters.endDate || undefined}
+                              onSelect={(date) => handleDateChange(date, 'end')}
+                              initialFocus
+                              className="p-3 pointer-events-auto"
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                    </div>
+
+                    {/* User Filter - Only show when "Show all users" is enabled */}
+                    {showAllUsers && (
+                      <div className="space-y-2">
+                        <h5 className="text-sm font-medium">Filter by User</h5>
+                        <Select
+                          value={filters.userId || 'all'}
+                          onValueChange={handleUserFilterChange}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select a user" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Users</SelectItem>
+                            {usersList.map((user) => (
+                              <SelectItem key={user.id} value={user.id}>
+                                {user.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    {/* Violation Type Filters */}
+                    <div className="space-y-2">
+                      <h5 className="text-sm font-medium">Filter by Violation Type</h5>
+                      <div className="space-y-3">
+                        {VIOLATION_TYPES.map((type) => (
+                          <div key={type} className="flex items-center space-x-2">
+                            <Checkbox 
+                              id={`filter-${type}`} 
+                              checked={filters.violationTypes[type]} 
+                              onCheckedChange={(checked) => 
+                                handleFilterChange(type, checked === true)
+                              }
+                            />
+                            <Label htmlFor={`filter-${type}`} className="text-sm">
+                              {type}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </PopoverContent>
@@ -338,6 +493,11 @@ export default function Dashboard() {
                     refreshTrigger={refreshTrigger} 
                     showAllUsers={showAllUsers}
                     violationTypeFilters={activeViolationTypeFilters}
+                    dateRangeFilter={{
+                      startDate: filters.startDate ? format(filters.startDate, 'yyyy-MM-dd') : null,
+                      endDate: filters.endDate ? format(filters.endDate, 'yyyy-MM-dd') : null
+                    }}
+                    userFilter={filters.userId}
                   />
                 )}
               </tbody>
