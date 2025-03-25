@@ -15,5 +15,7 @@ export interface ActivityLog {
   file?: {
     violation_type: string;
     file_path: string;
+    file_name?: string;
+    user_id?: string;
   };
 }

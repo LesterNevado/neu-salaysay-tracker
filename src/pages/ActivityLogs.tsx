@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -180,9 +179,11 @@ export default function ActivityLogs() {
   const renderFileInfo = (activity: ActivityLog) => {
     if (!activity.file) return null;
     
+    const fileName = activity.file.file_name || activity.file.file_path.split('/').pop() || activity.file.file_path;
+    
     return (
       <div className="text-sm text-muted-foreground mt-1">
-        <strong>File:</strong> {activity.file.file_name || activity.file.file_path.split('/').pop()} ({activity.file.violation_type})
+        <strong>File:</strong> {fileName} ({activity.file.violation_type})
       </div>
     );
   };
