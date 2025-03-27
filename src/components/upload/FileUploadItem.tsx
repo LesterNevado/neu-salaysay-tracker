@@ -84,6 +84,12 @@ export function FileUploadItem({ upload, onRemove }: FileUploadItemProps) {
                     <div className="space-y-2">
                       <h4 className="font-medium text-sm">Extracted Information</h4>
                       <div className="space-y-1 text-xs">
+                        {upload.extractedInfo.senderName && (
+                          <div className="flex justify-between">
+                            <span className="text-gray-500">Sender Name:</span>
+                            <span className="font-medium">{upload.extractedInfo.senderName}</span>
+                          </div>
+                        )}
                         <div className="flex justify-between">
                           <span className="text-gray-500">Student Number:</span>
                           <span className="font-medium">{upload.extractedInfo.studentNumber || 'Not found'}</span>

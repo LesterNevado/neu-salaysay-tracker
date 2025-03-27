@@ -124,6 +124,7 @@ export function useFileUpload(userId: string) {
       // Prepare the metadata to save
       const metadata = {
         student_number: extractedInfo?.studentNumber,
+        sender_name: extractedInfo?.senderName,
         incident_date: extractedInfo?.date,
         excuse_description: extractedInfo?.natureOfExcuse,
         ai_confidence: extractedInfo?.confidence

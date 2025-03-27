@@ -2,6 +2,7 @@
 // Define the structure for the extracted information
 export interface ExtractedDocumentInfo {
   studentNumber?: string;
+  senderName?: string;
   date?: string;
   natureOfExcuse?: string;
   confidence: 'high' | 'medium' | 'low';
@@ -29,6 +30,8 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       /\b\d{4}-\d{5}\b/g,        // XXXX-XXXXX format
       /\b\d{9}\b/g,              // XXXXXXXXX format (9 digits)
       /\b\d{7}\b/g,              // XXXXXXX format (7 digits)
+      /\b\d{2}-\d{5}-\d{3}\b/g,  // XX-XXXXX-XXX format
+      /\b\d{2}-\d{5}\b/g,        // XX-XXXXX format
       /\bStudent(?:\s+(?:Number|ID|No|#|)):?\s*([0-9-]+)/i,  // "Student Number: XXXXXX"
       /\bID(?:\s+(?:Number|No|#|)):?\s*([0-9-]+)/i,          // "ID Number: XXXXXX"
     ];
@@ -50,9 +53,49 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       }
     }
     
+    // Extract sender name
+    // Look for common signature patterns in formal letters
+    const senderNamePatterns = [
+      /Sincerely,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,  // "Sincerely, Name"
+      /Respectfully,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,  // "Respectfully, Name"
+      /Yours truly,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,  // "Yours truly, Name"
+      /Regards,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,  // "Regards, Name"
+      /From:?\s*([A-Za-z\s.]+?)(?:\r?\n|,|\d|$)/i,  // "From: Name"
+      /Submitted by:?\s*([A-Za-z\s.]+?)(?:\r?\n|,|\d|$)/i,  // "Submitted by: Name"
+    ];
+    
+    for (const pattern of senderNamePatterns) {
+      const match = pattern.exec(cleanText);
+      if (match && match[1]) {
+        const name = match[1].trim();
+        // Verify it's a name (at least 2 characters, not just whitespace)
+        if (name.length >= 2) {
+          result.senderName = name;
+          break;
+        }
+      }
+    }
+    
+    // If sender name wasn't found by patterns, try to find it before student number
+    // This works for cases where the name appears right before the ID
+    if (!result.senderName && result.studentNumber) {
+      const studentNumberPos = cleanText.indexOf(result.studentNumber);
+      if (studentNumberPos > 0) {
+        // Check the 100 characters before the student number
+        const precedingText = cleanText.substring(Math.max(0, studentNumberPos - 100), studentNumberPos).trim();
+        const nameMatch = /([A-Za-z\s.]{2,30})(?:\r?\n|$)/.exec(precedingText);
+        if (nameMatch && nameMatch[1]) {
+          result.senderName = nameMatch[1].trim();
+        }
+      }
+    }
+    
     // Extract date using various formats
     // Try to find dates in various formats
     const datePatterns = [
+      // Month at beginning of document (e.g., "March 27, 2025" at top)
+      /^(?:[^\n]*?\n){0,3}[^\n]*?((?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:,|\s)\s*\d{4})/i,
+      
       // Month name, day, year (e.g., "March 27, 2025" or "March 27 2025")
       /\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:,|\s)\s*\d{4}\b/gi,
       
@@ -73,19 +116,38 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
     ];
     
     for (const pattern of datePatterns) {
-      const matches = cleanText.match(pattern);
-      if (matches && matches.length > 0) {
-        // If the pattern has a capturing group (like the last pattern)
-        if (pattern.toString().includes('(')) {
-          const match = pattern.exec(cleanText);
-          if (match && match[1]) {
-            result.date = match[1].trim();
-            break;
-          }
-        } else {
-          result.date = matches[0].trim();
+      // For the first pattern (date at beginning), we use a special approach
+      if (pattern.toString().includes('^(?:[^\\n]*?\\n){0,3}')) {
+        const match = pattern.exec(cleanText);
+        if (match && match[1]) {
+          result.date = match[1].trim();
           break;
         }
+      } else {
+        const matches = cleanText.match(pattern);
+        if (matches && matches.length > 0) {
+          // If the pattern has a capturing group (like the last pattern)
+          if (pattern.toString().includes('(')) {
+            const match = pattern.exec(cleanText);
+            if (match && match[1]) {
+              result.date = match[1].trim();
+              break;
+            }
+          } else {
+            result.date = matches[0].trim();
+            break;
+          }
+        }
+      }
+    }
+    
+    // If date is still not found, try to find dates in very specific formats at the beginning
+    if (!result.date) {
+      // Try to get the first few lines and look for a date
+      const firstLines = cleanText.split('\n').slice(0, 5).join(' ');
+      const dateMatch = /\b(?:\d{1,2}[-\/]?\d{1,2}[-\/]?\d{4}|\d{4}[-\/]?\d{1,2}[-\/]?\d{1,2}|(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:,|\s)?\s*\d{4}|\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4})\b/i.exec(firstLines);
+      if (dateMatch) {
+        result.date = dateMatch[0].trim();
       }
     }
     
@@ -139,10 +201,11 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
     if (result.studentNumber) extractedCount++;
     if (result.date) extractedCount++;
     if (result.natureOfExcuse) extractedCount++;
+    if (result.senderName) extractedCount++;
     
-    if (extractedCount === 3) {
+    if (extractedCount >= 3) {
       result.confidence = 'high';
-    } else if (extractedCount === 2) {
+    } else if (extractedCount >= 2) {
       result.confidence = 'medium';
     } else {
       result.confidence = 'low';
@@ -151,9 +214,12 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
     // Log sample of extracted text for debugging
     console.log('Extraction attempt results:', {
       foundStudentNumber: !!result.studentNumber,
+      foundSenderName: !!result.senderName,
       foundDate: !!result.date,
       foundExcuse: !!result.natureOfExcuse,
-      confidence: result.confidence
+      confidence: result.confidence,
+      date: result.date,
+      senderName: result.senderName
     });
     
     return result;

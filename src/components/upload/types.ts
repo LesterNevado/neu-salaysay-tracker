@@ -6,6 +6,7 @@ export interface FileUpload {
   violationType?: string;
   extractedInfo?: {
     studentNumber?: string;
+    senderName?: string;
     date?: string;
     natureOfExcuse?: string;
     confidence: 'high' | 'medium' | 'low';
