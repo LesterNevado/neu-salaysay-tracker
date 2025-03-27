@@ -23,6 +23,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Json } from "@/integrations/supabase/types";
 
 type SalaysayFile = {
   id: string;
@@ -38,8 +39,7 @@ type SalaysayFile = {
     incident_date?: string;
     excuse_description?: string;
     addressee?: string;
-    ai_confidence?: 'high' | 'medium' | 'low';
-  } | null;
+  } | Json | null;
   profiles?: {
     full_name: string;
     avatar_url?: string;
@@ -259,6 +259,26 @@ export function FileExplorer({
     setExpandedFileId(expandedFileId === fileId ? null : fileId);
   };
 
+  const getMetadataValue = (metadata: SalaysayFile['metadata'], key: string): string | undefined => {
+    if (!metadata) return undefined;
+    
+    if (typeof metadata === 'object') {
+      return (metadata as any)[key];
+    }
+    
+    if (typeof metadata === 'string') {
+      try {
+        const parsed = JSON.parse(metadata);
+        return parsed[key];
+      } catch (e) {
+        console.error("Error parsing metadata string:", e);
+        return undefined;
+      }
+    }
+    
+    return undefined;
+  };
+
   if (loading) {
     return (
       <tr>
@@ -296,12 +316,13 @@ export function FileExplorer({
       {filteredFiles.map((file) => {
         const uploader = userProfiles[file.user_id];
         const isExpanded = expandedFileId === file.id;
+        
         const hasMetadata = file.metadata && (
-          file.metadata.student_number || 
-          file.metadata.sender_name || 
-          file.metadata.incident_date || 
-          file.metadata.excuse_description ||
-          file.metadata.addressee
+          getMetadataValue(file.metadata, 'student_number') || 
+          getMetadataValue(file.metadata, 'sender_name') || 
+          getMetadataValue(file.metadata, 'incident_date') || 
+          getMetadataValue(file.metadata, 'excuse_description') ||
+          getMetadataValue(file.metadata, 'addressee')
         );
         
         return (
@@ -410,34 +431,34 @@ export function FileExplorer({
                       AI-Extracted Information
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {file.metadata?.sender_name && (
+                      {getMetadataValue(file.metadata, 'sender_name') && (
                         <div className="space-y-1">
                           <p className="text-xs text-gray-500">Sender Name</p>
-                          <p className="text-sm font-medium">{file.metadata.sender_name}</p>
+                          <p className="text-sm font-medium">{getMetadataValue(file.metadata, 'sender_name')}</p>
                         </div>
                       )}
-                      {file.metadata?.addressee && (
+                      {getMetadataValue(file.metadata, 'addressee') && (
                         <div className="space-y-1">
                           <p className="text-xs text-gray-500">Addressee</p>
-                          <p className="text-sm font-medium">{file.metadata.addressee}</p>
+                          <p className="text-sm font-medium">{getMetadataValue(file.metadata, 'addressee')}</p>
                         </div>
                       )}
-                      {file.metadata?.student_number && (
+                      {getMetadataValue(file.metadata, 'student_number') && (
                         <div className="space-y-1">
                           <p className="text-xs text-gray-500">Student Number</p>
-                          <p className="text-sm font-medium">{file.metadata.student_number}</p>
+                          <p className="text-sm font-medium">{getMetadataValue(file.metadata, 'student_number')}</p>
                         </div>
                       )}
-                      {file.metadata?.incident_date && (
+                      {getMetadataValue(file.metadata, 'incident_date') && (
                         <div className="space-y-1">
                           <p className="text-xs text-gray-500">Incident Date</p>
-                          <p className="text-sm font-medium">{file.metadata.incident_date}</p>
+                          <p className="text-sm font-medium">{getMetadataValue(file.metadata, 'incident_date')}</p>
                         </div>
                       )}
-                      {file.metadata?.excuse_description && (
+                      {getMetadataValue(file.metadata, 'excuse_description') && (
                         <div className="space-y-1 col-span-1 md:col-span-2">
                           <p className="text-xs text-gray-500">Nature of Excuse</p>
-                          <p className="text-sm bg-gray-50 p-2 rounded border border-gray-100">{file.metadata.excuse_description}</p>
+                          <p className="text-sm bg-gray-50 p-2 rounded border border-gray-100">{getMetadataValue(file.metadata, 'excuse_description')}</p>
                         </div>
                       )}
                     </div>

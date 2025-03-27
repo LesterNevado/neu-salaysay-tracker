@@ -16,15 +16,6 @@ interface FileUploadItemProps {
 }
 
 export function FileUploadItem({ upload, onRemove }: FileUploadItemProps) {
-  const getConfidenceColor = (confidence?: 'high' | 'medium' | 'low') => {
-    switch (confidence) {
-      case 'high': return 'text-green-500';
-      case 'medium': return 'text-yellow-500';
-      case 'low': return 'text-red-500';
-      default: return 'text-gray-500';
-    }
-  };
-
   return (
     <div className="flex items-start p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
       <div className="flex-shrink-0 mr-3 mt-1">
@@ -67,7 +58,7 @@ export function FileUploadItem({ upload, onRemove }: FileUploadItemProps) {
           {upload.extractedInfo && (
             <div className="mt-2 border-t border-gray-100 pt-2">
               <div className="flex items-center gap-1 mb-2">
-                <Info className={cn("h-3.5 w-3.5", getConfidenceColor(upload.extractedInfo.confidence))} />
+                <Info className="h-3.5 w-3.5 text-blue-500" />
                 <span className="text-xs font-medium">AI Analysis</span>
               </div>
               
