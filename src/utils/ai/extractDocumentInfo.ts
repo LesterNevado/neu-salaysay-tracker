@@ -151,16 +151,21 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       }
     }
     
-    // Extract addressee (recipient of the letter)
+    // Enhanced addressee extraction
+    // Focus heavily on salutation patterns 
     const addresseePatterns = [
+      // Updated salutation patterns with stronger focus on "Dear" pattern
+      /Dear\s+(?:(?:Mr|Mrs|Ms|Dr|Prof|Sir|Madam|Teacher|Professor|Dean|Director|Principal)\.?\s+)?([A-Za-z\s.,]+?)(?:,|;|\r?\n|$)/i,  // "Dear [Title] Name,"
+      
+      // Other salutation patterns
       /To:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "To: Name"
       /Attn:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "Attn: Name"
       /Attention:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "Attention: Name"
-      /Dear\s+([A-Za-z\s.,]+?)(?:,|;|\r?\n|$)/i,  // "Dear Name,"
       /Addressed to:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "Addressed to: Name"
       /For the attention of:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "For the attention of: Name"
     ];
     
+    // Try each pattern
     for (const pattern of addresseePatterns) {
       const match = pattern.exec(cleanText);
       if (match && match[1]) {
@@ -170,6 +175,15 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
           result.addressee = addressee;
           break;
         }
+      }
+    }
+    
+    // Extract specifically "Dear Sir/Madam" or variations like "Dear Sir/Ma'am" if no specific name was found
+    if (!result.addressee) {
+      const genericAddresseePattern = /Dear\s+(?:Sir|Madam|Sir\/Madam|Ma'am|Sir\/Ma'am)(?:,|;|\r?\n|$)/i;
+      const genericMatch = genericAddresseePattern.exec(cleanText);
+      if (genericMatch) {
+        result.addressee = genericMatch[0].replace(/[,;]$/, '').trim();
       }
     }
     
