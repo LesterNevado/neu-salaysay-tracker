@@ -80,15 +80,27 @@ export function useFileUpload(userId: string) {
       return;
     }
 
-    setUploads(prev => 
-      prev.map(upload => 
-        upload.file === file 
-          ? { ...upload, status: 'uploading', progress: 0 }
-          : upload
-      )
-    );
-
     try {
+      // First, check if we're authenticated
+      const { data: sessionData } = await supabase.auth.getSession();
+      
+      if (!sessionData.session) {
+        toast({
+          variant: "destructive",
+          title: "Authentication error",
+          description: "You are not logged in. Please log in and try again."
+        });
+        return;
+      }
+
+      setUploads(prev => 
+        prev.map(upload => 
+          upload.file === file 
+            ? { ...upload, status: 'uploading', progress: 0 }
+            : upload
+        )
+      );
+
       // Analyze the file first to extract information
       const extractedInfo = await analyzeFile(file);
 
@@ -105,14 +117,22 @@ export function useFileUpload(userId: string) {
         )
       );
 
+      console.log("Attempting to upload file to storage bucket:", filePath);
+      
       const { error: uploadError, data } = await supabase.storage
         .from('salaysay-uploads')
-        .upload(filePath, file);
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
       if (uploadError) {
+        console.error("Storage upload error:", uploadError);
         throw uploadError;
       }
 
+      console.log("File uploaded successfully to storage:", data);
+      
       setUploads(prev => 
         prev.map(upload => 
           upload.file === file 
@@ -130,6 +150,8 @@ export function useFileUpload(userId: string) {
         ai_confidence: extractedInfo?.confidence
       };
 
+      console.log("Inserting submission record into database with metadata:", metadata);
+      
       const { error: insertError, data: submissionData } = await supabase
         .from('salaysay_submissions')
         .insert({
@@ -142,8 +164,11 @@ export function useFileUpload(userId: string) {
         .single();
 
       if (insertError) {
+        console.error("Database insert error:", insertError);
         throw insertError;
       }
+
+      console.log("Database record created successfully:", submissionData);
 
       // Log activity
       await logActivity(
@@ -184,11 +209,13 @@ export function useFileUpload(userId: string) {
       let errorMessage = "There was an error uploading your file. Please try again.";
       if (error instanceof Error) {
         if (error.message.includes("bucket")) {
-          errorMessage = "Storage bucket not found. Please contact support.";
+          errorMessage = "Storage bucket not found. Please check if 'salaysay-uploads' bucket exists in Supabase.";
         } else if (error.message.includes("permission")) {
-          errorMessage = "Permission denied. Please check your authentication status.";
+          errorMessage = "Permission denied. Please check Supabase storage policies.";
         } else if (error.message.includes("foreign key")) {
           errorMessage = "Database relation error. User profile may not exist.";
+        } else if (error.message.includes("apikey")) {
+          errorMessage = "Authentication error. No API key found in request.";
         }
       }
 

@@ -46,8 +46,13 @@ export function UploadDialog({ isOpen, onClose, userId, onUploadComplete }: Uplo
       return;
     }
 
+    // Upload each pending file
     for (const upload of pendingUploads) {
-      await uploadToSupabase(upload.file, selectedViolationType);
+      try {
+        await uploadToSupabase(upload.file, selectedViolationType);
+      } catch (error) {
+        console.error("Failed to upload file:", upload.file.name, error);
+      }
     }
     
     // Trigger refresh of file explorer after upload completes
@@ -57,8 +62,11 @@ export function UploadDialog({ isOpen, onClose, userId, onUploadComplete }: Uplo
   };
 
   const handleClose = () => {
-    addFiles([]);
-    setSelectedViolationType("");
+    // Reset the state before closing
+    if (!allUploadsCompleted) {
+      addFiles([]);
+      setSelectedViolationType("");
+    }
     onClose();
   };
 
