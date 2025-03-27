@@ -5,6 +5,7 @@ import { FileUpload } from "./types";
 import { logActivity } from "@/utils/activity";
 import { extractPdfText } from "@/utils/pdf/extractPdfText";
 import { extractDocumentInfo, ExtractedDocumentInfo } from "@/utils/ai/extractDocumentInfo";
+import { determineViolationType } from "@/utils/ai/determineViolationType";
 
 export function useFileUpload(userId: string) {
   const [uploads, setUploads] = useState<FileUpload[]>([]);
@@ -34,10 +35,8 @@ export function useFileUpload(userId: string) {
         )
       );
 
-      // Extract text from PDF
       const text = await extractPdfText(file);
       
-      // Extract information using AI
       const extractedInfo = await extractDocumentInfo(text);
       
       setUploads(prev => 
@@ -60,16 +59,7 @@ export function useFileUpload(userId: string) {
     }
   };
 
-  const uploadToSupabase = async (file: File, violationType: string) => {
-    if (!violationType) {
-      toast({
-        variant: "destructive",
-        title: "Missing information",
-        description: "Please select a violation type."
-      });
-      return;
-    }
-
+  const uploadToSupabase = async (file: File) => {
     if (!userId) {
       toast({
         variant: "destructive",
@@ -80,7 +70,6 @@ export function useFileUpload(userId: string) {
     }
 
     try {
-      // First, check if we're authenticated
       const { data: sessionData } = await supabase.auth.getSession();
       
       if (!sessionData.session) {
@@ -100,12 +89,12 @@ export function useFileUpload(userId: string) {
         )
       );
 
-      // Analyze the file first to extract information
       const extractedInfo = await analyzeFile(file);
+
+      const violationType = determineViolationType(extractedInfo?.natureOfExcuse);
 
       const timestamp = Date.now();
       const originalName = file.name;
-      // Create a path with user's ID as the folder name
       const filePath = `${userId}/${timestamp}_${originalName}`;
       
       setUploads(prev => 
@@ -140,17 +129,16 @@ export function useFileUpload(userId: string) {
         )
       );
 
-      // Prepare the metadata to save
       const metadata = {
         student_number: extractedInfo?.studentNumber,
         sender_name: extractedInfo?.senderName,
         incident_date: extractedInfo?.date,
         excuse_description: extractedInfo?.natureOfExcuse,
-        addressee: extractedInfo?.addressee,
-        ai_confidence: extractedInfo?.confidence
+        addressee: extractedInfo?.addressee
       };
 
       console.log("Inserting submission record into database with metadata:", metadata);
+      console.log("Using automatically determined violation type:", violationType);
       
       const { error: insertError, data: submissionData } = await supabase
         .from('salaysay_submissions')
@@ -170,7 +158,6 @@ export function useFileUpload(userId: string) {
 
       console.log("Database record created successfully:", submissionData);
 
-      // Log activity
       await logActivity(
         'upload',
         `Uploaded salaysay for ${violationType}`,

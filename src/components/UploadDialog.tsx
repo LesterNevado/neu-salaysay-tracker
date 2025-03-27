@@ -1,14 +1,11 @@
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
 import { DropZone } from "./upload/DropZone";
 import { FileUploadItem } from "./upload/FileUploadItem";
 import { useFileUpload } from "./upload/useFileUpload";
-import { VIOLATION_TYPES } from "./upload/types";
 
 interface UploadDialogProps {
   isOpen: boolean;
@@ -18,7 +15,6 @@ interface UploadDialogProps {
 }
 
 export function UploadDialog({ isOpen, onClose, userId, onUploadComplete }: UploadDialogProps) {
-  const [selectedViolationType, setSelectedViolationType] = useState<string>("");
   const { toast } = useToast();
   const { uploads, addFiles, removeFile, uploadToSupabase } = useFileUpload(userId);
 
@@ -27,15 +23,6 @@ export function UploadDialog({ isOpen, onClose, userId, onUploadComplete }: Uplo
     uploads.every(upload => upload.status === 'completed');
 
   const handleUpload = async () => {
-    if (!selectedViolationType) {
-      toast({
-        variant: "destructive",
-        title: "Missing information",
-        description: "Please select a violation type."
-      });
-      return;
-    }
-
     const pendingUploads = uploads.filter(upload => upload.status === 'pending');
     
     if (pendingUploads.length === 0) {
@@ -46,10 +33,10 @@ export function UploadDialog({ isOpen, onClose, userId, onUploadComplete }: Uplo
       return;
     }
 
-    // Upload each pending file
+    // Upload each pending file - violation type will be determined automatically
     for (const upload of pendingUploads) {
       try {
-        await uploadToSupabase(upload.file, selectedViolationType);
+        await uploadToSupabase(upload.file);
       } catch (error) {
         console.error("Failed to upload file:", upload.file.name, error);
       }
@@ -65,7 +52,6 @@ export function UploadDialog({ isOpen, onClose, userId, onUploadComplete }: Uplo
     // Reset the state before closing
     if (!allUploadsCompleted) {
       addFiles([]);
-      setSelectedViolationType("");
     }
     onClose();
   };
@@ -80,27 +66,6 @@ export function UploadDialog({ isOpen, onClose, userId, onUploadComplete }: Uplo
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="violation-type" className="text-black">Violation Type</Label>
-            <Select 
-              value={selectedViolationType} 
-              onValueChange={setSelectedViolationType}
-            >
-              <SelectTrigger id="violation-type" className="w-full bg-white text-black">
-                <SelectValue placeholder="Select violation type">
-                  {selectedViolationType || "Select violation type"}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent className="bg-white">
-                {VIOLATION_TYPES.map((type) => (
-                  <SelectItem key={type} value={type} className="text-black">
-                    {type}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          
           {uploads.length === 0 ? (
             <DropZone onFilesSelected={addFiles} />
           ) : (
@@ -134,7 +99,7 @@ export function UploadDialog({ isOpen, onClose, userId, onUploadComplete }: Uplo
               <Button
                 onClick={handleUpload}
                 className="px-6"
-                disabled={uploads.length === 0 || !selectedViolationType}
+                disabled={uploads.length === 0}
               >
                 Upload files
               </Button>

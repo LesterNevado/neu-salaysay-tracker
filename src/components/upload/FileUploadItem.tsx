@@ -1,14 +1,9 @@
 
-import { X, CheckCircle, AlertCircle, FileText, BadgeInfo, Trash, Info } from "lucide-react";
+import { FileText, X, Check, AlertCircle, Clock } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 import { FileUpload } from "./types";
-import { cn } from "@/lib/utils";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { determineViolationType } from "@/utils/ai/determineViolationType";
 
 interface FileUploadItemProps {
   upload: FileUpload;
@@ -16,103 +11,105 @@ interface FileUploadItemProps {
 }
 
 export function FileUploadItem({ upload, onRemove }: FileUploadItemProps) {
+  const { file, status, progress, extractedInfo } = upload;
+  
+  const fileName = file.name;
+  const fileSize = formatFileSize(file.size);
+  
+  // If we have extracted info, determine the violation type
+  const violationType = upload.violationType || 
+    (extractedInfo?.natureOfExcuse ? determineViolationType(extractedInfo.natureOfExcuse) : "Analyzing...");
+
+  function formatFileSize(bytes: number): string {
+    if (bytes < 1024) return bytes + ' bytes';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
   return (
-    <div className="flex items-start p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
-      <div className="flex-shrink-0 mr-3 mt-1">
-        <div className="text-xs font-medium bg-gray-100 px-2.5 py-1 rounded">
-          PDF
-        </div>
+    <div className="flex items-start p-3 border rounded-md bg-white">
+      <div className="flex-shrink-0 mr-3">
+        <FileText className="h-6 w-6 text-blue-500" />
       </div>
+      
       <div className="flex-1 min-w-0">
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between">
-            <p className="text-sm font-medium text-gray-900 break-words pr-4">
-              {upload.file.name}
-            </p>
-            {upload.status === 'completed' && (
-              <CheckCircle className="h-4 w-4 text-green-500" />
-            )}
-            {upload.status === 'analyzing' && (
-              <div className="flex items-center">
-                <span className="text-xs text-blue-500 mr-2">Analyzing...</span>
-                <div className="animate-spin h-3 w-3 border-2 border-blue-500 rounded-full border-t-transparent"></div>
-              </div>
-            )}
+        <div className="flex justify-between">
+          <div className="truncate">
+            <p className="text-sm font-medium text-black truncate">{fileName}</p>
+            <p className="text-xs text-gray-500">{fileSize}</p>
           </div>
           
-          {upload.status === 'uploading' && (
-            <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
-              <div
-                className="bg-blue-500 h-1.5 rounded-full transition-all duration-300"
-                style={{ width: `${upload.progress}%` }}
-              />
-            </div>
-          )}
-          
-          {upload.status === 'completed' && upload.violationType && (
-            <p className="text-xs text-gray-500">
-              Type: {upload.violationType}
-            </p>
-          )}
-          
-          {upload.extractedInfo && (
-            <div className="mt-2 border-t border-gray-100 pt-2">
-              <div className="flex items-center gap-1 mb-2">
-                <Info className="h-3.5 w-3.5 text-blue-500" />
-                <span className="text-xs font-medium">AI Analysis</span>
-              </div>
-              
-              <div className="bg-gray-50 p-3 rounded-md border border-gray-100 text-xs space-y-2">
-                {upload.extractedInfo.senderName && (
-                  <div className="grid grid-cols-2">
-                    <span className="text-gray-500">Sender Name:</span>
-                    <span className="font-medium">{upload.extractedInfo.senderName}</span>
-                  </div>
-                )}
-                
-                {upload.extractedInfo.addressee && (
-                  <div className="grid grid-cols-2">
-                    <span className="text-gray-500">Addressee:</span>
-                    <span className="font-medium">{upload.extractedInfo.addressee}</span>
-                  </div>
-                )}
-                
-                {upload.extractedInfo.studentNumber && (
-                  <div className="grid grid-cols-2">
-                    <span className="text-gray-500">Student Number:</span>
-                    <span className="font-medium">{upload.extractedInfo.studentNumber}</span>
-                  </div>
-                )}
-                
-                {upload.extractedInfo.date && (
-                  <div className="grid grid-cols-2">
-                    <span className="text-gray-500">Date:</span>
-                    <span className="font-medium">{upload.extractedInfo.date}</span>
-                  </div>
-                )}
-                
-                {upload.extractedInfo.natureOfExcuse && (
-                  <div className="mt-1">
-                    <span className="text-gray-500 block mb-1">Nature of Excuse:</span>
-                    <span className="font-medium block p-1.5 bg-white border border-gray-100 rounded">
-                      {upload.extractedInfo.natureOfExcuse}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
+          {status === 'pending' && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="rounded-full h-6 w-6 p-0 ml-2 text-red-500 hover:text-red-700 hover:bg-red-50"
+              onClick={() => onRemove(file)}
+            >
+              <X className="h-4 w-4" />
+              <span className="sr-only">Remove</span>
+            </Button>
           )}
         </div>
+        
+        {status === 'pending' && (
+          <div className="mt-2">
+            <div className="text-xs text-gray-500 mb-1">Detected Information:</div>
+            {extractedInfo ? (
+              <div className="grid grid-cols-1 gap-1 text-xs text-gray-700">
+                {extractedInfo.studentNumber && (
+                  <p><span className="font-medium">Student ID:</span> {extractedInfo.studentNumber}</p>
+                )}
+                {extractedInfo.senderName && (
+                  <p><span className="font-medium">Sender:</span> {extractedInfo.senderName}</p>
+                )}
+                {extractedInfo.addressee && (
+                  <p><span className="font-medium">Addressee:</span> {extractedInfo.addressee}</p>
+                )}
+                {extractedInfo.date && (
+                  <p><span className="font-medium">Date:</span> {extractedInfo.date}</p>
+                )}
+                {extractedInfo.natureOfExcuse && (
+                  <p><span className="font-medium">Excuse:</span> {extractedInfo.natureOfExcuse.substring(0, 60)}...</p>
+                )}
+                <p><span className="font-medium">Violation Type:</span> {violationType}</p>
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500">Waiting for analysis...</p>
+            )}
+          </div>
+        )}
+        
+        {status === 'analyzing' && (
+          <div className="mt-2">
+            <div className="flex items-center text-amber-600 text-xs">
+              <Clock className="h-3 w-3 mr-1" />
+              Analyzing document...
+            </div>
+          </div>
+        )}
+        
+        {status === 'uploading' && (
+          <div className="mt-2">
+            <Progress value={progress} className="h-1" />
+            <p className="text-xs text-gray-500 mt-1">Uploading... {progress}%</p>
+          </div>
+        )}
+        
+        {status === 'completed' && (
+          <div className="mt-2 flex items-center text-green-600 text-xs">
+            <Check className="h-3 w-3 mr-1" />
+            Upload complete
+          </div>
+        )}
+        
+        {status === 'error' && (
+          <div className="mt-2 flex items-center text-red-600 text-xs">
+            <AlertCircle className="h-3 w-3 mr-1" />
+            Upload failed. Please try again.
+          </div>
+        )}
       </div>
-      {upload.status !== 'uploading' && upload.status !== 'analyzing' && (
-        <button
-          onClick={() => onRemove(upload.file)}
-          className="flex-shrink-0 ml-2 text-gray-400 hover:text-gray-500"
-          aria-label="Remove file"
-        >
-          <Trash className="h-4 w-4" />
-        </button>
-      )}
     </div>
   );
 }
