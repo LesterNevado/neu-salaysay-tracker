@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Trash, FileIcon, Loader2, Eye } from "lucide-react";
+import { Trash, FileIcon, Loader2, Eye, ChevronDown, ChevronRight, Info } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { 
@@ -17,6 +17,13 @@ import {
 import { toast } from "sonner";
 import { logActivity } from "@/utils/activity";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type SalaysayFile = {
   id: string;
@@ -26,6 +33,13 @@ type SalaysayFile = {
   violation_type: string;
   file_name?: string; // Derived property
   file_size?: number;  // Optional since it might not be in the database
+  metadata?: {
+    student_number?: string;
+    sender_name?: string;
+    incident_date?: string;
+    excuse_description?: string;
+    ai_confidence?: 'high' | 'medium' | 'low';
+  };
   profiles?: {
     full_name: string;
     avatar_url?: string;
@@ -56,6 +70,7 @@ export function FileExplorer({
   const [fileToDelete, setFileToDelete] = useState<SalaysayFile | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [userProfiles, setUserProfiles] = useState<Record<string, any>>({});
+  const [expandedFileId, setExpandedFileId] = useState<string | null>(null);
   
   // Fetch files and apply filters when component loads or refreshTrigger changes
   useEffect(() => {
@@ -254,6 +269,19 @@ export function FileExplorer({
       .substring(0, 2);
   };
 
+  const getConfidenceColor = (confidence?: 'high' | 'medium' | 'low') => {
+    switch (confidence) {
+      case 'high': return 'bg-green-100 text-green-800';
+      case 'medium': return 'bg-yellow-100 text-yellow-800';
+      case 'low': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const toggleExpandRow = (fileId: string) => {
+    setExpandedFileId(expandedFileId === fileId ? null : fileId);
+  };
+
   if (loading) {
     return (
       <tr>
@@ -290,65 +318,155 @@ export function FileExplorer({
     <>
       {filteredFiles.map((file) => {
         const uploader = userProfiles[file.user_id];
+        const isExpanded = expandedFileId === file.id;
+        const hasMetadata = file.metadata && (
+          file.metadata.student_number || 
+          file.metadata.sender_name || 
+          file.metadata.incident_date || 
+          file.metadata.excuse_description
+        );
         
         return (
-          <tr key={file.id} className="border-t border-gray-100 hover:bg-gray-50">
-            <td className="px-4 py-3 text-sm">
-              <div className="flex items-center gap-2">
-                <FileIcon className="h-4 w-4 text-red-500" />
-                <span className="font-medium text-gray-700 truncate max-w-[200px]">
-                  {file.file_name || file.file_path.split('/').pop() || file.file_path}
-                </span>
-              </div>
-            </td>
-            <td className="px-4 py-3 text-sm text-gray-600">
-              {format(new Date(file.created_at), "dd/MM/yyyy h:mm a")}
-            </td>
-            <td className="px-4 py-3 text-sm text-gray-600">
-              {file.violation_type || "Dress Code Violation"}
-            </td>
-            <td className="px-4 py-3 text-sm text-gray-600">
-              {uploader ? (
+          <>
+            <tr 
+              key={file.id} 
+              className={`border-t border-gray-100 hover:bg-gray-50 cursor-pointer ${isExpanded ? 'bg-gray-50' : ''}`}
+              onClick={() => hasMetadata && toggleExpandRow(file.id)}
+            >
+              <td className="px-4 py-3 text-sm">
                 <div className="flex items-center gap-2">
-                  <Avatar className="h-6 w-6">
-                    {uploader.avatar_url ? (
-                      <AvatarImage 
-                        src={uploader.avatar_url} 
-                        alt={uploader.full_name || "User"} 
-                      />
-                    ) : (
-                      <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                        {getUploaderInitials(file)}
-                      </AvatarFallback>
-                    )}
-                  </Avatar>
-                  <span>{uploader.full_name || uploader.email || "Unknown user"}</span>
+                  {hasMetadata && (
+                    <button 
+                      className="flex-shrink-0 focus:outline-none" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleExpandRow(file.id);
+                      }}
+                    >
+                      {isExpanded ? 
+                        <ChevronDown className="h-4 w-4 text-gray-500" /> : 
+                        <ChevronRight className="h-4 w-4 text-gray-500" />
+                      }
+                    </button>
+                  )}
+                  <FileIcon className="h-4 w-4 text-red-500" />
+                  <span className="font-medium text-gray-700 truncate max-w-[200px]">
+                    {file.file_name || file.file_path.split('/').pop() || file.file_path}
+                  </span>
+                  {hasMetadata && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild onClick={(e) => e.stopPropagation()}>
+                          <div className="cursor-help">
+                            <Info className="h-3.5 w-3.5 text-blue-500" />
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent className="w-fit p-2">
+                          <span className="text-xs">Contains AI-extracted information</span>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
                 </div>
-              ) : (
-                <span>Unknown user</span>
-              )}
-            </td>
-            <td className="px-4 py-3 text-sm">
-              <div className="flex justify-end gap-2">
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => handleViewFile(file)}
-                  className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"
-                >
-                  <Eye className="h-4 w-4" />
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
-                  onClick={() => handleDeleteClick(file)}
-                  className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                >
-                  <Trash className="h-4 w-4" />
-                </Button>
-              </div>
-            </td>
-          </tr>
+              </td>
+              <td className="px-4 py-3 text-sm text-gray-600">
+                {format(new Date(file.created_at), "dd/MM/yyyy h:mm a")}
+              </td>
+              <td className="px-4 py-3 text-sm text-gray-600">
+                {file.violation_type || "Dress Code Violation"}
+              </td>
+              <td className="px-4 py-3 text-sm text-gray-600">
+                {uploader ? (
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-6 w-6">
+                      {uploader.avatar_url ? (
+                        <AvatarImage 
+                          src={uploader.avatar_url} 
+                          alt={uploader.full_name || "User"} 
+                        />
+                      ) : (
+                        <AvatarFallback className="bg-primary text-primary-foreground text-xs">
+                          {getUploaderInitials(file)}
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                    <span>{uploader.full_name || uploader.email || "Unknown user"}</span>
+                  </div>
+                ) : (
+                  <span>Unknown user</span>
+                )}
+              </td>
+              <td className="px-4 py-3 text-sm">
+                <div className="flex justify-end gap-2">
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleViewFile(file);
+                    }}
+                    className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteClick(file);
+                    }}
+                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash className="h-4 w-4" />
+                  </Button>
+                </div>
+              </td>
+            </tr>
+            {isExpanded && hasMetadata && (
+              <tr className="bg-gray-50">
+                <td colSpan={5} className="px-4 py-3 border-t border-gray-100">
+                  <div className="px-4 py-3 bg-white rounded-md shadow-sm border border-gray-200">
+                    <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
+                      <Info className="h-4 w-4 text-blue-500" />
+                      AI-Extracted Information
+                      {file.metadata?.ai_confidence && (
+                        <Badge variant="outline" className={`text-xs ml-2 ${getConfidenceColor(file.metadata.ai_confidence)}`}>
+                          {file.metadata.ai_confidence} confidence
+                        </Badge>
+                      )}
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {file.metadata?.sender_name && (
+                        <div className="space-y-1">
+                          <p className="text-xs text-gray-500">Sender Name</p>
+                          <p className="text-sm font-medium">{file.metadata.sender_name}</p>
+                        </div>
+                      )}
+                      {file.metadata?.student_number && (
+                        <div className="space-y-1">
+                          <p className="text-xs text-gray-500">Student Number</p>
+                          <p className="text-sm font-medium">{file.metadata.student_number}</p>
+                        </div>
+                      )}
+                      {file.metadata?.incident_date && (
+                        <div className="space-y-1">
+                          <p className="text-xs text-gray-500">Incident Date</p>
+                          <p className="text-sm font-medium">{file.metadata.incident_date}</p>
+                        </div>
+                      )}
+                      {file.metadata?.excuse_description && (
+                        <div className="space-y-1 col-span-1 md:col-span-2">
+                          <p className="text-xs text-gray-500">Nature of Excuse</p>
+                          <p className="text-sm bg-gray-50 p-2 rounded border border-gray-100">{file.metadata.excuse_description}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            )}
+          </>
         )
       })}
 

@@ -1,5 +1,5 @@
 
-import { X, CheckCircle, AlertCircle, FileText, BadgeInfo } from "lucide-react";
+import { X, CheckCircle, AlertCircle, FileText, BadgeInfo, Trash, Info } from "lucide-react";
 import { FileUpload } from "./types";
 import { cn } from "@/lib/utils";
 import {
@@ -8,6 +8,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Badge } from "@/components/ui/badge";
 
 interface FileUploadItemProps {
   upload: FileUpload;
@@ -24,15 +25,24 @@ export function FileUploadItem({ upload, onRemove }: FileUploadItemProps) {
     }
   };
 
+  const getConfidenceBadgeClass = (confidence?: 'high' | 'medium' | 'low') => {
+    switch (confidence) {
+      case 'high': return 'bg-green-100 text-green-700';
+      case 'medium': return 'bg-yellow-100 text-yellow-700';
+      case 'low': return 'bg-red-100 text-red-700';
+      default: return 'bg-gray-100 text-gray-700';
+    }
+  };
+
   return (
-    <div className="flex items-center p-3 bg-white border border-gray-200 rounded-lg shadow-sm">
-      <div className="flex-shrink-0 mr-3">
+    <div className="flex items-start p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
+      <div className="flex-shrink-0 mr-3 mt-1">
         <div className="text-xs font-medium bg-gray-100 px-2.5 py-1 rounded">
           PDF
         </div>
       </div>
       <div className="flex-1 min-w-0">
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1.5">
           <div className="flex items-center justify-between">
             <p className="text-sm font-medium text-gray-900 break-words pr-4">
               {upload.file.name}
@@ -64,51 +74,46 @@ export function FileUploadItem({ upload, onRemove }: FileUploadItemProps) {
           )}
           
           {upload.extractedInfo && (
-            <div className="mt-1.5 border-t border-gray-100 pt-1.5">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="flex items-center gap-1 text-xs">
-                      <BadgeInfo className={cn("h-3.5 w-3.5", getConfidenceColor(upload.extractedInfo.confidence))} />
-                      <span className="font-medium">AI Analysis</span>
-                      <span className={cn("text-[10px] ml-1 px-1.5 py-0.5 rounded-full", {
-                        "bg-green-100 text-green-700": upload.extractedInfo.confidence === 'high',
-                        "bg-yellow-100 text-yellow-700": upload.extractedInfo.confidence === 'medium',
-                        "bg-red-100 text-red-700": upload.extractedInfo.confidence === 'low',
-                      })}>
-                        {upload.extractedInfo.confidence}
-                      </span>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent className="w-64 p-3">
-                    <div className="space-y-2">
-                      <h4 className="font-medium text-sm">Extracted Information</h4>
-                      <div className="space-y-1 text-xs">
-                        {upload.extractedInfo.senderName && (
-                          <div className="flex justify-between">
-                            <span className="text-gray-500">Sender Name:</span>
-                            <span className="font-medium">{upload.extractedInfo.senderName}</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between">
-                          <span className="text-gray-500">Student Number:</span>
-                          <span className="font-medium">{upload.extractedInfo.studentNumber || 'Not found'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-500">Date:</span>
-                          <span className="font-medium">{upload.extractedInfo.date || 'Not found'}</span>
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="text-gray-500">Nature of Excuse:</span>
-                          <span className="font-medium text-xs mt-1">
-                            {upload.extractedInfo.natureOfExcuse || 'Not found'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+            <div className="mt-2 border-t border-gray-100 pt-2">
+              <div className="flex items-center gap-1 mb-2">
+                <Info className={cn("h-3.5 w-3.5", getConfidenceColor(upload.extractedInfo.confidence))} />
+                <span className="text-xs font-medium">AI Analysis</span>
+                <Badge className={cn("ml-1 text-[10px]", getConfidenceBadgeClass(upload.extractedInfo.confidence))}>
+                  {upload.extractedInfo.confidence}
+                </Badge>
+              </div>
+              
+              <div className="bg-gray-50 p-3 rounded-md border border-gray-100 text-xs space-y-2">
+                {upload.extractedInfo.senderName && (
+                  <div className="grid grid-cols-2">
+                    <span className="text-gray-500">Sender Name:</span>
+                    <span className="font-medium">{upload.extractedInfo.senderName}</span>
+                  </div>
+                )}
+                
+                {upload.extractedInfo.studentNumber && (
+                  <div className="grid grid-cols-2">
+                    <span className="text-gray-500">Student Number:</span>
+                    <span className="font-medium">{upload.extractedInfo.studentNumber}</span>
+                  </div>
+                )}
+                
+                {upload.extractedInfo.date && (
+                  <div className="grid grid-cols-2">
+                    <span className="text-gray-500">Date:</span>
+                    <span className="font-medium">{upload.extractedInfo.date}</span>
+                  </div>
+                )}
+                
+                {upload.extractedInfo.natureOfExcuse && (
+                  <div className="mt-1">
+                    <span className="text-gray-500 block mb-1">Nature of Excuse:</span>
+                    <span className="font-medium block p-1.5 bg-white border border-gray-100 rounded">
+                      {upload.extractedInfo.natureOfExcuse}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -119,7 +124,7 @@ export function FileUploadItem({ upload, onRemove }: FileUploadItemProps) {
           className="flex-shrink-0 ml-2 text-gray-400 hover:text-gray-500"
           aria-label="Remove file"
         >
-          <X className="h-4 w-4" />
+          <Trash className="h-4 w-4" />
         </button>
       )}
     </div>
