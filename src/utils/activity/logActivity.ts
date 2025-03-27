@@ -46,10 +46,51 @@ export const logActivity = async (
 };
 
 /**
+ * Checks if there was a recent login activity for the user
+ * to prevent duplicate login logs on page refresh
+ */
+export const hasRecentLoginActivity = async (userId: string, timeWindowMinutes: number = 10): Promise<boolean> => {
+  try {
+    if (!userId) return false;
+    
+    // Calculate time window (default: 10 minutes)
+    const timeWindow = new Date();
+    timeWindow.setMinutes(timeWindow.getMinutes() - timeWindowMinutes);
+    
+    // Check for any login activities in the recent time window
+    const { data, error } = await supabase
+      .from('activity_logs')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('action_type', 'login')
+      .gte('created_at', timeWindow.toISOString())
+      .order('created_at', { ascending: false })
+      .limit(1);
+      
+    if (error) {
+      console.error("Error checking for recent login activity:", error);
+      return false;
+    }
+    
+    return data && data.length > 0;
+  } catch (err) {
+    console.error("Error checking recent login activity:", err);
+    return false;
+  }
+};
+
+/**
  * Forcefully logs login activity without requiring an active session
  */
 export const logLoginActivity = async (userId: string) => {
   try {
+    // First check if we already have a recent login activity to avoid duplicates on refresh
+    const hasRecent = await hasRecentLoginActivity(userId);
+    if (hasRecent) {
+      console.log("Skipping login activity logging - recent login found");
+      return true; // Return true to indicate successful handling (just not logging)
+    }
+    
     console.log(`Logging login activity for user ${userId}`);
     
     // Create a new log entry in Supabase with a clean description
