@@ -6,7 +6,7 @@ import { GlobalWorkerOptions } from 'pdfjs-dist';
 GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 /**
- * Extracts text content from a PDF file
+ * Extracts text content from a PDF file with improved layout preservation
  * @param file - PDF file to extract text from
  * @returns The extracted text content
  */
@@ -25,15 +25,44 @@ export async function extractPdfText(file: File): Promise<string> {
     // Loop through each page
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
-      const textContent = await page.getTextContent();
       
-      // Concatenate the text items
-      const pageText = textContent.items
-        .map((item: any) => item.str)
-        .join(' ');
+      // Get text content with more detailed parameters
+      const textContent = await page.getTextContent({
+        normalizeWhitespace: true,
+        disableCombineTextItems: false
+      });
+      
+      // Process text with better layout preservation
+      let lastY;
+      let text = '';
+      
+      for (const item of textContent.items) {
+        const textItem = item as pdfjsLib.TextItem;
         
-      fullText += pageText + '\n';
+        // Add newlines when Y position changes significantly (new paragraph)
+        if (lastY !== undefined && Math.abs(textItem.transform[5] - lastY) > 5) {
+          text += '\n';
+        } else if (lastY !== undefined && textItem.transform[5] !== lastY) {
+          // Small Y change might indicate line break
+          text += ' ';
+        }
+        
+        // Add the text content
+        text += textItem.str;
+        lastY = textItem.transform[5];
+      }
+      
+      fullText += text + '\n\n'; // Add extra newlines between pages
     }
+    
+    // Clean up the text - remove excessive whitespace while preserving paragraphs
+    fullText = fullText
+      .replace(/\n{3,}/g, '\n\n')      // Replace 3+ newlines with 2
+      .replace(/\s{2,}/g, ' ')         // Replace 2+ spaces with 1
+      .trim();                         // Trim leading/trailing whitespace
+    
+    // Print first 500 chars to console for debugging
+    console.log('Extracted text sample:', fullText.substring(0, 500));
     
     // Return the text content
     return fullText;
