@@ -26,30 +26,30 @@ export async function extractPdfText(file: File): Promise<string> {
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
       
-      // Get text content with more detailed parameters
-      const textContent = await page.getTextContent({
-        normalizeWhitespace: true,
-        disableCombineTextItems: false
-      });
+      // Get text content with compatible parameters
+      // Note: Removed normalizeWhitespace as it's not in the type definition
+      const textContent = await page.getTextContent();
       
       // Process text with better layout preservation
       let lastY;
       let text = '';
       
       for (const item of textContent.items) {
-        const textItem = item as pdfjsLib.TextItem;
-        
-        // Add newlines when Y position changes significantly (new paragraph)
-        if (lastY !== undefined && Math.abs(textItem.transform[5] - lastY) > 5) {
-          text += '\n';
-        } else if (lastY !== undefined && textItem.transform[5] !== lastY) {
-          // Small Y change might indicate line break
-          text += ' ';
+        // Use type assertion instead of relying on TextItem type
+        // Check if the item has the expected structure
+        if ('str' in item && 'transform' in item) {
+          // Add newlines when Y position changes significantly (new paragraph)
+          if (lastY !== undefined && Math.abs(item.transform[5] - lastY) > 5) {
+            text += '\n';
+          } else if (lastY !== undefined && item.transform[5] !== lastY) {
+            // Small Y change might indicate line break
+            text += ' ';
+          }
+          
+          // Add the text content
+          text += item.str;
+          lastY = item.transform[5];
         }
-        
-        // Add the text content
-        text += textItem.str;
-        lastY = textItem.transform[5];
       }
       
       fullText += text + '\n\n'; // Add extra newlines between pages
