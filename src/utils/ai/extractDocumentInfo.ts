@@ -1,6 +1,4 @@
 
-import OpenAI from 'openai';
-
 // Define the structure for the extracted information
 export interface ExtractedDocumentInfo {
   studentNumber?: string;
@@ -10,97 +8,158 @@ export interface ExtractedDocumentInfo {
 }
 
 /**
- * Extracts structured information from a text document using AI
+ * Extracts structured information from a text document using regex patterns
  * @param text - The text content to analyze
  * @returns Structured information extracted from the document
  */
 export async function extractDocumentInfo(text: string): Promise<ExtractedDocumentInfo> {
   try {
-    // Initialize OpenAI client
-    const openai = new OpenAI({
-      apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-      dangerouslyAllowBrowser: true, // Note: In production, you should use a backend service
-    });
-
-    // Create a more detailed prompt with examples and specific format instructions
-    const prompt = `
-    Extract the following information from this salaysay (excuse letter) content:
-
-    1. Student Number: Look for patterns like XX-XXXXX-XXX, XXXXXXXX, or any numeric identifier that appears to be a student ID.
-       - Common formats: 20XX-XXXXX, XX-XXXXX-XXX, XXXXXXXXX
-       - It's often found near the student's name or at the end of the letter.
-       - Example: "22-12857-750", "2021-12345", "201912345"
-
-    2. Date: Find when the letter was written or when the incident occurred.
-       - Look for dates in formats like "March 27, 2025", "27/03/2025", "03-27-2025"
-       - It's typically at the top of the letter or mentioned in the content.
-       - If multiple dates exist, prioritize the one that appears to be the incident date.
-
-    3. Nature of Excuse: Determine the primary reason for the excuse.
-       - Look for descriptions of academic misconduct, absences, late submissions, etc.
-       - Scan for key phrases like "apologize for", "regret to inform", "unable to attend"
-       - Summarize the main issue in a brief phrase (e.g., "Academic misconduct - cheating", "Absence due to illness")
-
-    Respond ONLY with a JSON object with these keys:
-    {
-      "studentNumber": "extracted student number or null if not found",
-      "date": "extracted date or null if not found",
-      "natureOfExcuse": "extracted excuse description or null if not found",
-      "confidence": "high, medium, or low based on how clear the information was"
-    }
-
-    Here is the document text:
-    ${text.substring(0, 4000)} // Limit text to avoid token limits
-    `;
-
-    // Make the API call with more specific instructions
-    const response = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [{ role: "user", content: prompt }],
-      temperature: 0.2, // Lower temperature for more deterministic results
-      max_tokens: 500,
-    });
-
-    // Parse the response
-    const content = response.choices[0]?.message?.content || '{}';
-    
-    // Handle potential JSON parsing errors
-    let extractedInfo: ExtractedDocumentInfo;
-    try {
-      extractedInfo = JSON.parse(content) as ExtractedDocumentInfo;
-    } catch (error) {
-      console.error('Error parsing JSON response from AI:', error);
-      console.log('Raw AI response:', content);
-      return { confidence: 'low' };
-    }
-    
-    // Clean up and validate the extracted information
+    // Initialize results
     const result: ExtractedDocumentInfo = {
-      studentNumber: extractedInfo.studentNumber && extractedInfo.studentNumber !== 'null' 
-        ? extractedInfo.studentNumber.trim() 
-        : undefined,
-      date: extractedInfo.date && extractedInfo.date !== 'null' 
-        ? extractedInfo.date.trim() 
-        : undefined,
-      natureOfExcuse: extractedInfo.natureOfExcuse && extractedInfo.natureOfExcuse !== 'null' 
-        ? extractedInfo.natureOfExcuse.trim() 
-        : undefined,
-      confidence: extractedInfo.confidence || 'low',
+      confidence: 'low'
     };
     
-    // Adjust confidence based on how many fields were successfully extracted
-    const extractedFieldCount = [result.studentNumber, result.date, result.natureOfExcuse].filter(Boolean).length;
-    if (extractedFieldCount === 0) {
-      result.confidence = 'low';
-    } else if (extractedFieldCount === 1) {
-      result.confidence = result.confidence === 'high' ? 'medium' : 'low';
-    } else if (extractedFieldCount === 2 && result.confidence === 'low') {
-      result.confidence = 'medium';
+    // Clean up the text
+    const cleanText = text.replace(/\s+/g, ' ').trim();
+    
+    // Extract student number using various common formats
+    // Format patterns: 20XX-XXXXX, XX-XXXXX-XXX, XXXXXXXXX
+    const studentNumberPatterns = [
+      /\b\d{2}-\d{5}-\d{3}\b/g,  // XX-XXXXX-XXX format
+      /\b\d{4}-\d{5}\b/g,        // XXXX-XXXXX format
+      /\b\d{9}\b/g,              // XXXXXXXXX format (9 digits)
+      /\b\d{7}\b/g,              // XXXXXXX format (7 digits)
+      /\bStudent(?:\s+(?:Number|ID|No|#|)):?\s*([0-9-]+)/i,  // "Student Number: XXXXXX"
+      /\bID(?:\s+(?:Number|No|#|)):?\s*([0-9-]+)/i,          // "ID Number: XXXXXX"
+    ];
+    
+    for (const pattern of studentNumberPatterns) {
+      const matches = cleanText.match(pattern);
+      if (matches && matches.length > 0) {
+        // If the pattern has a capturing group (like the last two patterns)
+        if (pattern.toString().includes('(')) {
+          const match = pattern.exec(cleanText);
+          if (match && match[1]) {
+            result.studentNumber = match[1].trim();
+            break;
+          }
+        } else {
+          result.studentNumber = matches[0].trim();
+          break;
+        }
+      }
     }
     
+    // Extract date using various formats
+    // Try to find dates in various formats
+    const datePatterns = [
+      // Month name, day, year (e.g., "March 27, 2025" or "March 27 2025")
+      /\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:,|\s)\s*\d{4}\b/gi,
+      
+      // Day month name year (e.g., "27 March 2025" or "27th of March 2025")
+      /\b\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}\b/gi,
+      
+      // MM/DD/YYYY or DD/MM/YYYY
+      /\b\d{1,2}\/\d{1,2}\/\d{4}\b/g,
+      
+      // YYYY-MM-DD (ISO format)
+      /\b\d{4}-\d{2}-\d{2}\b/g,
+      
+      // MM-DD-YYYY or DD-MM-YYYY
+      /\b\d{1,2}-\d{1,2}-\d{4}\b/g,
+      
+      // Date: pattern
+      /\bDate:?\s*([A-Za-z0-9,\s]+\d{4})/i,
+    ];
+    
+    for (const pattern of datePatterns) {
+      const matches = cleanText.match(pattern);
+      if (matches && matches.length > 0) {
+        // If the pattern has a capturing group (like the last pattern)
+        if (pattern.toString().includes('(')) {
+          const match = pattern.exec(cleanText);
+          if (match && match[1]) {
+            result.date = match[1].trim();
+            break;
+          }
+        } else {
+          result.date = matches[0].trim();
+          break;
+        }
+      }
+    }
+    
+    // Extract nature of excuse
+    // Look for common phrases/patterns in excuse letters
+    const excuseKeywords = [
+      "unable to attend", "could not attend", "missed", "absent", "absence",
+      "apologize", "sorry", "regret", "excuse", "reason", "explanation",
+      "due to", "because of", "unfortunately", "illness", "medical", "family",
+      "emergency", "incident", "problem", "issue", "situation", "circumstances"
+    ];
+    
+    const excuseIndicators = [
+      /I (?:am writing to |would like to |wish to |want to |hereby |)(?:sincerely |humbly |)(?:apologize|regret|explain)(.*?)(?:\.|\n)/i,
+      /(?:This is |I am |This serves as |)(?:a |an |)(?:letter of |formal |)(?:apology|excuse)(.*?)(?:\.|\n)/i,
+      /(?:I |We |)(?:was |were |am |are |)(?:unable|not able)(.*?)(?:\.|\n)/i,
+      /(?:due to|because of|on account of)(.*?)(?:\.|\n)/i,
+      /(?:reason|explanation|justification)(.*?)(?:\.|\n)/i,
+      /nature of excuse:?(.*?)(?:\.|\n)/i
+    ];
+    
+    // Try to find the excuse based on keyword context
+    for (const pattern of excuseIndicators) {
+      const match = pattern.exec(cleanText);
+      if (match && match[1]) {
+        // Limit to reasonable length
+        const excuseText = match[1].trim();
+        if (excuseText.length > 10 && excuseText.length < 200) {
+          result.natureOfExcuse = excuseText;
+          break;
+        }
+      }
+    }
+    
+    // If no excuse found with patterns, try finding sentences with excuse keywords
+    if (!result.natureOfExcuse) {
+      const sentences = cleanText.split(/\.|\n/).filter(s => s.trim().length > 0);
+      
+      for (const sentence of sentences) {
+        // Check if sentence contains any excuse keywords
+        if (excuseKeywords.some(keyword => sentence.toLowerCase().includes(keyword))) {
+          // Use this sentence as the nature of excuse
+          result.natureOfExcuse = sentence.trim();
+          break;
+        }
+      }
+    }
+    
+    // Calculate confidence level based on how many fields were extracted
+    let extractedCount = 0;
+    if (result.studentNumber) extractedCount++;
+    if (result.date) extractedCount++;
+    if (result.natureOfExcuse) extractedCount++;
+    
+    if (extractedCount === 3) {
+      result.confidence = 'high';
+    } else if (extractedCount === 2) {
+      result.confidence = 'medium';
+    } else {
+      result.confidence = 'low';
+    }
+    
+    // Log sample of extracted text for debugging
+    console.log('Extraction attempt results:', {
+      foundStudentNumber: !!result.studentNumber,
+      foundDate: !!result.date,
+      foundExcuse: !!result.natureOfExcuse,
+      confidence: result.confidence
+    });
+    
     return result;
+    
   } catch (error) {
-    console.error('Error extracting information using AI:', error);
+    console.error('Error extracting document information:', error);
     return { confidence: 'low' };
   }
 }
