@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Trash, FileIcon, Loader2, Eye, ChevronDown, ChevronRight, Info } from "lucide-react";
@@ -38,8 +37,9 @@ type SalaysayFile = {
     sender_name?: string;
     incident_date?: string;
     excuse_description?: string;
+    addressee?: string;
     ai_confidence?: 'high' | 'medium' | 'low';
-  };
+  } | null;
   profiles?: {
     full_name: string;
     avatar_url?: string;
@@ -72,7 +72,6 @@ export function FileExplorer({
   const [userProfiles, setUserProfiles] = useState<Record<string, any>>({});
   const [expandedFileId, setExpandedFileId] = useState<string | null>(null);
   
-  // Fetch files and apply filters when component loads or refreshTrigger changes
   useEffect(() => {
     const fetchFiles = async () => {
       setLoading(true);
@@ -82,15 +81,12 @@ export function FileExplorer({
           .select('*, profiles(*)')
           .order('created_at', { ascending: false });
         
-        // If not showing all users, filter by the current user's ID
         if (!showAllUsers) {
           query = query.eq('user_id', userId);
         } else if (userFilter) {
-          // If showing all users and a user filter is applied
           query = query.eq('user_id', userFilter);
         }
 
-        // Apply date range filter if provided
         if (dateRangeFilter.startDate) {
           query = query.gte('created_at', `${dateRangeFilter.startDate}T00:00:00`);
         }
@@ -105,20 +101,17 @@ export function FileExplorer({
           console.error("Error fetching files:", error);
           toast.error("Failed to load files. Please try again.");
         } else {
-          // Process the data to add file_name from file_path
-          const processedData = data?.map(item => ({
+          const processedData: SalaysayFile[] = data?.map(item => ({
             ...item,
             file_name: item.file_path.split('/').pop() || item.file_path,
           })) || [];
           
-          // Fetch user profiles for all uploaders
           const userIds = [...new Set(processedData.map(file => file.user_id))];
           const { data: profiles } = await supabase
             .from('profiles')
             .select('id, full_name, avatar_url, email')
             .in('id', userIds);
             
-          // Create a map of user IDs to profiles
           const profileMap: Record<string, any> = {};
           if (profiles) {
             profiles.forEach(profile => {
@@ -129,7 +122,6 @@ export function FileExplorer({
           setUserProfiles(profileMap);
           setFiles(processedData);
           
-          // Apply initial filtering
           applyFilters(processedData, violationTypeFilters, fileNameFilter);
         }
       } catch (error) {
@@ -143,24 +135,17 @@ export function FileExplorer({
     fetchFiles();
   }, [userId, refreshTrigger, showAllUsers, userFilter, dateRangeFilter.startDate, dateRangeFilter.endDate]);
 
-  // Apply filters when they change
-  useEffect(() => {
-    applyFilters(files, violationTypeFilters, fileNameFilter);
-  }, [violationTypeFilters, files, fileNameFilter]);
-
   const applyFilters = (files: SalaysayFile[], violationTypeFilters: string[], fileNameFilter: string) => {
     if (!files.length) return;
     
     let filtered = files;
     
-    // Apply violation type filters
     if (violationTypeFilters.length) {
       filtered = filtered.filter(file => 
         violationTypeFilters.includes(file.violation_type)
       );
     }
     
-    // Apply filename filter
     if (fileNameFilter.trim()) {
       const searchTerm = fileNameFilter.toLowerCase();
       filtered = filtered.filter(file => {
@@ -179,10 +164,9 @@ export function FileExplorer({
 
   const handleViewFile = async (file: SalaysayFile) => {
     try {
-      // Get file URL from storage
       const { data: urlData, error: urlError } = await supabase.storage
         .from('salaysay-uploads')
-        .createSignedUrl(file.file_path, 60); // URL valid for 60 seconds
+        .createSignedUrl(file.file_path, 60);
       
       if (urlError) {
         console.error("Error generating signed URL:", urlError);
@@ -190,14 +174,12 @@ export function FileExplorer({
         return;
       }
       
-      // Log the view activity with detailed file name
       await logActivity(
         'view',
         `Viewed salaysay for ${file.violation_type}`,
         file.id
       );
       
-      // Open the file in a new tab
       window.open(urlData.signedUrl, '_blank');
     } catch (error) {
       console.error("Error viewing file:", error);
@@ -209,10 +191,8 @@ export function FileExplorer({
     if (!fileToDelete) return;
     
     try {
-      // Store filename before deleting for logging purposes
       const fileName = fileToDelete.file_name || fileToDelete.file_path.split('/').pop() || fileToDelete.file_path;
       
-      // Delete from storage
       const { error: storageError } = await supabase.storage
         .from('salaysay-uploads')
         .remove([fileToDelete.file_path]);
@@ -223,7 +203,6 @@ export function FileExplorer({
         return;
       }
       
-      // Log the delete activity with detailed filename
       await logActivity(
         'delete',
         `Deleted salaysay for ${fileToDelete.violation_type}`,
@@ -232,7 +211,6 @@ export function FileExplorer({
         fileName
       );
       
-      // Delete from database
       const { error: dbError } = await supabase
         .from('salaysay_submissions')
         .delete()
@@ -244,7 +222,6 @@ export function FileExplorer({
         return;
       }
       
-      // Update the file list
       setFiles(files.filter(file => file.id !== fileToDelete.id));
       setFilteredFiles(filteredFiles.filter(file => file.id !== fileToDelete.id));
       toast.success("File deleted successfully.");
@@ -323,7 +300,8 @@ export function FileExplorer({
           file.metadata.student_number || 
           file.metadata.sender_name || 
           file.metadata.incident_date || 
-          file.metadata.excuse_description
+          file.metadata.excuse_description ||
+          file.metadata.addressee
         );
         
         return (
@@ -430,17 +408,18 @@ export function FileExplorer({
                     <h3 className="text-sm font-medium mb-2 flex items-center gap-2">
                       <Info className="h-4 w-4 text-blue-500" />
                       AI-Extracted Information
-                      {file.metadata?.ai_confidence && (
-                        <Badge variant="outline" className={`text-xs ml-2 ${getConfidenceColor(file.metadata.ai_confidence)}`}>
-                          {file.metadata.ai_confidence} confidence
-                        </Badge>
-                      )}
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {file.metadata?.sender_name && (
                         <div className="space-y-1">
                           <p className="text-xs text-gray-500">Sender Name</p>
                           <p className="text-sm font-medium">{file.metadata.sender_name}</p>
+                        </div>
+                      )}
+                      {file.metadata?.addressee && (
+                        <div className="space-y-1">
+                          <p className="text-xs text-gray-500">Addressee</p>
+                          <p className="text-sm font-medium">{file.metadata.addressee}</p>
                         </div>
                       )}
                       {file.metadata?.student_number && (

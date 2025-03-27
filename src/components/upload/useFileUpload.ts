@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -147,6 +146,7 @@ export function useFileUpload(userId: string) {
         sender_name: extractedInfo?.senderName,
         incident_date: extractedInfo?.date,
         excuse_description: extractedInfo?.natureOfExcuse,
+        addressee: extractedInfo?.addressee,
         ai_confidence: extractedInfo?.confidence
       };
 

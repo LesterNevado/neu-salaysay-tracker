@@ -25,15 +25,6 @@ export function FileUploadItem({ upload, onRemove }: FileUploadItemProps) {
     }
   };
 
-  const getConfidenceBadgeClass = (confidence?: 'high' | 'medium' | 'low') => {
-    switch (confidence) {
-      case 'high': return 'bg-green-100 text-green-700';
-      case 'medium': return 'bg-yellow-100 text-yellow-700';
-      case 'low': return 'bg-red-100 text-red-700';
-      default: return 'bg-gray-100 text-gray-700';
-    }
-  };
-
   return (
     <div className="flex items-start p-4 bg-white border border-gray-200 rounded-lg shadow-sm">
       <div className="flex-shrink-0 mr-3 mt-1">
@@ -78,9 +69,6 @@ export function FileUploadItem({ upload, onRemove }: FileUploadItemProps) {
               <div className="flex items-center gap-1 mb-2">
                 <Info className={cn("h-3.5 w-3.5", getConfidenceColor(upload.extractedInfo.confidence))} />
                 <span className="text-xs font-medium">AI Analysis</span>
-                <Badge className={cn("ml-1 text-[10px]", getConfidenceBadgeClass(upload.extractedInfo.confidence))}>
-                  {upload.extractedInfo.confidence}
-                </Badge>
               </div>
               
               <div className="bg-gray-50 p-3 rounded-md border border-gray-100 text-xs space-y-2">
@@ -88,6 +76,13 @@ export function FileUploadItem({ upload, onRemove }: FileUploadItemProps) {
                   <div className="grid grid-cols-2">
                     <span className="text-gray-500">Sender Name:</span>
                     <span className="font-medium">{upload.extractedInfo.senderName}</span>
+                  </div>
+                )}
+                
+                {upload.extractedInfo.addressee && (
+                  <div className="grid grid-cols-2">
+                    <span className="text-gray-500">Addressee:</span>
+                    <span className="font-medium">{upload.extractedInfo.addressee}</span>
                   </div>
                 )}
                 

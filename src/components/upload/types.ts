@@ -9,6 +9,7 @@ export interface FileUpload {
     senderName?: string;
     date?: string;
     natureOfExcuse?: string;
+    addressee?: string;
     confidence: 'high' | 'medium' | 'low';
   } | null;
 }

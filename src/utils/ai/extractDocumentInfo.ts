@@ -1,10 +1,10 @@
-
 // Define the structure for the extracted information
 export interface ExtractedDocumentInfo {
   studentNumber?: string;
   senderName?: string;
   date?: string;
   natureOfExcuse?: string;
+  addressee?: string;
   confidence: 'high' | 'medium' | 'low';
 }
 
@@ -151,6 +151,40 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       }
     }
     
+    // Extract addressee (recipient of the letter)
+    const addresseePatterns = [
+      /To:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "To: Name"
+      /Attn:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "Attn: Name"
+      /Attention:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "Attention: Name"
+      /Dear\s+([A-Za-z\s.,]+?)(?:,|;|\r?\n|$)/i,  // "Dear Name,"
+      /Addressed to:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "Addressed to: Name"
+      /For the attention of:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "For the attention of: Name"
+    ];
+    
+    for (const pattern of addresseePatterns) {
+      const match = pattern.exec(cleanText);
+      if (match && match[1]) {
+        const addressee = match[1].trim();
+        // Verify it's a name (at least 2 characters, not just whitespace)
+        if (addressee.length >= 2) {
+          result.addressee = addressee;
+          break;
+        }
+      }
+    }
+    
+    // If addressee still not found, look for titles followed by names near the beginning
+    if (!result.addressee) {
+      // Get the first 500 characters to look for addressee
+      const initialText = cleanText.substring(0, 500);
+      const titlePatterns = /(?:Mr\.|Mrs\.|Ms\.|Dr\.|Prof\.|Professor|Dean|Director|Principal|Sir|Madam|Teacher)\s+([A-Za-z\s.,]{2,30}?)(?:,|;|\r?\n|$)/i;
+      
+      const match = titlePatterns.exec(initialText);
+      if (match && match[1]) {
+        result.addressee = match[1].trim();
+      }
+    }
+    
     // Extract nature of excuse
     // Look for common phrases/patterns in excuse letters
     const excuseKeywords = [
@@ -202,6 +236,7 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
     if (result.date) extractedCount++;
     if (result.natureOfExcuse) extractedCount++;
     if (result.senderName) extractedCount++;
+    if (result.addressee) extractedCount++;
     
     if (extractedCount >= 3) {
       result.confidence = 'high';
@@ -217,9 +252,8 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       foundSenderName: !!result.senderName,
       foundDate: !!result.date,
       foundExcuse: !!result.natureOfExcuse,
-      confidence: result.confidence,
-      date: result.date,
-      senderName: result.senderName
+      foundAddressee: !!result.addressee,
+      confidence: result.confidence
     });
     
     return result;
