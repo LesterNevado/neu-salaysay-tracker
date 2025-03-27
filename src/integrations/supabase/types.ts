@@ -71,6 +71,7 @@ export type Database = {
           created_at: string
           file_path: string
           id: string
+          metadata: Json | null
           user_id: string
           violation_type: string
         }
@@ -78,6 +79,7 @@ export type Database = {
           created_at?: string
           file_path: string
           id?: string
+          metadata?: Json | null
           user_id: string
           violation_type: string
         }
@@ -85,6 +87,7 @@ export type Database = {
           created_at?: string
           file_path?: string
           id?: string
+          metadata?: Json | null
           user_id?: string
           violation_type?: string
         }

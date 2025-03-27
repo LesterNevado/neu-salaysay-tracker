@@ -29,6 +29,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { AuthContext } from "@/App";
 import { logLogoutActivity } from "@/utils/activity";
 import { VIOLATION_TYPES } from "@/components/upload/types";
+import { setupSalaysayStorageBucket } from "@/integrations/supabase/setupStorage";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -96,6 +97,9 @@ export default function Dashboard() {
         navigate('/');
         return;
       }
+
+      // Initialize the storage bucket
+      await setupSalaysayStorageBucket();
 
       setUserProfile(prev => ({ 
         ...prev, 
