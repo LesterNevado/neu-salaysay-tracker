@@ -2,8 +2,14 @@
 export interface FileUpload {
   file: File;
   progress: number;
-  status: 'pending' | 'uploading' | 'completed' | 'error';
+  status: 'pending' | 'analyzing' | 'uploading' | 'completed' | 'error';
   violationType?: string;
+  extractedInfo?: {
+    studentNumber?: string;
+    date?: string;
+    natureOfExcuse?: string;
+    confidence: 'high' | 'medium' | 'low';
+  } | null;
 }
 
 export const VIOLATION_TYPES = [

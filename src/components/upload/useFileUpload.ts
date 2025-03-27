@@ -4,6 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { FileUpload } from "./types";
 import { logActivity } from "@/utils/activity";
+import { extractPdfText } from "@/utils/pdf/extractPdfText";
+import { extractDocumentInfo, ExtractedDocumentInfo } from "@/utils/ai/extractDocumentInfo";
 
 export function useFileUpload(userId: string) {
   const [uploads, setUploads] = useState<FileUpload[]>([]);
@@ -13,13 +15,50 @@ export function useFileUpload(userId: string) {
     const newUploads = files.map(file => ({
       file,
       progress: 0,
-      status: 'pending' as const
+      status: 'pending' as const,
+      extractedInfo: null
     }));
     setUploads(prev => [...prev, ...newUploads]);
   };
 
   const removeFile = (fileToRemove: File) => {
     setUploads(prev => prev.filter(upload => upload.file !== fileToRemove));
+  };
+
+  const analyzeFile = async (file: File): Promise<ExtractedDocumentInfo | null> => {
+    try {
+      setUploads(prev => 
+        prev.map(upload => 
+          upload.file === file 
+            ? { ...upload, status: 'analyzing' }
+            : upload
+        )
+      );
+
+      // Extract text from PDF
+      const text = await extractPdfText(file);
+      
+      // Extract information using AI
+      const extractedInfo = await extractDocumentInfo(text);
+      
+      setUploads(prev => 
+        prev.map(upload => 
+          upload.file === file 
+            ? { ...upload, extractedInfo }
+            : upload
+        )
+      );
+      
+      return extractedInfo;
+    } catch (error) {
+      console.error('Error analyzing file:', error);
+      toast({
+        variant: "destructive",
+        title: "Analysis failed",
+        description: "Failed to extract information from the PDF. Continuing with upload."
+      });
+      return null;
+    }
   };
 
   const uploadToSupabase = async (file: File, violationType: string) => {
@@ -50,6 +89,9 @@ export function useFileUpload(userId: string) {
     );
 
     try {
+      // Analyze the file first to extract information
+      const extractedInfo = await analyzeFile(file);
+
       const timestamp = Date.now();
       const originalName = file.name;
       // Create a path with user's ID as the folder name
@@ -79,12 +121,21 @@ export function useFileUpload(userId: string) {
         )
       );
 
+      // Prepare the metadata to save
+      const metadata = {
+        student_number: extractedInfo?.studentNumber,
+        incident_date: extractedInfo?.date,
+        excuse_description: extractedInfo?.natureOfExcuse,
+        ai_confidence: extractedInfo?.confidence
+      };
+
       const { error: insertError, data: submissionData } = await supabase
         .from('salaysay_submissions')
         .insert({
           user_id: userId,
           file_path: data.path,
-          violation_type: violationType
+          violation_type: violationType,
+          metadata: metadata
         })
         .select()
         .single();
@@ -103,14 +154,20 @@ export function useFileUpload(userId: string) {
       setUploads(prev => 
         prev.map(upload => 
           upload.file === file 
-            ? { ...upload, status: 'completed', progress: 100, violationType }
+            ? { 
+                ...upload, 
+                status: 'completed', 
+                progress: 100, 
+                violationType,
+                extractedInfo: extractedInfo
+              }
             : upload
         )
       );
 
       toast({
         title: "Upload successful",
-        description: "Your file has been uploaded."
+        description: "Your file has been uploaded and analyzed."
       });
 
     } catch (error) {
@@ -146,6 +203,7 @@ export function useFileUpload(userId: string) {
     uploads,
     addFiles,
     removeFile,
-    uploadToSupabase
+    uploadToSupabase,
+    analyzeFile
   };
 }
