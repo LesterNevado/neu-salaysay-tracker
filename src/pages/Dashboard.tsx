@@ -508,7 +508,7 @@ export default function Dashboard() {
                       )}
 
                       <div className="space-y-2">
-                        <h5 className="text-sm font-medium">Filter by Violation Type</h5>
+                        <h5 className="text-sm font-medium">Filter by Classification</h5>
                         <div className="space-y-3">
                           {VIOLATION_TYPES.map((type) => (
                             <div key={type} className="flex items-center space-x-2">
@@ -539,7 +539,7 @@ export default function Dashboard() {
                 <tr>
                   <th className="text-left px-4 py-3 font-medium text-gray-500">File Name</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-500">Date Uploaded</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500">Violation Type</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500">Classification</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-500">Uploaded By</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-500">Actions</th>
                 </tr>
