@@ -69,10 +69,16 @@ export function FileUploadItem({ upload, onRemove }: FileUploadItemProps) {
                 {extractedInfo.date && (
                   <p><span className="font-medium">Date:</span> {extractedInfo.date}</p>
                 )}
+                {extractedInfo.course && (
+                  <p><span className="font-medium">Course:</span> {extractedInfo.course}</p>
+                )}
+                {extractedInfo.section && (
+                  <p><span className="font-medium">Section:</span> {extractedInfo.section}</p>
+                )}
                 {extractedInfo.natureOfExcuse && (
                   <p><span className="font-medium">Excuse:</span> {extractedInfo.natureOfExcuse.substring(0, 60)}...</p>
                 )}
-                <p><span className="font-medium">Violation Type:</span> {violationType}</p>
+                <p><span className="font-medium">Classification:</span> {violationType}</p>
               </div>
             ) : (
               <p className="text-xs text-gray-500">Waiting for analysis...</p>

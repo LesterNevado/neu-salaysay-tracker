@@ -1,3 +1,4 @@
+
 // Define the structure for the extracted information
 export interface ExtractedDocumentInfo {
   studentNumber?: string;
@@ -5,6 +6,8 @@ export interface ExtractedDocumentInfo {
   date?: string;
   natureOfExcuse?: string;
   addressee?: string;
+  course?: string;     // New field for course/subject
+  section?: string;    // New field for section
   confidence: 'high' | 'medium' | 'low';
 }
 
@@ -53,15 +56,24 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       }
     }
     
-    // Extract sender name
-    // Look for common signature patterns in formal letters
+    // Extract sender name with enhanced format recognition
+    // Look for common signature patterns and name formats
     const senderNamePatterns = [
+      // Standard signature patterns
       /Sincerely,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,  // "Sincerely, Name"
       /Respectfully,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,  // "Respectfully, Name"
       /Yours truly,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,  // "Yours truly, Name"
       /Regards,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,  // "Regards, Name"
       /From:?\s*([A-Za-z\s.]+?)(?:\r?\n|,|\d|$)/i,  // "From: Name"
       /Submitted by:?\s*([A-Za-z\s.]+?)(?:\r?\n|,|\d|$)/i,  // "Submitted by: Name"
+      
+      // New patterns for different name formats
+      /Name:?\s*([A-Za-z\s.,]+?)(?:\r?\n|,|$)/i,  // "Name: John M. Doe" or "Name: Doe, John M."
+      /\bStudent:?\s*([A-Za-z\s.,]+?)(?:\r?\n|,|\d|$)/i,  // "Student: John M. Doe"
+      /\bSubmitter:?\s*([A-Za-z\s.,]+?)(?:\r?\n|,|\d|$)/i,  // "Submitter: John M. Doe"
+      
+      // Look for name patterns (Surname, First Name MI)
+      /([A-Za-z]+,\s+[A-Za-z]+(?:\s+[A-Za-z]\.?)?)(?:\r?\n|,|\d|$)/i,  // "Doe, John M."
     ];
     
     for (const pattern of senderNamePatterns) {
@@ -77,15 +89,24 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
     }
     
     // If sender name wasn't found by patterns, try to find it before student number
-    // This works for cases where the name appears right before the ID
     if (!result.senderName && result.studentNumber) {
       const studentNumberPos = cleanText.indexOf(result.studentNumber);
       if (studentNumberPos > 0) {
         // Check the 100 characters before the student number
         const precedingText = cleanText.substring(Math.max(0, studentNumberPos - 100), studentNumberPos).trim();
-        const nameMatch = /([A-Za-z\s.]{2,30})(?:\r?\n|$)/.exec(precedingText);
-        if (nameMatch && nameMatch[1]) {
-          result.senderName = nameMatch[1].trim();
+        
+        // Look for name patterns (First MI Last) or (Last, First MI) format
+        const namePatterns = [
+          /([A-Za-z]+\s+(?:[A-Z]\.?\s+)?[A-Za-z]+)(?:\r?\n|$)/,  // "John M. Doe" or "John Doe"
+          /([A-Za-z]+,\s+[A-Za-z]+(?:\s+[A-Z]\.?)?)(?:\r?\n|$)/  // "Doe, John M."
+        ];
+        
+        for (const pattern of namePatterns) {
+          const nameMatch = pattern.exec(precedingText);
+          if (nameMatch && nameMatch[1]) {
+            result.senderName = nameMatch[1].trim();
+            break;
+          }
         }
       }
     }
@@ -199,6 +220,53 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       }
     }
     
+    // NEW: Extract Course/Subject information
+    const coursePatterns = [
+      /\b(?:Course|Subject)(?:\s*)\b[:;]?\s*([A-Za-z0-9\s&.,-]+?)(?:\r?\n|,|;|$)/i,  // "Course: Computer Science"
+      /\b(?:for|in|on|my)\s+(?:the\s+)?(?:course|class|subject)\s+(?:of\s+)?(?:"|')?([A-Za-z0-9\s&.,-]+?)(?:"|')?(?:\r?\n|,|;|$)/i,  // "...for the course Computer Science"
+      /\bCS\s*\d{3}[A-Z]?\b/i,  // CS101, CS201N format
+      /\b[A-Z]{2,4}\s*\d{2,4}[A-Z]?\b/i,  // CSCI101, MATH101, ENG101 format
+    ];
+    
+    for (const pattern of coursePatterns) {
+      const match = pattern.exec(cleanText);
+      if (match && match[1]) {
+        const course = match[1].trim();
+        // Verify it's a valid course name/code (at least 2 characters)
+        if (course.length >= 2) {
+          result.course = course;
+          break;
+        }
+      } else if (pattern.toString().includes('\\b[A-Z]{2,4}')) {
+        // Special case for course codes without capture groups
+        const matches = cleanText.match(pattern);
+        if (matches && matches.length > 0) {
+          result.course = matches[0].trim();
+          break;
+        }
+      }
+    }
+    
+    // NEW: Extract Section information
+    const sectionPatterns = [
+      /\bSection(?:\s*)\b[:;]?\s*([A-Za-z0-9\s.-]+?)(?:\r?\n|,|;|$)/i,  // "Section: A"
+      /\b(?:in|from)\s+(?:the\s+)?(?:section|block)\s+(?:"|')?([A-Za-z0-9\s.-]+?)(?:"|')?(?:\r?\n|,|;|$)/i,  // "...in the section A-1"
+      /\bBlock\s+([A-Za-z0-9-]+)(?:\r?\n|,|;|$)/i,  // "Block A"
+      /\s+(?:section|sec\.)\s+([A-Za-z0-9-]+)(?:\r?\n|,|;|$)/i,  // "...section A1"
+    ];
+    
+    for (const pattern of sectionPatterns) {
+      const match = pattern.exec(cleanText);
+      if (match && match[1]) {
+        const section = match[1].trim();
+        // Verify it's a valid section (at least 1 character)
+        if (section.length >= 1) {
+          result.section = section;
+          break;
+        }
+      }
+    }
+    
     // Extract nature of excuse
     // Look for common phrases/patterns in excuse letters
     const excuseKeywords = [
@@ -251,8 +319,10 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
     if (result.natureOfExcuse) extractedCount++;
     if (result.senderName) extractedCount++;
     if (result.addressee) extractedCount++;
+    if (result.course) extractedCount++;
+    if (result.section) extractedCount++;
     
-    if (extractedCount >= 3) {
+    if (extractedCount >= 4) {
       result.confidence = 'high';
     } else if (extractedCount >= 2) {
       result.confidence = 'medium';
@@ -267,6 +337,8 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       foundDate: !!result.date,
       foundExcuse: !!result.natureOfExcuse,
       foundAddressee: !!result.addressee,
+      foundCourse: !!result.course,
+      foundSection: !!result.section,
       confidence: result.confidence
     });
     
