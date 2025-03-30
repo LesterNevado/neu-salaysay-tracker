@@ -1,4 +1,3 @@
-
 // Define the structure for the extracted information
 export interface ExtractedDocumentInfo {
   studentNumber?: string;
@@ -6,8 +5,6 @@ export interface ExtractedDocumentInfo {
   date?: string;
   natureOfExcuse?: string;
   addressee?: string;
-  course?: string;     // New field for course/subject
-  section?: string;    // New field for section
   confidence: 'high' | 'medium' | 'low';
 }
 
@@ -26,97 +23,154 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
     // Clean up the text
     const cleanText = text.replace(/\s+/g, ' ').trim();
     
-    console.log('First 500 chars of clean text:', cleanText.substring(0, 500));
-    
     // Extract student number using various common formats
+    // Format patterns: 20XX-XXXXX, XX-XXXXX-XXX, XXXXXXXXX
     const studentNumberPatterns = [
-      /Student\s*(?:Number|ID|No)?[:\s]*([0-9]{2}-[0-9]{5}-[0-9]{3})/i,    // Student Number: XX-XXXXX-XXX
-      /Student\s*(?:Number|ID|No)?[:\s]*([0-9]{2}-[0-9]{5})/i,             // Student Number: XX-XXXXX
-      /Student\s*(?:Number|ID|No)?[:\s]*([0-9]{9})/i,                      // Student Number: XXXXXXXXX
-      /Student\s*(?:Number|ID|No)?[:\s]*([0-9]{7})/i,                      // Student Number: XXXXXXX
-      /\bID(?:\s*(?:Number|No|#|)):?\s*([0-9-]+)/i,                        // ID Number: XXXXXX
-      /\b\d{2}-\d{5}-\d{3}\b/g,                                            // XX-XXXXX-XXX format (anywhere)
-      /\b\d{2}-\d{5}\b/g,                                                  // XX-XXXXX format (anywhere)
-      /\b\d{9}\b/g,                                                        // XXXXXXXXX format (anywhere) 
-      /\b\d{7}\b/g,                                                        // XXXXXXX format (anywhere)
+      /\b\d{2}-\d{5}-\d{3}\b/g,  // XX-XXXXX-XXX format
+      /\b\d{4}-\d{5}\b/g,        // XXXX-XXXXX format
+      /\b\d{9}\b/g,              // XXXXXXXXX format (9 digits)
+      /\b\d{7}\b/g,              // XXXXXXX format (7 digits)
+      /\b\d{2}-\d{5}-\d{3}\b/g,  // XX-XXXXX-XXX format
+      /\b\d{2}-\d{5}\b/g,        // XX-XXXXX format
+      /\bStudent(?:\s+(?:Number|ID|No|#|)):?\s*([0-9-]+)/i,  // "Student Number: XXXXXX"
+      /\bID(?:\s+(?:Number|No|#|)):?\s*([0-9-]+)/i,          // "ID Number: XXXXXX"
     ];
     
     for (const pattern of studentNumberPatterns) {
-      // For patterns with capturing groups
-      if (pattern.toString().includes('(')) {
-        const match = pattern.exec(cleanText);
-        if (match && match[1]) {
-          result.studentNumber = match[1].trim();
-          break;
-        }
-      } else {
-        // For patterns without capturing groups
-        const matches = cleanText.match(pattern);
-        if (matches && matches.length > 0) {
+      const matches = cleanText.match(pattern);
+      if (matches && matches.length > 0) {
+        // If the pattern has a capturing group (like the last two patterns)
+        if (pattern.toString().includes('(')) {
+          const match = pattern.exec(cleanText);
+          if (match && match[1]) {
+            result.studentNumber = match[1].trim();
+            break;
+          }
+        } else {
           result.studentNumber = matches[0].trim();
           break;
         }
       }
     }
     
-    // Enhanced name extraction with specific format patterns
-    const namePatterns = [
-      /Name:\s*([A-Za-z\s.]+(?:\s[A-Za-z]\.)?\s*[A-Za-z]+)/i,  // Name: First Middle Last
-      /Name:\s*([A-Za-z]+,\s*[A-Za-z\s.]+)/i,                 // Name: Last, First Middle
-      /Sincerely,\s*([A-Za-z\s.]+)\s*$/im,                    // Sincerely, Name (at end of line)
-      /^([A-Za-z\s.]+)\s*Signature/im,                        // Name before "Signature"
-      /Signature\s*([A-Za-z\s.]+)/im,                         // Name after "Signature"
-      /Signature[\s\S]{1,100}Name:\s*([A-Za-z\s.]+)/im,       // Name after Signature block
+    // Extract sender name
+    // Look for common signature patterns in formal letters
+    const senderNamePatterns = [
+      /Sincerely,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,  // "Sincerely, Name"
+      /Respectfully,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,  // "Respectfully, Name"
+      /Yours truly,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,  // "Yours truly, Name"
+      /Regards,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,  // "Regards, Name"
+      /From:?\s*([A-Za-z\s.]+?)(?:\r?\n|,|\d|$)/i,  // "From: Name"
+      /Submitted by:?\s*([A-Za-z\s.]+?)(?:\r?\n|,|\d|$)/i,  // "Submitted by: Name"
     ];
     
-    for (const pattern of namePatterns) {
+    for (const pattern of senderNamePatterns) {
       const match = pattern.exec(cleanText);
       if (match && match[1]) {
         const name = match[1].trim();
-        if (name.length >= 2 && !name.toLowerCase().includes('signature')) {
+        // Verify it's a name (at least 2 characters, not just whitespace)
+        if (name.length >= 2) {
           result.senderName = name;
           break;
         }
       }
     }
     
-    // If still no name found, look specifically for name field at bottom of letter
-    if (!result.senderName) {
-      const bottomNamePattern = /Name:?\s*([A-Za-z\s.]+L\.\s*[A-Za-z]+)/i;
-      const match = bottomNamePattern.exec(cleanText);
-      if (match && match[1]) {
-        result.senderName = match[1].trim();
+    // If sender name wasn't found by patterns, try to find it before student number
+    // This works for cases where the name appears right before the ID
+    if (!result.senderName && result.studentNumber) {
+      const studentNumberPos = cleanText.indexOf(result.studentNumber);
+      if (studentNumberPos > 0) {
+        // Check the 100 characters before the student number
+        const precedingText = cleanText.substring(Math.max(0, studentNumberPos - 100), studentNumberPos).trim();
+        const nameMatch = /([A-Za-z\s.]{2,30})(?:\r?\n|$)/.exec(precedingText);
+        if (nameMatch && nameMatch[1]) {
+          result.senderName = nameMatch[1].trim();
+        }
       }
     }
     
     // Extract date using various formats
+    // Try to find dates in various formats
     const datePatterns = [
-      /Date:?\s*([A-Za-z]+\s+\d{1,2},?\s*\d{4})/i,                // Date: Month Day, Year
-      /\b(\d{1,2}\s+[A-Za-z]+\s+\d{4})\b/,                        // Day Month Year
-      /\b([A-Za-z]+\s+\d{1,2},?\s*\d{4})\b/,                      // Month Day, Year
-      /\b(\d{1,2}\/\d{1,2}\/\d{4})\b/,                           // MM/DD/YYYY or DD/MM/YYYY
-      /\b(\d{4}-\d{2}-\d{2})\b/,                                 // YYYY-MM-DD
+      // Month at beginning of document (e.g., "March 27, 2025" at top)
+      /^(?:[^\n]*?\n){0,3}[^\n]*?((?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:,|\s)\s*\d{4})/i,
+      
+      // Month name, day, year (e.g., "March 27, 2025" or "March 27 2025")
+      /\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:,|\s)\s*\d{4}\b/gi,
+      
+      // Day month name year (e.g., "27 March 2025" or "27th of March 2025")
+      /\b\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}\b/gi,
+      
+      // MM/DD/YYYY or DD/MM/YYYY
+      /\b\d{1,2}\/\d{1,2}\/\d{4}\b/g,
+      
+      // YYYY-MM-DD (ISO format)
+      /\b\d{4}-\d{2}-\d{2}\b/g,
+      
+      // MM-DD-YYYY or DD-MM-YYYY
+      /\b\d{1,2}-\d{1,2}-\d{4}\b/g,
+      
+      // Date: pattern
+      /\bDate:?\s*([A-Za-z0-9,\s]+\d{4})/i,
     ];
     
     for (const pattern of datePatterns) {
-      const match = pattern.exec(cleanText);
-      if (match && match[1]) {
-        result.date = match[1].trim();
-        break;
+      // For the first pattern (date at beginning), we use a special approach
+      if (pattern.toString().includes('^(?:[^\\n]*?\\n){0,3}')) {
+        const match = pattern.exec(cleanText);
+        if (match && match[1]) {
+          result.date = match[1].trim();
+          break;
+        }
+      } else {
+        const matches = cleanText.match(pattern);
+        if (matches && matches.length > 0) {
+          // If the pattern has a capturing group (like the last pattern)
+          if (pattern.toString().includes('(')) {
+            const match = pattern.exec(cleanText);
+            if (match && match[1]) {
+              result.date = match[1].trim();
+              break;
+            }
+          } else {
+            result.date = matches[0].trim();
+            break;
+          }
+        }
       }
     }
     
-    // Extract addressee (who the letter is addressed to)
+    // If date is still not found, try to find dates in very specific formats at the beginning
+    if (!result.date) {
+      // Try to get the first few lines and look for a date
+      const firstLines = cleanText.split('\n').slice(0, 5).join(' ');
+      const dateMatch = /\b(?:\d{1,2}[-\/]?\d{1,2}[-\/]?\d{4}|\d{4}[-\/]?\d{1,2}[-\/]?\d{1,2}|(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:,|\s)?\s*\d{4}|\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4})\b/i.exec(firstLines);
+      if (dateMatch) {
+        result.date = dateMatch[0].trim();
+      }
+    }
+    
+    // Enhanced addressee extraction
+    // Focus heavily on salutation patterns 
     const addresseePatterns = [
-      /Dear\s+([^,\n.]+)[,\n.]/i,                                // Dear Someone,
-      /Attention:?\s*([A-Za-z\s.]+)/i,                          // Attention: Someone
-      /To:?\s*([A-Za-z\s.]+)/i,                                // To: Someone
+      // Updated salutation patterns with stronger focus on "Dear" pattern
+      /Dear\s+(?:(?:Mr|Mrs|Ms|Dr|Prof|Sir|Madam|Teacher|Professor|Dean|Director|Principal)\.?\s+)?([A-Za-z\s.,]+?)(?:,|;|\r?\n|$)/i,  // "Dear [Title] Name,"
+      
+      // Other salutation patterns
+      /To:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "To: Name"
+      /Attn:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "Attn: Name"
+      /Attention:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "Attention: Name"
+      /Addressed to:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "Addressed to: Name"
+      /For the attention of:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "For the attention of: Name"
     ];
     
+    // Try each pattern
     for (const pattern of addresseePatterns) {
       const match = pattern.exec(cleanText);
       if (match && match[1]) {
         const addressee = match[1].trim();
+        // Verify it's a name (at least 2 characters, not just whitespace)
         if (addressee.length >= 2) {
           result.addressee = addressee;
           break;
@@ -124,83 +178,68 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       }
     }
     
-    // If no specific addressee found, check for job title after "Dear"
+    // Extract specifically "Dear Sir/Madam" or variations like "Dear Sir/Ma'am" if no specific name was found
     if (!result.addressee) {
-      const titlePattern = /Dear\s+[^,\n.]+[,\n.][\s\S]{0,50}([A-Za-z\s]+Professor|Teacher|Dean|Director)/i;
-      const match = titlePattern.exec(cleanText);
+      const genericAddresseePattern = /Dear\s+(?:Sir|Madam|Sir\/Madam|Ma'am|Sir\/Ma'am)(?:,|;|\r?\n|$)/i;
+      const genericMatch = genericAddresseePattern.exec(cleanText);
+      if (genericMatch) {
+        result.addressee = genericMatch[0].replace(/[,;]$/, '').trim();
+      }
+    }
+    
+    // If addressee still not found, look for titles followed by names near the beginning
+    if (!result.addressee) {
+      // Get the first 500 characters to look for addressee
+      const initialText = cleanText.substring(0, 500);
+      const titlePatterns = /(?:Mr\.|Mrs\.|Ms\.|Dr\.|Prof\.|Professor|Dean|Director|Principal|Sir|Madam|Teacher)\s+([A-Za-z\s.,]{2,30}?)(?:,|;|\r?\n|$)/i;
+      
+      const match = titlePatterns.exec(initialText);
       if (match && match[1]) {
         result.addressee = match[1].trim();
       }
     }
     
-    // Extract course/subject information - improved for common formats
-    const coursePatterns = [
-      /Course\/Subject:?\s*([A-Za-z0-9\s&.,-]+\d+\s*-\s*\d+)/i, // Course/Subject: XXX000 - 00
-      /Course\/Subject:?\s*([A-Za-z0-9\s&.,-]+)/i,              // Course/Subject: Any text
-      /\b(?:Course|Subject)\s*:\s*([A-Za-z0-9\s&.,-]+)/i,       // Course: or Subject: Any text
-      /\b([A-Z]{2,5}\d{3}[A-Z]?\s*-\s*\d+)\b/,                  // CS322 - 18, CSCI101 - 5, etc.
-    ];
-    
-    for (const pattern of coursePatterns) {
-      const match = pattern.exec(cleanText);
-      if (match && match[1]) {
-        const course = match[1].trim();
-        if (course.length >= 2) {
-          result.course = course;
-          break;
-        }
-      }
-    }
-    
-    // Extract section information - improved for common formats
-    const sectionPatterns = [
-      /Section:?\s*([A-Za-z0-9\s.-]+)/i,                       // Section: Any text
-      /\bSection\s*:\s*([A-Za-z0-9\s.-]+)/i,                   // Section: Any text (strict colon)
-      /\b([0-9][A-Z]{3,4}\s*-\s*\d+)\b/,                        // 3BSCS - 2, 2BSIT - 4, etc.
-      /\b([A-Z]{3,4}\s*-\s*\d+)\b/,                            // BSCS - 2, BSIT - 4, etc.
-    ];
-    
-    for (const pattern of sectionPatterns) {
-      const match = pattern.exec(cleanText);
-      if (match && match[1]) {
-        const section = match[1].trim();
-        if (section.length >= 1) {
-          result.section = section;
-          break;
-        }
-      }
-    }
-    
     // Extract nature of excuse
-    const excusePatterns = [
-      /apologize\s+for\s+([^.]+)/i,                           // apologize for [excuse]
-      /regret\s+to\s+inform\s+you\s+that\s+([^.]+)/i,         // regret to inform you that [excuse]
-      /writing\s+to\s+(?:sincerely\s+)?(?:apologize|explain)\s+([^.]+)/i, // writing to apologize/explain [excuse]
-      /I\s+am\s+writing\s+to\s+([^.]+)/i,                     // I am writing to [excuse]
+    // Look for common phrases/patterns in excuse letters
+    const excuseKeywords = [
+      "unable to attend", "could not attend", "missed", "absent", "absence",
+      "apologize", "sorry", "regret", "excuse", "reason", "explanation",
+      "due to", "because of", "unfortunately", "illness", "medical", "family",
+      "emergency", "incident", "problem", "issue", "situation", "circumstances"
     ];
     
-    for (const pattern of excusePatterns) {
+    const excuseIndicators = [
+      /I (?:am writing to |would like to |wish to |want to |hereby |)(?:sincerely |humbly |)(?:apologize|regret|explain)(.*?)(?:\.|\n)/i,
+      /(?:This is |I am |This serves as |)(?:a |an |)(?:letter of |formal |)(?:apology|excuse)(.*?)(?:\.|\n)/i,
+      /(?:I |We |)(?:was |were |am |are |)(?:unable|not able)(.*?)(?:\.|\n)/i,
+      /(?:due to|because of|on account of)(.*?)(?:\.|\n)/i,
+      /(?:reason|explanation|justification)(.*?)(?:\.|\n)/i,
+      /nature of excuse:?(.*?)(?:\.|\n)/i
+    ];
+    
+    // Try to find the excuse based on keyword context
+    for (const pattern of excuseIndicators) {
       const match = pattern.exec(cleanText);
       if (match && match[1]) {
-        const excuse = match[1].trim();
-        if (excuse.length > 10) {
-          result.natureOfExcuse = excuse;
+        // Limit to reasonable length
+        const excuseText = match[1].trim();
+        if (excuseText.length > 10 && excuseText.length < 200) {
+          result.natureOfExcuse = excuseText;
           break;
         }
       }
     }
     
-    // If no excuse found, look for paragraphs after "Dear" but before "Sincerely"
+    // If no excuse found with patterns, try finding sentences with excuse keywords
     if (!result.natureOfExcuse) {
-      const bodyMatch = /Dear[^.]+\.(.+)Sincerely,/si.exec(cleanText);
-      if (bodyMatch && bodyMatch[1]) {
-        // Get the first 1-2 sentences of the body
-        const bodySentences = bodyMatch[1].split(/[.!?]/).filter(s => s.trim().length > 0);
-        if (bodySentences.length > 0) {
-          result.natureOfExcuse = bodySentences[0].trim();
-          if (bodySentences.length > 1 && result.natureOfExcuse.length < 50) {
-            result.natureOfExcuse += '. ' + bodySentences[1].trim();
-          }
+      const sentences = cleanText.split(/\.|\n/).filter(s => s.trim().length > 0);
+      
+      for (const sentence of sentences) {
+        // Check if sentence contains any excuse keywords
+        if (excuseKeywords.some(keyword => sentence.toLowerCase().includes(keyword))) {
+          // Use this sentence as the nature of excuse
+          result.natureOfExcuse = sentence.trim();
+          break;
         }
       }
     }
@@ -212,26 +251,22 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
     if (result.natureOfExcuse) extractedCount++;
     if (result.senderName) extractedCount++;
     if (result.addressee) extractedCount++;
-    if (result.course) extractedCount++;
-    if (result.section) extractedCount++;
     
-    if (extractedCount >= 5) {
+    if (extractedCount >= 3) {
       result.confidence = 'high';
-    } else if (extractedCount >= 3) {
+    } else if (extractedCount >= 2) {
       result.confidence = 'medium';
     } else {
       result.confidence = 'low';
     }
     
-    // Log extraction results for debugging
+    // Log sample of extracted text for debugging
     console.log('Extraction attempt results:', {
-      foundStudentNumber: result.studentNumber,
-      foundSenderName: result.senderName,
-      foundDate: result.date,
-      foundExcuse: result.natureOfExcuse ? result.natureOfExcuse.substring(0, 50) + '...' : null,
-      foundAddressee: result.addressee,
-      foundCourse: result.course,
-      foundSection: result.section,
+      foundStudentNumber: !!result.studentNumber,
+      foundSenderName: !!result.senderName,
+      foundDate: !!result.date,
+      foundExcuse: !!result.natureOfExcuse,
+      foundAddressee: !!result.addressee,
       confidence: result.confidence
     });
     

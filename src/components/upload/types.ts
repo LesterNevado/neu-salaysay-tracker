@@ -10,8 +10,6 @@ export interface FileUpload {
     date?: string;
     natureOfExcuse?: string;
     addressee?: string;
-    course?: string;     // New field
-    section?: string;    // New field
     confidence: 'high' | 'medium' | 'low';
   } | null;
 }

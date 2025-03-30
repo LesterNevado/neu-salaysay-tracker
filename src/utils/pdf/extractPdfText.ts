@@ -26,53 +26,33 @@ export async function extractPdfText(file: File): Promise<string> {
     for (let i = 1; i <= pdf.numPages; i++) {
       const page = await pdf.getPage(i);
       
-      // Get text content
+      // Get text content with compatible parameters
+      // Note: Removed normalizeWhitespace as it's not in the type definition
       const textContent = await page.getTextContent();
       
       // Process text with better layout preservation
-      let lastY = null;
-      let lastX = 0;
+      let lastY;
       let text = '';
-      let lineTexts = [];
       
-      // First pass: group items by their vertical position (lines)
       for (const item of textContent.items) {
+        // Use type assertion instead of relying on TextItem type
+        // Check if the item has the expected structure
         if ('str' in item && 'transform' in item) {
-          const x = item.transform[4]; // Horizontal position
-          const y = item.transform[5]; // Vertical position
-          
-          // Detect new line
-          if (lastY === null || Math.abs(y - lastY) > 3) {
-            // Process previous line if it exists
-            if (lineTexts.length > 0) {
-              text += lineTexts.join(' ') + '\n';
-              lineTexts = [];
-            }
-            
-            lineTexts.push(item.str);
-          } else {
-            // Same line, but check for horizontal space
-            if (x - lastX > 10) {
-              lineTexts.push(' ' + item.str); // Add space for horizontal gap
-            } else {
-              lineTexts.push(item.str);
-            }
+          // Add newlines when Y position changes significantly (new paragraph)
+          if (lastY !== undefined && Math.abs(item.transform[5] - lastY) > 5) {
+            text += '\n';
+          } else if (lastY !== undefined && item.transform[5] !== lastY) {
+            // Small Y change might indicate line break
+            text += ' ';
           }
           
-          lastY = y;
-          lastX = x + item.width || 0;
+          // Add the text content
+          text += item.str;
+          lastY = item.transform[5];
         }
       }
       
-      // Add the last line if any
-      if (lineTexts.length > 0) {
-        text += lineTexts.join(' ') + '\n';
-      }
-      
-      // Handle key-value pairs frequently found in forms (like "Name: John Smith")
-      text = text.replace(/([A-Za-z]+):\s*\n\s*([A-Za-z0-9].+)/g, '$1: $2');
-      
-      fullText += text + '\n'; // Add extra newlines between pages
+      fullText += text + '\n\n'; // Add extra newlines between pages
     }
     
     // Clean up the text - remove excessive whitespace while preserving paragraphs
@@ -81,10 +61,10 @@ export async function extractPdfText(file: File): Promise<string> {
       .replace(/\s{2,}/g, ' ')         // Replace 2+ spaces with 1
       .trim();                         // Trim leading/trailing whitespace
     
-    // Log sample for debugging
-    console.log('Extracted text sample (first 500 chars):', fullText.substring(0, 500));
-    console.log('Extracted text sample (last 500 chars):', fullText.substring(Math.max(0, fullText.length - 500)));
+    // Print first 500 chars to console for debugging
+    console.log('Extracted text sample:', fullText.substring(0, 500));
     
+    // Return the text content
     return fullText;
   } catch (error) {
     console.error('Error extracting text from PDF:', error);

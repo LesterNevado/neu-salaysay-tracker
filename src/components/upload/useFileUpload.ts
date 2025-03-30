@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -25,6 +26,7 @@ export function useFileUpload(userId: string) {
     setUploads(prev => prev.filter(upload => upload.file !== fileToRemove));
   };
 
+  // Add a new function to reset the uploads state
   const resetUploads = () => {
     setUploads([]);
   };
@@ -138,9 +140,7 @@ export function useFileUpload(userId: string) {
         sender_name: extractedInfo?.senderName,
         incident_date: extractedInfo?.date,
         excuse_description: extractedInfo?.natureOfExcuse,
-        addressee: extractedInfo?.addressee,
-        course: extractedInfo?.course,
-        section: extractedInfo?.section
+        addressee: extractedInfo?.addressee
       };
 
       console.log("Inserting submission record into database with metadata:", metadata);

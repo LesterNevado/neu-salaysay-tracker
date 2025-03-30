@@ -39,8 +39,6 @@ type SalaysayFile = {
     incident_date?: string;
     excuse_description?: string;
     addressee?: string;
-    course?: string;
-    section?: string;
   } | Json | null;
   profiles?: {
     full_name: string;
@@ -455,18 +453,6 @@ export function FileExplorer({
                         <div className="space-y-1">
                           <p className="text-xs text-gray-500">Incident Date</p>
                           <p className="text-sm font-medium">{getMetadataValue(file.metadata, 'incident_date')}</p>
-                        </div>
-                      )}
-                      {getMetadataValue(file.metadata, 'course') && (
-                        <div className="space-y-1">
-                          <p className="text-xs text-gray-500">Course/Subject</p>
-                          <p className="text-sm font-medium">{getMetadataValue(file.metadata, 'course')}</p>
-                        </div>
-                      )}
-                      {getMetadataValue(file.metadata, 'section') && (
-                        <div className="space-y-1">
-                          <p className="text-xs text-gray-500">Section</p>
-                          <p className="text-sm font-medium">{getMetadataValue(file.metadata, 'section')}</p>
                         </div>
                       )}
                       {getMetadataValue(file.metadata, 'excuse_description') && (
