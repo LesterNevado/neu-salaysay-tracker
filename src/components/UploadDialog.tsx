@@ -16,7 +16,7 @@ interface UploadDialogProps {
 
 export function UploadDialog({ isOpen, onClose, userId, onUploadComplete }: UploadDialogProps) {
   const { toast } = useToast();
-  const { uploads, addFiles, removeFile, uploadToSupabase } = useFileUpload(userId);
+  const { uploads, addFiles, removeFile, uploadToSupabase, resetUploads } = useFileUpload(userId);
 
   // Add the missing variable definition
   const allUploadsCompleted = uploads.length > 0 && 
@@ -50,11 +50,18 @@ export function UploadDialog({ isOpen, onClose, userId, onUploadComplete }: Uplo
 
   const handleClose = () => {
     // Reset the state before closing
-    if (!allUploadsCompleted) {
-      addFiles([]);
+    if (allUploadsCompleted) {
+      resetUploads();
     }
     onClose();
   };
+
+  // Reset uploads when the dialog is closed
+  useEffect(() => {
+    if (!isOpen) {
+      resetUploads();
+    }
+  }, [isOpen, resetUploads]);
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>

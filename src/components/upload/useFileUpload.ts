@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -23,6 +24,11 @@ export function useFileUpload(userId: string) {
 
   const removeFile = (fileToRemove: File) => {
     setUploads(prev => prev.filter(upload => upload.file !== fileToRemove));
+  };
+
+  // Add a new function to reset the uploads state
+  const resetUploads = () => {
+    setUploads([]);
   };
 
   const analyzeFile = async (file: File): Promise<ExtractedDocumentInfo | null> => {
@@ -219,6 +225,7 @@ export function useFileUpload(userId: string) {
     addFiles,
     removeFile,
     uploadToSupabase,
-    analyzeFile
+    analyzeFile,
+    resetUploads
   };
 }
