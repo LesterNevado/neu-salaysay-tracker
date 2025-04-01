@@ -71,23 +71,22 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       }
     }
     
-    // IMPROVED: Addressee extraction for Tagalog letters
-    // First, check for "Orlan Sanchez" or similar names at the top of the letter
-    // This is optimized based on the typical Tagalog letter format where the addressee is at the top
+    // Enhanced addressee extraction for both English and Tagalog letters
+    // First, check for formal name patterns at the top of the letter
     let possibleAddressee = null;
     
-    // Check first 8 lines for a standalone name (like "Orlan Sanchez")
+    // Check first 8 lines for a standalone name (like "Orlan Sanchez" or "Prof. Smith")
     for (let i = 0; i < Math.min(8, lines.length); i++) {
       const line = lines[i].trim();
       
       // Skip lines that are empty, dates, or clearly part of a greeting
       if (line.length < 2 || 
           /\d{1,2}\/\d{1,2}\/\d{4}/.test(line) || 
-          /^(Ako po si|Ako ay si|Sumasainyo|Gumagalang|Lubos na gumagalang|Sa pamamagitan|Liham ito|Para kay|Mahal na|Ito ay|Isang|Ang aking|Sa inyo)/i.test(line)) {
+          /^(Ako po si|Ako ay si|Sumasainyo|Gumagalang|Lubos na gumagalang|Sa pamamagitan|Liham ito|Para kay|Mahal na|Ito ay|Isang|Ang aking|Sa inyo|I am|This is|Dear|Sincerely|Date|Re:|Subject|To Whom It May Concern)/i.test(line)) {
         continue;
       }
       
-      // Look for typical Filipino names (1-4 words, mainly letters)
+      // Look for typical names (1-4 words, mainly letters)
       if (/^[A-Za-z\s\.]{2,40}$/.test(line) && 
           line.split(/\s+/).length <= 4 && 
           !/University|College|School|Department|Petsa|Date|Taon|Year|Buwan|Month/i.test(line)) {
@@ -101,15 +100,18 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
     } else {
       // Fall back to traditional patterns if direct name detection fails
       const addresseePatterns = [
-        // Tagalog patterns - more specific
+        // Tagalog patterns
         /\b(?:G|Ginang|Gng|Ginoong|Bb|Binibini|Dr|Prop|Propesor)\.?\s+([A-Za-z\s.,]+?)(?:,|;|\r?\n|$)/i,
         /\bKay\s+([A-Za-z\s.,]+?)(?:,|;|\r?\n|$)/i,
         /\bPara kay\s+([A-Za-z\s.,]+?)(?:,|;|\r?\n|$)/i,
         /\bMahal kong\s+([A-Za-z\s.,]+?)(?:,|;|\r?\n|$)/i,
         
-        // English patterns
+        // English patterns - improved for better matching
         /Dear\s+(?:(?:Mr|Mrs|Ms|Dr|Prof|Sir|Madam|Teacher|Professor|Dean|Director|Principal)\.?\s+)?([A-Za-z\s.,]+?)(?:,|;|\r?\n|$)/i,
         /To:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,
+        /Attention:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,
+        /To Whom It May Concern:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,
+        /(?:Prof|Dr|Mr|Mrs|Ms)\.?\s+([A-Za-z\s.,]+?)(?:,|;|\r?\n|$)/i,
       ];
       
       for (const pattern of addresseePatterns) {
@@ -124,20 +126,30 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       }
     }
     
-    // Extract sender name - improved for Tagalog letters
-    // First, look for the "Ako po si..." pattern that's common in Tagalog letters
-    const akoPoSiPatterns = [
+    // Enhanced sender name extraction for both English and Tagalog
+    // First, look for common Tagalog patterns
+    const senderPatterns = [
+      // Tagalog patterns
       /Ako\s+po\s+si\s+([A-Za-z\s\.]+?)(?:,|\s+\w+\s+sa|\s+kabilang|\.|$)/i,
       /Ako\s+po\s+ang\s+iyong\s+kapatid\s+na\s+si\s+([A-Za-z\s\.]+?)(?:,|\.|\s|$)/i,
       /Ako\s+(?:po\s+)?si\s+kapatid\s+na\s+([A-Za-z\s\.]+?)(?:,|\.|\s|$)/i,
       /Ako\s+(?:po\s+)?si\s+kapatid\s+([A-Za-z\s\.]+?)(?:,|\.|\s|$)/i,
       /Ako\s+(?:po\s+)?(?:ay\s+)?si\s+([A-Za-z\s\.]+?)(?:,|\.|\s|$)/i,
-      // Additional common Tagalog patterns
       /Galing\s+(?:po\s+)?kay\s+([A-Za-z\s\.]+?)(?:,|\.|\s|$)/i,
       /kapatid\s+na\s+([A-Za-z\s\.]+?)(?:,|\.|\s|$)/i,
+      
+      // English patterns - added for better English document support
+      /I am\s+([A-Za-z\s\.]+?)(?:,|\.|\s|and I am|$)/i,
+      /My name is\s+([A-Za-z\s\.]+?)(?:,|\.|\s|and I am|$)/i, 
+      /This letter is from\s+([A-Za-z\s\.]+?)(?:,|\.|\s|$)/i,
+      /Sincerely,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,
+      /Respectfully,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,
+      /Yours truly,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,
+      /Regards,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,
+      /Yours sincerely,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,
     ];
     
-    for (const pattern of akoPoSiPatterns) {
+    for (const pattern of senderPatterns) {
       const match = pattern.exec(cleanText);
       if (match && match[1]) {
         const name = match[1].trim();
@@ -148,12 +160,11 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       }
     }
     
-    // If no match found, try to extract "kapatid na" format
+    // If still no sender, look for Tagalog specific patterns
     if (!result.senderName) {
       const kapatidPatterns = [
         /(?:Ako po si |)kapatid na ([A-Za-z\s\.]+?)(?:,|\.|\s|$)/i,
         /Ako po ang iyong kapatid na si ([A-Za-z\s\.]+?)(?:,|\.|\s|$)/i,
-        /kapatid na ([A-Za-z\s\.]+?)(?:,|\.|\s|$)/i,
       ];
       
       for (const pattern of kapatidPatterns) {
@@ -168,69 +179,66 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       }
     }
     
-    // If still no sender, look for common signature patterns
+    // If still no sender, check signature patterns at the end of the document
     if (!result.senderName) {
-      const senderNamePatterns = [
-        // Tagalog patterns - enhanced
-        /Gumagalang,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,
-        /Lubos na gumagalang,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,
-        /Taos-puso,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,
-        /Sumasainyo,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,
-        /Nagpapahalaga,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,
-        /Lubos na nagpapasalamat,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,
-        /Ang inyong (?:lingkod|kapatid)(?: sa Panginoon)?[,:]?\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,
-        
-        // English patterns
-        /Sincerely,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,
-        /Respectfully,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,
-      ];
-      
-      for (const pattern of senderNamePatterns) {
-        const match = pattern.exec(cleanText);
-        if (match && match[1]) {
-          const name = match[1].trim();
-          if (name.length >= 2) {
-            result.senderName = name;
-            break;
-          }
+      // Check the last 10 lines for potential signatures
+      const lastLines = lines.slice(-10);
+      for (const line of lastLines) {
+        if (/^[A-Za-z\s\.]{2,40}$/.test(line) && 
+            line.split(/\s+/).length <= 4 && 
+            !/Sincerely|Regards|Truly|Thank/i.test(line)) {
+          result.senderName = line.trim();
+          break;
         }
       }
     }
     
-    // IMPROVED: Extract date using extended patterns for Tagalog letters
-    const datePatterns = [
-      // Specific Tagalog date formats
-      /\bPetsa:?\s*([A-Za-z0-9,\s]+\d{4})/i,
-      /\bPetsa:?\s*(\d{1,2}\s+(?:Enero|Pebrero|Marso|Abril|Mayo|Hunyo|Hulyo|Agosto|Setyembre|Oktubre|Nobyembre|Disyembre),?\s*\d{4})/i,
-      /\bAraw:?\s*([A-Za-z0-9,\s]+\d{4})/i,
-      /\bIka-(\d{1,2}\s+(?:ng\s+)?(?:Enero|Pebrero|Marso|Abril|Mayo|Hunyo|Hulyo|Agosto|Setyembre|Oktubre|Nobyembre|Disyembre),?\s*\d{4})/i,
-      /\b(\d{1,2}\s+(?:ng\s+)?(?:Enero|Pebrero|Marso|Abril|Mayo|Hunyo|Hulyo|Agosto|Setyembre|Oktubre|Nobyembre|Disyembre),?\s*\d{4})\b/i,
-      
-      // English date patterns
-      /\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:,|\s)\s*\d{4}\b/gi,
-      /\b\d{1,2}\/\d{1,2}\/\d{4}\b/g,
-      /\bDate:?\s*([A-Za-z0-9,\s]+\d{4})/i,
-      
-      // Tagalog month names
-      /\b(?:Enero|Pebrero|Marso|Abril|Mayo|Hunyo|Hulyo|Agosto|Setyembre|Oktubre|Nobyembre|Disyembre)\s+\d{1,2}(?:,|\s)\s*\d{4}\b/gi,
-    ];
-    
-    // Look through the first 10 lines for standalone date patterns
+    // IMPROVED DATE EXTRACTION: Enhanced for both English and Tagalog formats
+    // First try to find standalone date lines (common in formal letters)
     for (let i = 0; i < Math.min(10, lines.length); i++) {
       const line = lines[i].trim();
       
-      // Check if line contains only a date (common in formal letters)
-      for (const pattern of datePatterns) {
-        const matches = line.match(pattern);
-        if (matches && matches.length > 0) {
-          if (pattern.toString().includes('(')) {
-            const match = pattern.exec(line);
+      // Check for English date formats
+      const englishDateRegex = [
+        // Standard English date formats
+        /^(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:,|\s)\s*\d{4}$/i,
+        /^\d{1,2}\s+(?:January|February|March|April|May|June|July|August|September|October|November|December)(?:,|\s)\s*\d{4}$/i,
+        /^\d{1,2}\/\d{1,2}\/\d{4}$/,
+        /^\d{1,2}-\d{1,2}-\d{4}$/,
+        // Formatted date with prefixes
+        /^Date:\s*([A-Za-z0-9,\s]+\d{4})$/i,
+      ];
+      
+      // Check for Tagalog date formats
+      const tagalogDateRegex = [
+        /^Petsa:?\s*([A-Za-z0-9,\s]+\d{4})$/i,
+        /^Araw:?\s*([A-Za-z0-9,\s]+\d{4})$/i,
+        /^Ika-(\d{1,2}\s+(?:ng\s+)?(?:Enero|Pebrero|Marso|Abril|Mayo|Hunyo|Hulyo|Agosto|Setyembre|Oktubre|Nobyembre|Disyembre),?\s*\d{4})$/i,
+        /^(\d{1,2}\s+(?:ng\s+)?(?:Enero|Pebrero|Marso|Abril|Mayo|Hunyo|Hulyo|Agosto|Setyembre|Oktubre|Nobyembre|Disyembre),?\s*\d{4})$/i,
+      ];
+      
+      // Try English formats first
+      for (const regex of englishDateRegex) {
+        if (regex.test(line)) {
+          if (regex.toString().includes('Date:')) {
+            const match = /Date:\s*(.+)$/i.exec(line);
             if (match && match[1]) {
               result.date = match[1].trim();
               break;
             }
           } else {
-            result.date = matches[0].trim();
+            result.date = line;
+            break;
+          }
+        }
+      }
+      
+      // If no English date found, try Tagalog formats
+      if (!result.date) {
+        for (const regex of tagalogDateRegex) {
+          const match = regex.exec(line);
+          if (match) {
+            result.date = match[1] ? match[1].trim() : line.trim();
             break;
           }
         }
@@ -239,8 +247,25 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       if (result.date) break;
     }
     
-    // If date not found in standalone lines, try the entire text
+    // If no standalone date line was found, search within the text
     if (!result.date) {
+      const datePatterns = [
+        // English date formats with labels
+        /Date:?\s*([A-Za-z0-9,\s]+\d{4})/i,
+        /Dated\s+(?:this\s+)?(\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?(?:January|February|March|April|May|June|July|August|September|October|November|December),?\s*\d{4})/i,
+        // Common English date formats
+        /\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:st|nd|rd|th)?(?:,|\s)\s*\d{4}\b/i,
+        /\b\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?(?:January|February|March|April|May|June|July|August|September|October|November|December)(?:,|\s)\s*\d{4}\b/i,
+        /\b\d{1,2}\/\d{1,2}\/\d{4}\b/,
+        
+        // Tagalog date formats with labels
+        /Petsa:?\s*([A-Za-z0-9,\s]+\d{4})/i,
+        /Araw:?\s*([A-Za-z0-9,\s]+\d{4})/i,
+        // Tagalog month patterns
+        /\b(?:Enero|Pebrero|Marso|Abril|Mayo|Hunyo|Hulyo|Agosto|Setyembre|Oktubre|Nobyembre|Disyembre)\s+\d{1,2}(?:,|\s)\s*\d{4}\b/i,
+        /\b\d{1,2}\s+(?:ng\s+)?(?:Enero|Pebrero|Marso|Abril|Mayo|Hunyo|Hulyo|Agosto|Setyembre|Oktubre|Nobyembre|Disyembre)(?:,|\s)\s*\d{4}\b/i,
+      ];
+      
       for (const pattern of datePatterns) {
         const matches = cleanText.match(pattern);
         if (matches && matches.length > 0) {
@@ -258,29 +283,67 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       }
     }
     
-    // Extract nature of excuse with improved Tagalog support
+    // NEW: Search for incident date specifically
+    if (!result.date) {
+      const incidentDatePatterns = [
+        /incident\s+(?:occurred|date|on):?\s*([A-Za-z0-9,\s]+\d{4})/i,
+        /date\s+of\s+incident:?\s*([A-Za-z0-9,\s]+\d{4})/i,
+        /on\s+(\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?(?:January|February|March|April|May|June|July|August|September|October|November|December)(?:,|\s)\s*\d{4})/i,
+      ];
+      
+      for (const pattern of incidentDatePatterns) {
+        const match = pattern.exec(cleanText);
+        if (match && match[1]) {
+          result.date = match[1].trim();
+          break;
+        }
+      }
+    }
+    
+    // IMPROVED EXCUSE EXTRACTION - Enhanced for both English and Tagalog
+    // List of keywords that indicate excuse sections
     const excuseKeywords = [
-      // Tagalog keywords - expanded
+      // Tagalog keywords
       "hindi nakapasok", "hindi nakadalo", "lumiban", "pagliban",
       "humihingi ng paumanhin", "patawad", "patawarin", "dahilan", "paliwanag",
       "dahil sa", "sanhi ng", "karamdaman", "sakit", "pamilya", "kagipitan",
       "hindi nakarating", "hindi nakasipot", "hindi nakapunta",
       "pagkakasala", "pagkakamali", "pagkukulang", "hindi nakapagsumite",
-      "pagsuway", "hindi nasunod", "hindi natupad", "nagawang pagkakasala"
+      "pagsuway", "hindi nasunod", "hindi natupad", "nagawang pagkakasala",
+      
+      // English keywords - expanded for better excuse detection
+      "absence", "apologize", "apology", "excuse", "reason", "unable", 
+      "could not", "was not able", "missed", "regret", "sorry",
+      "due to", "because of", "caused by", "resulted from", "account of",
+      "explanation", "behavior", "conduct", "incident", "action", "issue",
+      "cheating", "plagiarism", "misconduct", "violation", "inappropriate",
+      "failed to", "did not", "neglected to", "overlooked", "forgot to"
     ];
     
+    // Try to find excuse paragraphs - IMPROVED FOR ENGLISH
     const excuseIndicators = [
-      // Tagalog patterns - enhanced for better excuse extraction
+      // Tagalog patterns
       /Ako (?:po |)(?:ay |)(?:humihingi ng |nais |gusto |)(?:taos |lubos |)(?:paumanhin|pasensya|patawad)(.*?)(?:\.|\n)/i,
       /(?:Ito |Ako |Nagsisilbi |)(?:po |)(?:ay |)(?:isang |)(?:liham ng |pormal na |)(?:paumanhin|paliwanag|paghingi ng tawad)(.*?)(?:\.|\n)/i,
-      /(?:Ako |Kami |)(?:po |)(?:ay |)(?:hindi nakaabot|hindi nakapunta|hindi nakapasok|lumiban)(.*?)(?:\.|\n)/i,
       /(?:dahil sa|sanhi ng|dala ng)(.*?)(?:\.|\n)/i,
-      // Additional specific Tagalog patterns for excuse extraction
       /dahil sa aking(.*?)(?:pagkakasala|pagkakamali|pagkukulang)(?:\.|\n)/i,
-      /dahil sa aking nagawang(.*?)(?:\.|\n)/i,
-      /nagsasalaysay ukol sa(.*?)(?:\.|\n)/i,
-      // Very specific pattern: dahil sa...
-      /dahil sa aking nagawang pagkakasala/i,
+      
+      // English patterns - enhanced for better excuse recognition
+      /I (?:would like to |am |)(?:sincerely |formally |)(?:apologize|explain|address)(.*?)(?:\.|\n)/i,
+      /I regret to inform you(.*?)(?:\.|\n)/i,
+      /This (?:letter |)is (?:to |)(?:apologize|explain|address|inform)(.*?)(?:\.|\n)/i,
+      /I am writing (?:this letter |)to (?:apologize|explain|address)(.*?)(?:\.|\n)/i,
+      /The reason for my(.*?)was(?:\.|\n)/i,
+      /Due to(.*?)(?:\.|\n)/i,
+      /I was unable to(.*?)(?:\.|\n)/i,
+      /I could not(.*?)(?:\.|\n)/i,
+      /I missed(.*?)(?:\.|\n)/i,
+      /I failed to(.*?)(?:\.|\n)/i,
+      /reason for my(.*?)(?:\.|\n)/i,
+      /regarding my(.*?)(?:\.|\n)/i,
+      /in reference to my(.*?)(?:\.|\n)/i,
+      /I am writing to address(.*?)(?:\.|\n)/i,
+      /I would like to address(.*?)(?:\.|\n)/i,
     ];
     
     // Try to find the excuse based on patterns
@@ -295,12 +358,13 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       }
     }
     
-    // If no excuse found with patterns, try extracting directly from the text
+    // If no excuse found with patterns, try looking for sentences with excuse keywords
     if (!result.natureOfExcuse) {
-      // Look specifically for "dahil sa aking nagawang pagkakasala" pattern
+      // Special case for Tagalog "dahil sa aking nagawang pagkakasala" pattern
       if (cleanText.includes("dahil sa aking nagawang pagkakasala")) {
         result.natureOfExcuse = "dahil sa aking nagawang pagkakasala";
       } else {
+        // Split into sentences and look for keywords
         const sentences = cleanText.split(/\.|\n/).filter(s => s.trim().length > 0);
         
         for (const sentence of sentences) {
@@ -312,12 +376,51 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       }
     }
     
-    // Search for direct Tagalog phrases indicating the nature of the excuse
+    // Look for specific sections often found in formal excuse letters
     if (!result.natureOfExcuse) {
-      const dahilSaPattern = /dahil sa ([^\.]+)/i;
-      const dahilMatch = dahilSaPattern.exec(cleanText);
-      if (dahilMatch && dahilMatch[1] && dahilMatch[1].length > 5) {
-        result.natureOfExcuse = `dahil sa ${dahilMatch[1].trim()}`;
+      // Check for sections that typically contain the excuse
+      const sectionHeaders = [
+        /Subject:(.+?)(?:\n|$)/i,
+        /Re:(.+?)(?:\n|$)/i,
+        /Regarding:(.+?)(?:\n|$)/i,
+        /Reason:(.+?)(?:\n|$)/i,
+        /Purpose:(.+?)(?:\n|$)/i,
+        /Matter:(.+?)(?:\n|$)/i,
+      ];
+      
+      for (const header of sectionHeaders) {
+        const match = header.exec(cleanText);
+        if (match && match[1] && match[1].trim().length > 5) {
+          result.natureOfExcuse = match[1].trim();
+          break;
+        }
+      }
+    }
+    
+    // NEW: Try to extract excuses from paragraphs if still not found
+    // This tackles cases where the excuse is described in a paragraph without standard patterns
+    if (!result.natureOfExcuse) {
+      // Split text into paragraphs
+      const paragraphs = cleanText.split(/\n\s*\n/).filter(p => p.trim().length > 20);
+      
+      // Look for paragraphs with multiple excuse keywords
+      for (const paragraph of paragraphs) {
+        const keywordMatches = excuseKeywords.filter(keyword => 
+          paragraph.toLowerCase().includes(keyword)
+        );
+        
+        if (keywordMatches.length >= 2) {
+          // Found a paragraph with multiple excuse keywords
+          // Extract a reasonable portion to use as the excuse
+          const words = paragraph.split(/\s+/);
+          if (words.length > 10) {
+            result.natureOfExcuse = words.slice(0, 30).join(' ') + 
+              (words.length > 30 ? '...' : '');
+          } else {
+            result.natureOfExcuse = paragraph;
+          }
+          break;
+        }
       }
     }
     

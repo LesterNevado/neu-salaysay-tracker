@@ -17,6 +17,7 @@ export function determineViolationType(excuseText?: string): string {
     'sick', 'illness', 'hospital', 'doctor', 'medical', 'clinic', 'health', 'disease', 
     'fever', 'flu', 'cough', 'cold', 'headache', 'pain', 'surgery', 'appointment',
     'prescription', 'medication', 'treatment', 'emergency', 'injury', 'wounds',
+    'patient', 'diagnosed', 'condition', 'symptom', 'recovery', 'therapy', 'unwell',
     // Tagalog
     'sakit', 'karamdaman', 'ospital', 'doktor', 'medikal', 'klinika', 'kalusugan', 
     'lagnat', 'sipon', 'ubo', 'sakit ng ulo', 'masakit', 'operasyon', 'gamot',
@@ -29,6 +30,7 @@ export function determineViolationType(excuseText?: string): string {
     // English
     'emergency', 'urgent', 'family', 'death', 'funeral', 'accident', 'crisis',
     'relative', 'parent', 'child', 'mother', 'father', 'grandparent', 'sibling',
+    'personal', 'urgent matter', 'tragedy', 'loss', 'bereavement', 'misfortune',
     // Tagalog
     'kagipitan', 'agarang', 'pamilya', 'kamatayan', 'libing', 'aksidente', 'krisis',
     'kamag-anak', 'magulang', 'anak', 'nanay', 'tatay', 'lola', 'lolo', 'kapatid',
@@ -39,7 +41,8 @@ export function determineViolationType(excuseText?: string): string {
   const transportKeywords = [
     // English
     'late', 'traffic', 'transportation', 'commute', 'bus', 'train', 'car', 'vehicle',
-    'breakdown', 'delay', 'missed', 'schedule', 'transport',
+    'breakdown', 'delay', 'missed', 'schedule', 'transport', 'tardy', 'punctuality',
+    'delayed', 'transit', 'arrival', 'departure', 'congestion', 'route', 'travel',
     // Tagalog
     'huli', 'late', 'trapik', 'transportasyon', 'biyahe', 'bus', 'tren', 'kotse', 'sasakyan',
     'nasira', 'naantala', 'nawala', 'iskedyul', 'nawalan', 'naantalang biyahe',
@@ -50,7 +53,8 @@ export function determineViolationType(excuseText?: string): string {
   const dressCodeKeywords = [
     // English
     'uniform', 'dress code', 'clothes', 'attire', 'outfit', 'wear', 'shirt', 'pants',
-    'skirt', 'blouse', 'jacket', 'shoes', 'socks', 'hat', 'cap', 'dress',
+    'skirt', 'blouse', 'jacket', 'shoes', 'socks', 'hat', 'cap', 'dress', 'clothing',
+    'appearance', 'garment', 'apparel', 'proper attire', 'dress properly', 'id card',
     // Tagalog
     'uniporme', 'kasuotan', 'damit', 'pananamit', 'suot', 'kasuotang', 'pang-itaas',
     'pantalon', 'palda', 'sapatos', 'medyas', 'sumbrero', 'bestida', 'pang-ibaba',
@@ -61,7 +65,9 @@ export function determineViolationType(excuseText?: string): string {
   const behaviorKeywords = [
     // English
     'behavior', 'conduct', 'attitude', 'disrespect', 'misbehavior', 'misconduct',
-    'discipline', 'action', 'offense', 'violation', 'rule', 'policy',
+    'discipline', 'action', 'offense', 'violation', 'rule', 'policy', 'inappropriate',
+    'disruptive', 'unacceptable', 'manner', 'demeanor', 'etiquette', 'protocol',
+    'standards', 'guidelines', 'code of conduct', 'norms', 'respect', 'courtesy',
     // Tagalog
     'asal', 'kilos', 'ugali', 'kawalan ng respeto', 'maling asal', 'maling kilos',
     'disiplina', 'aksyon', 'paglabag', 'patakaran', 'alituntunin', 'regulasyon',
@@ -74,6 +80,9 @@ export function determineViolationType(excuseText?: string): string {
     // English
     'homework', 'assignment', 'project', 'exam', 'test', 'quiz', 'class', 'course',
     'subject', 'study', 'academic', 'research', 'paper', 'report', 'presentation',
+    'deadline', 'submission', 'grades', 'pass', 'fail', 'incomplete', 'thesis',
+    'dissertation', 'term paper', 'coursework', 'lecture', 'professor', 'instructor',
+    'cheating', 'plagiarism', 'copying', 'academic dishonesty', 'citation', 'reference',
     // Tagalog
     'takdang-aralin', 'takdang aralin', 'assignment', 'proyekto', 'pagsusulit', 'eksamen', 
     'klase', 'kurso', 'asignatura', 'aralin', 'pag-aaral', 'akademiko', 'pananaliksik', 
@@ -96,6 +105,26 @@ export function determineViolationType(excuseText?: string): string {
       normalizedText.includes('nagawang pagkakamali') ||
       normalizedText.includes('hindi sumunod') ||
       normalizedText.includes('paglabag sa alituntunin')) {
+    behaviorCount += 3; // Strongly weight these specific phrases
+  }
+  
+  // Enhanced detection for English academic misconduct
+  if (normalizedText.includes('cheating') || 
+      normalizedText.includes('plagiarism') || 
+      normalizedText.includes('academic dishonesty') ||
+      normalizedText.includes('copied') ||
+      normalizedText.includes('copying') ||
+      normalizedText.includes('academic integrity') ||
+      normalizedText.includes('academic misconduct')) {
+    academicCount += 5; // Strongly weight these specific academic misconduct terms
+  }
+  
+  // Enhanced detection for English behavioral issues
+  if (normalizedText.includes('inappropriate behavior') || 
+      normalizedText.includes('misconduct') || 
+      normalizedText.includes('violation of rules') ||
+      normalizedText.includes('inappropriate action') ||
+      normalizedText.includes('disciplinary')) {
     behaviorCount += 3; // Strongly weight these specific phrases
   }
   
