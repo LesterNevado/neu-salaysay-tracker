@@ -65,7 +65,8 @@ export function determineViolationType(excuseText?: string): string {
     // Tagalog
     'asal', 'kilos', 'ugali', 'kawalan ng respeto', 'maling asal', 'maling kilos',
     'disiplina', 'aksyon', 'paglabag', 'patakaran', 'alituntunin', 'regulasyon',
-    'pagkakasala', 'pagsuway', 'hindi nasunod', 'hindi sinunod'
+    'pagkakasala', 'pagsuway', 'hindi nasunod', 'hindi sinunod', 'nagawang pagkakasala',
+    'pagkakamali', 'kasalanan', 'pagkukulang', 'pagkakasala'
   ];
   
   // Academic-related terms in both English and Tagalog
@@ -87,6 +88,16 @@ export function determineViolationType(excuseText?: string): string {
   let dressCodeCount = dressCodeKeywords.filter(keyword => normalizedText.includes(keyword)).length;
   let behaviorCount = behaviorKeywords.filter(keyword => normalizedText.includes(keyword)).length;
   let academicCount = academicKeywords.filter(keyword => normalizedText.includes(keyword)).length;
+  
+  // Enhanced detection for Tagalog excuses
+  // Specific checks for common Tagalog expressions that indicate behavioral issues
+  if (normalizedText.includes('pagkakasala') || 
+      normalizedText.includes('kasalanan') || 
+      normalizedText.includes('nagawang pagkakamali') ||
+      normalizedText.includes('hindi sumunod') ||
+      normalizedText.includes('paglabag sa alituntunin')) {
+    behaviorCount += 3; // Strongly weight these specific phrases
+  }
   
   // Find the category with the highest count
   const counts = [
