@@ -147,70 +147,59 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       }
     }
     
-    // IMPROVED SENDER NAME EXTRACTION
-    // First, look specifically for "Sincerely," followed by a name pattern
-    const sincerelySignaturePatterns = [
-      /Sincerely,?\s*([A-Za-z\s\.]+?)(?:\r?\n|\s*$)/i,
-      /Sincerely yours,?\s*([A-Za-z\s\.]+?)(?:\r?\n|\s*$)/i,
-      /Yours sincerely,?\s*([A-Za-z\s\.]+?)(?:\r?\n|\s*$)/i,
-      /Yours truly,?\s*([A-Za-z\s\.]+?)(?:\r?\n|\s*$)/i,
-      /Respectfully,?\s*([A-Za-z\s\.]+?)(?:\r?\n|\s*$)/i,
-      /Respectfully submitted,?\s*([A-Za-z\s\.]+?)(?:\r?\n|\s*$)/i,
-      /Respectfully yours,?\s*([A-Za-z\s\.]+?)(?:\r?\n|\s*$)/i,
-    ];
-    
+    // IMPROVED SENDER NAME EXTRACTION - PRIORITIZE "SINCERELY" PATTERN
+    // First, explicitly look for the "Sincerely," pattern followed by a name on the next line
     let foundSenderInSignature = false;
     
-    for (const pattern of sincerelySignaturePatterns) {
-      const match = pattern.exec(cleanText);
-      if (match && match[1]) {
-        const name = match[1].trim();
-        if (name.length >= 2 && 
-            !/\b(thank you|considering|appreciate)\b/i.test(name) && 
-            name.split(/\s+/).length <= 4) {
-          result.senderName = name;
+    // Look for "Sincerely," and then name on the next line (common format)
+    for (let i = 0; i < lines.length - 1; i++) {
+      const line = lines[i].trim().toLowerCase();
+      
+      if (line === 'sincerely,' || line === 'sincerely') {
+        // Check the next line for a name
+        const nextLine = lines[i + 1].trim();
+        
+        // Skip if next line is empty or clearly not a name
+        if (nextLine.length < 2 || /^\d/.test(nextLine)) continue;
+        
+        // If it looks like a name (1-3 words, mostly letters)
+        if (/^[A-Za-z\s\.]{2,40}$/.test(nextLine) && 
+            nextLine.split(/\s+/).length <= 3 &&
+            !/university|college|school|department/i.test(nextLine)) {
+          result.senderName = nextLine;
           foundSenderInSignature = true;
           break;
         }
       }
     }
     
-    // If no sender name found from signature patterns, look for names in the last few lines
+    // If not found with the above method, try more signature patterns
     if (!foundSenderInSignature) {
-      // Look at the last 10 lines for a standalone name after common closing phrases
-      const closingLines = lines.slice(-10);
-      let foundClosingPhrase = false;
+      const sincerelySignaturePatterns = [
+        /Sincerely,?\s*\r?\n\s*([A-Za-z\s\.]+?)(?:\r?\n|\s*$)/i,  // "Sincerely," followed by name on next line
+        /Sincerely,?\s*([A-Za-z\s\.]+?)(?:\r?\n|\s*$)/i,  // "Sincerely, Name"
+        /Sincerely yours,?\s*\r?\n\s*([A-Za-z\s\.]+?)(?:\r?\n|\s*$)/i,
+        /Sincerely yours,?\s*([A-Za-z\s\.]+?)(?:\r?\n|\s*$)/i,
+        /Yours sincerely,?\s*\r?\n\s*([A-Za-z\s\.]+?)(?:\r?\n|\s*$)/i,
+        /Yours sincerely,?\s*([A-Za-z\s\.]+?)(?:\r?\n|\s*$)/i,
+        /Yours truly,?\s*\r?\n\s*([A-Za-z\s\.]+?)(?:\r?\n|\s*$)/i,
+        /Yours truly,?\s*([A-Za-z\s\.]+?)(?:\r?\n|\s*$)/i,
+        /Respectfully,?\s*\r?\n\s*([A-Za-z\s\.]+?)(?:\r?\n|\s*$)/i,
+        /Respectfully,?\s*([A-Za-z\s\.]+?)(?:\r?\n|\s*$)/i,
+        /Respectfully submitted,?\s*\r?\n\s*([A-Za-z\s\.]+?)(?:\r?\n|\s*$)/i,
+        /Respectfully submitted,?\s*([A-Za-z\s\.]+?)(?:\r?\n|\s*$)/i,
+        /Respectfully yours,?\s*\r?\n\s*([A-Za-z\s\.]+?)(?:\r?\n|\s*$)/i,
+        /Respectfully yours,?\s*([A-Za-z\s\.]+?)(?:\r?\n|\s*$)/i,
+      ];
       
-      for (let i = 0; i < closingLines.length; i++) {
-        const line = closingLines[i].trim().toLowerCase();
-        
-        // Check if this line contains a closing phrase
-        if (line.includes('sincerely') || 
-            line.includes('respectfully') || 
-            line.includes('yours truly') || 
-            line.includes('regards') || 
-            line.includes('thank you')) {
-          foundClosingPhrase = true;
-          continue;  // Skip to the next line after the closing phrase
-        }
-        
-        // If we've seen a closing phrase, look for a name in subsequent lines
-        if (foundClosingPhrase) {
-          const nameLine = closingLines[i].trim();
-          
-          // Skip empty lines and lines that are clearly not names
-          if (nameLine.length < 2 || 
-              /^\d/.test(nameLine) || // starts with number
-              /^\W/.test(nameLine) || // starts with non-word character
-              /\b(university|college|school)\b/i.test(nameLine)) {
-            continue;
-          }
-          
-          // Look for a properly formatted name (1-4 words, mostly letters)
-          if (/^[A-Za-z\s\.]{2,40}$/.test(nameLine) && 
-              nameLine.split(/\s+/).length <= 4 &&
-              nameLine.length >= 3) {
-            result.senderName = nameLine;
+      for (const pattern of sincerelySignaturePatterns) {
+        const match = pattern.exec(text); // Use original text with line breaks
+        if (match && match[1]) {
+          const name = match[1].trim();
+          if (name.length >= 2 && 
+              !/\b(thank you|considering|appreciate)\b/i.test(name) && 
+              name.split(/\s+/).length <= 4) {
+            result.senderName = name;
             foundSenderInSignature = true;
             break;
           }
@@ -218,7 +207,32 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       }
     }
     
-    // If still not found, try other sender name patterns as fallback
+    // If still not found, look for the next non-empty line after "Sincerely" in the last few lines
+    if (!foundSenderInSignature) {
+      const lastFewLines = lines.slice(-10);  // Look at last 10 lines
+      for (let i = 0; i < lastFewLines.length - 1; i++) {
+        const line = lastFewLines[i].trim();
+        if (/^Sincerely,?$/i.test(line)) {
+          // Find next non-empty line
+          for (let j = i + 1; j < lastFewLines.length; j++) {
+            const nameLine = lastFewLines[j].trim();
+            if (nameLine.length > 0) {
+              // Check if it looks like a name (not student number, course code, etc.)
+              if (!/^\d/.test(nameLine) && 
+                  !/[A-Za-z]{2,5}-\d/.test(nameLine) && 
+                  nameLine.split(/\s+/).length <= 3) {
+                result.senderName = nameLine;
+                foundSenderInSignature = true;
+                break;
+              }
+            }
+          }
+          if (foundSenderInSignature) break;
+        }
+      }
+    }
+    
+    // If still not found, try other patterns as fallback
     if (!foundSenderInSignature) {
       // Check other signature patterns
       const otherSignaturePatterns = [
@@ -335,49 +349,55 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       }
     }
     
-    // IMPROVED EXCUSE EXTRACTION - Better handling of academic misconduct language in English
-    // First, look for specific academic misconduct terms
-    const academicMisconductPatterns = [
-      /apologize\s+for\s+(?:my\s+)?(?:actions|conduct|behavior)\s+related\s+to\s+(?:.*?)(?:cheating|academic\s+dishonesty|plagiarism|copying|academic\s+integrity|dishonesty|misconduct)/i,
-      /apologize\s+for\s+(?:my\s+)?(?:cheating|academic\s+dishonesty|plagiarism|copying|academic\s+integrity|dishonesty|misconduct)/i,
-      /I\s+(?:sincerely\s+)?apologize\s+for\s+(.*?)(?:\.|\n)/i,
-      /I\s+take\s+(?:full\s+)?responsibility\s+for\s+(.*?)(?:\.|\n)/i,
-      /regret\s+(?:my\s+)?(?:actions|behavior|mistake|error|lapse|misconduct)\s+(.*?)(?:\.|\n)/i,
+    // IMPROVED EXCUSE EXTRACTION - Academic misconduct apology specific patterns
+    // First, look for apologize patterns common in academic misconduct letters
+    const apologyPatterns = [
+      // Very specific pattern from sample (prioritize this exact text pattern)
+      /apologize for my actions related to inappropriate behavior and cheating in your Software Engineering \d+ class/i,
+      
+      // More generic patterns for academic misconduct/cheating
+      /apologize for my actions related to (?:.*?)(?:inappropriate|cheating|academic|misconduct|dishonest|behavior)/i,
+      /apologize for (?:.*?)(?:cheating|academic|misconduct|dishonest|copying|plagiarism)/i,
+      /I (?:would like to |am |)(?:sincerely |formally |)apologize for (.{10,100})/i,
     ];
     
-    for (const pattern of academicMisconductPatterns) {
+    for (const pattern of apologyPatterns) {
       const match = pattern.exec(cleanText);
       if (match) {
-        // For patterns with capturing groups, use the captured group if available
-        if (pattern.toString().includes('(') && match[1]) {
-          const excuseText = match[1].trim();
-          if (excuseText.length > 5) {
-            result.natureOfExcuse = match[0].trim(); // Use the full match for context
+        // Extract full apology sentence if possible
+        const apologyPos = cleanText.indexOf(match[0]);
+        if (apologyPos >= 0) {
+          // Extract the whole sentence containing the apology
+          const sentenceStart = cleanText.lastIndexOf('.', apologyPos) + 1;
+          const sentenceEnd = cleanText.indexOf('.', apologyPos + match[0].length);
+          
+          if (sentenceEnd > sentenceStart) {
+            const sentence = cleanText.substring(sentenceStart, sentenceEnd).trim();
+            result.natureOfExcuse = sentence;
+            break;
+          } else {
+            // If we can't find the sentence boundaries, use the match
+            result.natureOfExcuse = match[0].trim();
             break;
           }
         } else {
-          const sentence = match[0].trim();
-          if (sentence.length > 10) {
-            result.natureOfExcuse = sentence;
-            break;
-          }
+          // Fallback to using the match itself
+          result.natureOfExcuse = match[0].trim();
+          break;
         }
       }
     }
     
-    // If still no excuse found, look for sentences mentioning cheating, academic integrity, etc.
+    // If we didn't find a specific apology using the patterns above, look for sentences with apology context
     if (!result.natureOfExcuse) {
-      const academicKeywords = [
-        "cheating", "academic dishonesty", "plagiarism", "copying", "academic integrity", 
-        "academic misconduct", "dishonesty", "exam", "test", "quiz", "assignment", 
-        "inappropriate behavior", "class behavior", "classroom behavior"
-      ];
-      
-      // Split text into sentences
+      // Look for the first sentence containing apologize and cheating/behavior
       const sentences = cleanText.split(/\.|\n/).filter(s => s.trim().length > 10);
       
       for (const sentence of sentences) {
-        if (academicKeywords.some(keyword => sentence.toLowerCase().includes(keyword))) {
+        if (
+          /apologize/i.test(sentence) && 
+          (/cheating|academic|inappropriate|behavior|misconduct|integrity|dishonest/i.test(sentence))
+        ) {
           result.natureOfExcuse = sentence.trim();
           break;
         }
@@ -413,35 +433,6 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
             result.natureOfExcuse = excuseText;
             break;
           }
-        }
-      }
-    }
-    
-    // If still no excuse found, look for paragraphs mentioning responsibility or behavior
-    if (!result.natureOfExcuse) {
-      // Split into paragraphs
-      const paragraphs = cleanText.split(/\n\s*\n/).filter(p => p.trim().length > 20);
-      
-      const behaviorKeywords = [
-        "responsibility", "mistake", "apologize", "regret", "behavior", "conduct", 
-        "inappropriate", "action", "fault", "error", "wrong", "sorry", "incident"
-      ];
-      
-      for (const paragraph of paragraphs) {
-        const keywordMatches = behaviorKeywords.filter(keyword => 
-          paragraph.toLowerCase().includes(keyword)
-        );
-        
-        if (keywordMatches.length >= 2) {
-          // Extract a reasonable portion to use as the excuse
-          const words = paragraph.split(/\s+/);
-          if (words.length > 10) {
-            result.natureOfExcuse = words.slice(0, 30).join(' ') + 
-              (words.length > 30 ? '...' : '');
-          } else {
-            result.natureOfExcuse = paragraph;
-          }
-          break;
         }
       }
     }

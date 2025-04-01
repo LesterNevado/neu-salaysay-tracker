@@ -17,7 +17,7 @@ export interface FileUpload {
 export const VIOLATION_TYPES = [
   "Attendance Issue",
   "Dress Code Violation",
-  "Academic Misconduct", // Changed from "Academic Violation" to "Academic Misconduct"
+  "Academic Misconduct",
   "Behavioral Issue",
   "Family Emergency",
   "Medical Excuse",
