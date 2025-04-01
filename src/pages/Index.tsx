@@ -11,7 +11,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AuthContext } from "@/App";
 import { toast } from "sonner";
 import { logLoginActivity } from "@/utils/activity";
-import { SupabaseConnectionStatus } from "@/components/SupabaseConnectionStatus";
 
 export default function Index() {
   const [isLoading, setIsLoading] = useState(false);
@@ -102,10 +101,7 @@ export default function Index() {
               Salaysay Tracking And Archival Tool
             </p>
 
-            {/* Connection status check - added */}
-            <div className="mt-6 w-full max-w-md">
-              <SupabaseConnectionStatus />
-            </div>
+            {/* Removed SupabaseConnectionStatus component */}
 
             {/* Error message */}
             {error && (

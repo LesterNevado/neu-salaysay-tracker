@@ -1,3 +1,4 @@
+
 // Define the structure for the extracted information
 export interface ExtractedDocumentInfo {
   studentNumber?: string;
@@ -10,6 +11,7 @@ export interface ExtractedDocumentInfo {
 
 /**
  * Extracts structured information from a text document using regex patterns
+ * Supports both English and Tagalog documents
  * @param text - The text content to analyze
  * @returns Structured information extracted from the document
  */
@@ -34,6 +36,9 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       /\b\d{2}-\d{5}\b/g,        // XX-XXXXX format
       /\bStudent(?:\s+(?:Number|ID|No|#|)):?\s*([0-9-]+)/i,  // "Student Number: XXXXXX"
       /\bID(?:\s+(?:Number|No|#|)):?\s*([0-9-]+)/i,          // "ID Number: XXXXXX"
+      // Tagalog patterns
+      /\bkabilang\s+sa\s+([A-Za-z0-9-]{5,15})/i,  // "kabilang sa XXX-XXX"
+      /\bEstudyante(?:\s+(?:Numero|Num|#|)):?\s*([0-9-]+)/i, // "Estudyante Numero: XXXXXX"
     ];
     
     for (const pattern of studentNumberPatterns) {
@@ -53,15 +58,34 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       }
     }
     
+    // Look for student number pattern in format "XCE-X" in Tagalog letters
+    if (!result.studentNumber) {
+      const courseCodeMatch = /\b\d{1,2}[A-Z]{2,3}-\d{1}\b/g.exec(cleanText);
+      if (courseCodeMatch) {
+        result.studentNumber = courseCodeMatch[0];
+      }
+    }
+    
     // Extract sender name
     // Look for common signature patterns in formal letters
     const senderNamePatterns = [
+      // English patterns
       /Sincerely,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,  // "Sincerely, Name"
       /Respectfully,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,  // "Respectfully, Name"
       /Yours truly,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,  // "Yours truly, Name"
       /Regards,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,  // "Regards, Name"
       /From:?\s*([A-Za-z\s.]+?)(?:\r?\n|,|\d|$)/i,  // "From: Name"
       /Submitted by:?\s*([A-Za-z\s.]+?)(?:\r?\n|,|\d|$)/i,  // "Submitted by: Name"
+      
+      // Tagalog patterns
+      /Gumagalang,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,  // "Gumagalang, Name"
+      /Lubos na gumagalang,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,  // "Lubos na gumagalang, Name"
+      /Taos-puso,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,  // "Taos-puso, Name"
+      /Sumasainyo,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,  // "Sumasainyo, Name"
+      /Nagpapahalaga,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,  // "Nagpapahalaga, Name"
+      /Maraming Salamat po[.,]?\s*(?:\n+|.+\n+)([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,  // "Maraming Salamat po..." followed eventually by a name
+      /Ang inyong kapatid sa Panginoon,\s*(?:\n+|.+\n+)([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,  // "Ang inyong kapatid sa Panginoon," followed by name
+      /Lubos na nagpapasalamat,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,  // "Lubos na nagpapasalamat, Name"
     ];
     
     for (const pattern of senderNamePatterns) {
@@ -76,23 +100,28 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       }
     }
     
-    // If sender name wasn't found by patterns, try to find it before student number
-    // This works for cases where the name appears right before the ID
-    if (!result.senderName && result.studentNumber) {
-      const studentNumberPos = cleanText.indexOf(result.studentNumber);
-      if (studentNumberPos > 0) {
-        // Check the 100 characters before the student number
-        const precedingText = cleanText.substring(Math.max(0, studentNumberPos - 100), studentNumberPos).trim();
-        const nameMatch = /([A-Za-z\s.]{2,30})(?:\r?\n|$)/.exec(precedingText);
-        if (nameMatch && nameMatch[1]) {
-          result.senderName = nameMatch[1].trim();
-        }
+    // Specific pattern for Tagalog letters - look for the name after the signature line
+    if (!result.senderName) {
+      const afterSignatureLine = /^[_\-]+\s*\n+\s*([A-Za-z\s.]+)$/im;
+      const nameMatch = afterSignatureLine.exec(cleanText);
+      if (nameMatch && nameMatch[1]) {
+        result.senderName = nameMatch[1].trim();
+      }
+    }
+    
+    // Look for "Ako po si [name]" pattern at beginning of letter
+    if (!result.senderName) {
+      const akoPoSiPattern = /Ako\s+po\s+si\s+([A-Za-z\s.]+?)(?:,|\s+\w+\s+sa|\s+kabilang)/i;
+      const akoPoSiMatch = akoPoSiPattern.exec(cleanText);
+      if (akoPoSiMatch && akoPoSiMatch[1]) {
+        result.senderName = akoPoSiMatch[1].trim();
       }
     }
     
     // Extract date using various formats
     // Try to find dates in various formats
     const datePatterns = [
+      // English date patterns
       // Month at beginning of document (e.g., "March 27, 2025" at top)
       /^(?:[^\n]*?\n){0,3}[^\n]*?((?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:,|\s)\s*\d{4})/i,
       
@@ -113,6 +142,16 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       
       // Date: pattern
       /\bDate:?\s*([A-Za-z0-9,\s]+\d{4})/i,
+      
+      // Tagalog date patterns
+      // Tagalog month names
+      /\b(?:Enero|Pebrero|Marso|Abril|Mayo|Hunyo|Hulyo|Agosto|Setyembre|Oktubre|Nobyembre|Disyembre)\s+\d{1,2}(?:,|\s)\s*\d{4}\b/gi,
+      
+      // Day Tagalog month year (e.g., "27 Enero 2025")
+      /\b\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?(?:Enero|Pebrero|Marso|Abril|Mayo|Hunyo|Hulyo|Agosto|Setyembre|Oktubre|Nobyembre|Disyembre)\s+\d{4}\b/gi,
+      
+      // Petsa: pattern
+      /\bPetsa:?\s*([A-Za-z0-9,\s]+\d{4})/i,
     ];
     
     for (const pattern of datePatterns) {
@@ -141,28 +180,23 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       }
     }
     
-    // If date is still not found, try to find dates in very specific formats at the beginning
-    if (!result.date) {
-      // Try to get the first few lines and look for a date
-      const firstLines = cleanText.split('\n').slice(0, 5).join(' ');
-      const dateMatch = /\b(?:\d{1,2}[-\/]?\d{1,2}[-\/]?\d{4}|\d{4}[-\/]?\d{1,2}[-\/]?\d{1,2}|(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2}(?:,|\s)?\s*\d{4}|\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4})\b/i.exec(firstLines);
-      if (dateMatch) {
-        result.date = dateMatch[0].trim();
-      }
-    }
-    
     // Enhanced addressee extraction
     // Focus heavily on salutation patterns 
     const addresseePatterns = [
-      // Updated salutation patterns with stronger focus on "Dear" pattern
+      // English patterns
       /Dear\s+(?:(?:Mr|Mrs|Ms|Dr|Prof|Sir|Madam|Teacher|Professor|Dean|Director|Principal)\.?\s+)?([A-Za-z\s.,]+?)(?:,|;|\r?\n|$)/i,  // "Dear [Title] Name,"
-      
-      // Other salutation patterns
       /To:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "To: Name"
       /Attn:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "Attn: Name"
       /Attention:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "Attention: Name"
       /Addressed to:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "Addressed to: Name"
       /For the attention of:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "For the attention of: Name"
+      
+      // Tagalog patterns
+      /Minamahal\s+(?:(?:G|Ginang|Gng|Ginoong|Bb|Binibini|Dr|Prop|Propesor|Dekano|Direktor|Prinsipal)\.?\s+)?([A-Za-z\s.,]+?)(?:,|;|\r?\n|$)/i,  // "Minamahal [Title] Name,"
+      /Sa\s+(?:(?:G|Ginang|Gng|Ginoong|Bb|Binibini|Dr|Prop|Propesor|Dekano|Direktor|Prinsipal)\.?\s+)?([A-Za-z\s.,]+?)(?:,|;|\r?\n|$)/i,  // "Sa [Title] Name,"
+      /Para kay:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "Para kay: Name"
+      /Kay:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "Kay: Name"
+      /Kapatid\s+na\s+([A-Za-z\s.,]+?)(?:,|;|\r?\n|$)/i,  // "Kapatid na Name,"
     ];
     
     // Try each pattern
@@ -178,43 +212,49 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       }
     }
     
-    // Extract specifically "Dear Sir/Madam" or variations like "Dear Sir/Ma'am" if no specific name was found
+    // Extract generic addressee forms for both English and Tagalog
     if (!result.addressee) {
-      const genericAddresseePattern = /Dear\s+(?:Sir|Madam|Sir\/Madam|Ma'am|Sir\/Ma'am)(?:,|;|\r?\n|$)/i;
+      const genericAddresseePattern = /(?:Dear|Minamahal)\s+(?:Sir|Madam|Sir\/Madam|Ma'am|Sir\/Ma'am|Ginoo|Ginang|Binibini|Ginoo\/Ginang)(?:,|;|\r?\n|$)/i;
       const genericMatch = genericAddresseePattern.exec(cleanText);
       if (genericMatch) {
         result.addressee = genericMatch[0].replace(/[,;]$/, '').trim();
       }
     }
     
-    // If addressee still not found, look for titles followed by names near the beginning
-    if (!result.addressee) {
-      // Get the first 500 characters to look for addressee
-      const initialText = cleanText.substring(0, 500);
-      const titlePatterns = /(?:Mr\.|Mrs\.|Ms\.|Dr\.|Prof\.|Professor|Dean|Director|Principal|Sir|Madam|Teacher)\s+([A-Za-z\s.,]{2,30}?)(?:,|;|\r?\n|$)/i;
-      
-      const match = titlePatterns.exec(initialText);
-      if (match && match[1]) {
-        result.addressee = match[1].trim();
-      }
-    }
-    
     // Extract nature of excuse
-    // Look for common phrases/patterns in excuse letters
+    // Look for common phrases/patterns in excuse letters in both English and Tagalog
     const excuseKeywords = [
+      // English keywords
       "unable to attend", "could not attend", "missed", "absent", "absence",
       "apologize", "sorry", "regret", "excuse", "reason", "explanation",
       "due to", "because of", "unfortunately", "illness", "medical", "family",
-      "emergency", "incident", "problem", "issue", "situation", "circumstances"
+      "emergency", "incident", "problem", "issue", "situation", "circumstances",
+      
+      // Tagalog keywords
+      "hindi nakapasok", "hindi nakadalo", "lumiban", "absent", "pagliban",
+      "humihingi ng paumanhin", "patawad", "patawarin", "dahilan", "paliwanag",
+      "dahil sa", "sanhi ng", "karamdaman", "sakit", "pamilya", "kagipitan",
+      "emergency", "insidente", "problema", "sitwasyon", "kalagayan",
+      "hindi nakaayon", "hindi nakarating", "hindi nakasipot", "hindi nakapunta"
     ];
     
     const excuseIndicators = [
+      // English patterns
       /I (?:am writing to |would like to |wish to |want to |hereby |)(?:sincerely |humbly |)(?:apologize|regret|explain)(.*?)(?:\.|\n)/i,
       /(?:This is |I am |This serves as |)(?:a |an |)(?:letter of |formal |)(?:apology|excuse)(.*?)(?:\.|\n)/i,
       /(?:I |We |)(?:was |were |am |are |)(?:unable|not able)(.*?)(?:\.|\n)/i,
       /(?:due to|because of|on account of)(.*?)(?:\.|\n)/i,
       /(?:reason|explanation|justification)(.*?)(?:\.|\n)/i,
-      /nature of excuse:?(.*?)(?:\.|\n)/i
+      /nature of excuse:?(.*?)(?:\.|\n)/i,
+      
+      // Tagalog patterns
+      /Ako (?:po |)(?:ay |)(?:humihingi ng |nais |gusto |)(?:taos |lubos |)(?:paumanhin|pasensya|patawad)(.*?)(?:\.|\n)/i,
+      /(?:Ito |Ako |Nagsisilbi |)(?:po |)(?:ay |)(?:isang |)(?:liham ng |pormal na |)(?:paumanhin|paliwanag|paghingi ng tawad)(.*?)(?:\.|\n)/i,
+      /(?:Ako |Kami |)(?:po |)(?:ay |)(?:hindi nakaabot|hindi nakapunta|hindi nakapasok|lumiban)(.*?)(?:\.|\n)/i,
+      /(?:dahil sa|sanhi ng|dala ng)(.*?)(?:\.|\n)/i,
+      /(?:dahilan|paliwanag|pagpapatunay)(.*?)(?:\.|\n)/i,
+      /uri ng dahilan:?(.*?)(?:\.|\n)/i,
+      /nagsasalaysay ukol sa(.*?)(?:\.|\n)/i,
     ];
     
     // Try to find the excuse based on keyword context
