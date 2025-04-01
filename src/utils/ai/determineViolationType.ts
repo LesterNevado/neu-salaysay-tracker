@@ -151,7 +151,7 @@ export function determineViolationType(excuseText?: string): string {
     { type: "Attendance Issue", count: transportCount },
     { type: "Dress Code Violation", count: dressCodeCount },
     { type: "Behavioral Issue", count: behaviorCount },
-    { type: "Academic Violation", count: academicCount }
+    { type: "Academic Misconduct", count: academicCount } // Changed from "Academic Violation" to "Academic Misconduct"
   ];
   
   counts.sort((a, b) => b.count - a.count);

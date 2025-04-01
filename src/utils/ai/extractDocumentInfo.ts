@@ -147,60 +147,86 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       }
     }
     
-    // Enhanced sender name extraction for both English and Tagalog
-    // Check for common signatures at the end of formal letters
-    let possibleSender = null;
-    
-    // Check for formal letter signatures (e.g., "Sincerely, John Smith")
-    const signaturePatterns = [
+    // IMPROVED SENDER NAME EXTRACTION
+    // First, look specifically for "Sincerely," followed by a name pattern
+    const sincerelySignaturePatterns = [
       /Sincerely,?\s*([A-Za-z\s\.]+?)(?:\r?\n|\s*$)/i,
-      /Respectfully,?\s*([A-Za-z\s\.]+?)(?:\r?\n|\s*$)/i,
-      /Yours truly,?\s*([A-Za-z\s\.]+?)(?:\r?\n|\s*$)/i,
-      /Regards,?\s*([A-Za-z\s\.]+?)(?:\r?\n|\s*$)/i,
-      /Truly yours,?\s*([A-Za-z\s\.]+?)(?:\r?\n|\s*$)/i,
+      /Sincerely yours,?\s*([A-Za-z\s\.]+?)(?:\r?\n|\s*$)/i,
       /Yours sincerely,?\s*([A-Za-z\s\.]+?)(?:\r?\n|\s*$)/i,
+      /Yours truly,?\s*([A-Za-z\s\.]+?)(?:\r?\n|\s*$)/i,
+      /Respectfully,?\s*([A-Za-z\s\.]+?)(?:\r?\n|\s*$)/i,
+      /Respectfully submitted,?\s*([A-Za-z\s\.]+?)(?:\r?\n|\s*$)/i,
+      /Respectfully yours,?\s*([A-Za-z\s\.]+?)(?:\r?\n|\s*$)/i,
     ];
     
-    for (const pattern of signaturePatterns) {
+    let foundSenderInSignature = false;
+    
+    for (const pattern of sincerelySignaturePatterns) {
       const match = pattern.exec(cleanText);
       if (match && match[1]) {
         const name = match[1].trim();
-        if (name.length >= 2) {
-          possibleSender = name;
+        if (name.length >= 2 && 
+            !/\b(thank you|considering|appreciate)\b/i.test(name) && 
+            name.split(/\s+/).length <= 4) {
+          result.senderName = name;
+          foundSenderInSignature = true;
           break;
         }
       }
     }
     
-    // If no sender found from signature, check the last few non-empty lines
-    if (!possibleSender) {
-      // Extract non-empty lines and look at the last 5
-      const nonEmptyLines = lines.filter(line => line.trim().length > 0);
-      const lastLines = nonEmptyLines.slice(-5);
+    // If no sender name found from signature patterns, look for names in the last few lines
+    if (!foundSenderInSignature) {
+      // Look at the last 10 lines for a standalone name after common closing phrases
+      const closingLines = lines.slice(-10);
+      let foundClosingPhrase = false;
       
-      for (const line of lastLines) {
-        // Skip lines that look like IDs, course numbers, or other non-name text
-        if (/^\d|-\d|\d-|[A-Z]{2,5}-\d/.test(line) || 
-            line.length > 40 || 
-            /engineering|professor|teacher|student|email|phone|contact|address|major|course|class/i.test(line)) {
-          continue;
+      for (let i = 0; i < closingLines.length; i++) {
+        const line = closingLines[i].trim().toLowerCase();
+        
+        // Check if this line contains a closing phrase
+        if (line.includes('sincerely') || 
+            line.includes('respectfully') || 
+            line.includes('yours truly') || 
+            line.includes('regards') || 
+            line.includes('thank you')) {
+          foundClosingPhrase = true;
+          continue;  // Skip to the next line after the closing phrase
         }
         
-        // Look for lines that match name patterns (1-3 words, all letters)
-        if (/^[A-Za-z\s\.]{2,30}$/.test(line) && 
-            line.split(/\s+/).length <= 3 && 
-            !/sincerely|regards|truly|thank/i.test(line)) {
-          possibleSender = line.trim();
-          break;
+        // If we've seen a closing phrase, look for a name in subsequent lines
+        if (foundClosingPhrase) {
+          const nameLine = closingLines[i].trim();
+          
+          // Skip empty lines and lines that are clearly not names
+          if (nameLine.length < 2 || 
+              /^\d/.test(nameLine) || // starts with number
+              /^\W/.test(nameLine) || // starts with non-word character
+              /\b(university|college|school)\b/i.test(nameLine)) {
+            continue;
+          }
+          
+          // Look for a properly formatted name (1-4 words, mostly letters)
+          if (/^[A-Za-z\s\.]{2,40}$/.test(nameLine) && 
+              nameLine.split(/\s+/).length <= 4 &&
+              nameLine.length >= 3) {
+            result.senderName = nameLine;
+            foundSenderInSignature = true;
+            break;
+          }
         }
       }
     }
     
-    if (possibleSender) {
-      result.senderName = possibleSender;
-    } else {
-      // Fall back to other sender name patterns
-      const senderPatterns = [
+    // If still not found, try other sender name patterns as fallback
+    if (!foundSenderInSignature) {
+      // Check other signature patterns
+      const otherSignaturePatterns = [
+        // English patterns
+        /I am\s+([A-Za-z\s\.]+?)(?:,|\.|\s|and I am|$)/i,
+        /My name is\s+([A-Za-z\s\.]+?)(?:,|\.|\s|and I am|$)/i, 
+        /This letter is from\s+([A-Za-z\s\.]+?)(?:,|\.|\s|$)/i,
+        
         // Tagalog patterns
         /Ako\s+po\s+si\s+([A-Za-z\s\.]+?)(?:,|\s+\w+\s+sa|\s+kabilang|\.|$)/i,
         /Ako\s+po\s+ang\s+iyong\s+kapatid\s+na\s+si\s+([A-Za-z\s\.]+?)(?:,|\.|\s|$)/i,
@@ -209,18 +235,13 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
         /Ako\s+(?:po\s+)?(?:ay\s+)?si\s+([A-Za-z\s\.]+?)(?:,|\.|\s|$)/i,
         /Galing\s+(?:po\s+)?kay\s+([A-Za-z\s\.]+?)(?:,|\.|\s|$)/i,
         /kapatid\s+na\s+([A-Za-z\s\.]+?)(?:,|\.|\s|$)/i,
-        
-        // English patterns - added for better English document support
-        /I am\s+([A-Za-z\s\.]+?)(?:,|\.|\s|and I am|$)/i,
-        /My name is\s+([A-Za-z\s\.]+?)(?:,|\.|\s|and I am|$)/i, 
-        /This letter is from\s+([A-Za-z\s\.]+?)(?:,|\.|\s|$)/i,
       ];
       
-      for (const pattern of senderPatterns) {
+      for (const pattern of otherSignaturePatterns) {
         const match = pattern.exec(cleanText);
         if (match && match[1]) {
           const name = match[1].trim();
-          if (name.length >= 2) {
+          if (name.length >= 2 && name.split(/\s+/).length <= 4) {
             result.senderName = name;
             break;
           }
