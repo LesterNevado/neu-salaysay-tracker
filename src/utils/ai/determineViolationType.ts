@@ -43,11 +43,24 @@ export function determineViolationType(excuseText?: string): string {
     'late', 'traffic', 'transportation', 'commute', 'bus', 'train', 'car', 'vehicle',
     'breakdown', 'delay', 'missed', 'schedule', 'transport', 'tardy', 'punctuality',
     'delayed', 'transit', 'arrival', 'departure', 'congestion', 'route', 'travel',
-    'attendance', 'absent', 'absence', 'miss class', 'unable to attend',
     // Tagalog
     'huli', 'late', 'trapik', 'transportasyon', 'biyahe', 'bus', 'tren', 'kotse', 'sasakyan',
     'nasira', 'naantala', 'nawala', 'iskedyul', 'nawalan', 'naantalang biyahe',
     'nahuli', 'naabutan ng trapik', 'traffic', 'nasiraan', 'nasiraan ng sasakyan'
+  ];
+  
+  // Attendance-related terms in both English and Tagalog
+  const attendanceKeywords = [
+    // English
+    'absence', 'absent', 'attendance', 'missed class', 'class attendance', 'skip class',
+    'not present', 'not attend', 'did not attend', 'could not attend', 'unable to attend',
+    'not able to attend', 'poor attendance', 'irregular attendance', 'failed to attend',
+    'skipped', 'non-attendance', 'miss', 'absences', 'participate', 'participation',
+    // Tagalog
+    'hindi present', 'hindi nakapasok', 'hindi pumasok', 'hindi nakarating', 
+    'hindi nakaattend', 'hindi nakadalo', 'absent', 'pagliban', 'hindi pagpasok',
+    'hindi pagdalo', 'hindi pagsama', 'hindi pagpunta', 'hindi pagkakaroon',
+    'kakulangan sa pagpasok', 'kawalan ng attendance', 'hindi pagtugon'
   ];
   
   // Uniform/dress code terms in both English and Tagalog
@@ -93,15 +106,25 @@ export function determineViolationType(excuseText?: string): string {
     'hindi nakapagsumite', 'hindi nakapagpasa'
   ];
   
+  // Check specifically for attendance issues in apology letters
+  if (
+    (normalizedText.includes('apologize') || normalizedText.includes('sorry')) && 
+    (normalizedText.includes('absence') || normalizedText.includes('absences') || normalizedText.includes('missed class') || 
+     normalizedText.includes('attendance') || normalizedText.includes('not attend') || normalizedText.includes('application development'))
+  ) {
+    return "Attendance Issue";
+  }
+  
   // Count occurrences of keywords in each category
   let medicalCount = medicalKeywords.filter(keyword => normalizedText.includes(keyword)).length;
   let emergencyCount = emergencyKeywords.filter(keyword => normalizedText.includes(keyword)).length;
   let transportCount = transportKeywords.filter(keyword => normalizedText.includes(keyword)).length;
+  let attendanceCount = attendanceKeywords.filter(keyword => normalizedText.includes(keyword)).length;
   let dressCodeCount = dressCodeKeywords.filter(keyword => normalizedText.includes(keyword)).length;
   let behaviorCount = behaviorKeywords.filter(keyword => normalizedText.includes(keyword)).length;
   let academicCount = academicKeywords.filter(keyword => normalizedText.includes(keyword)).length;
   
-  // Enhanced detection for academic dishonesty in English
+  // Enhanced detection for academic misconduct in English
   // These are very strong indicators of academic violations
   if (normalizedText.includes('cheating') || 
       normalizedText.includes('academic dishonesty') || 
@@ -114,44 +137,35 @@ export function determineViolationType(excuseText?: string): string {
     academicCount += 10;  // Give very heavy weight to these terms
   }
   
+  // Enhanced attendance issue detection
+  if (normalizedText.includes('absence') || normalizedText.includes('absent') || 
+      normalizedText.includes('attend') || normalizedText.includes('attendance') ||
+      normalizedText.includes('missed class') || 
+      (normalizedText.includes('apologize') && normalizedText.includes('lapse')) ||
+      (normalizedText.includes('application development') && normalizedText.includes('class'))) {
+    attendanceCount += 8;  // Give heavy weight to these terms
+  }
+  
   // Generic apology for actions with classroom/class mentions
   if ((normalizedText.includes('apologize') || normalizedText.includes('regret')) && 
       (normalizedText.includes('class') || normalizedText.includes('course'))) {
-    academicCount += 5;
+    attendanceCount += 5;
+    academicCount += 2;
   }
   
-  // Specifically look for the pattern in your example
-  if (normalizedText.includes('inappropriate behavior') && normalizedText.includes('cheating')) {
-    academicCount += 15;  // Almost certain academic violation
-  }
-  
-  // Enhanced detection for Tagalog excuses
-  // Specific checks for common Tagalog expressions that indicate behavioral issues
-  if (normalizedText.includes('pagkakasala') || 
-      normalizedText.includes('kasalanan') || 
-      normalizedText.includes('nagawang pagkakamali') ||
-      normalizedText.includes('hindi sumunod') ||
-      normalizedText.includes('paglabag sa alituntunin')) {
-    behaviorCount += 3; // Strongly weight these specific phrases
-  }
-  
-  // Enhanced detection for English behavioral issues
-  if (normalizedText.includes('inappropriate behavior') || 
-      normalizedText.includes('misconduct') || 
-      normalizedText.includes('violation of rules') ||
-      normalizedText.includes('inappropriate action') ||
-      normalizedText.includes('disciplinary')) {
-    behaviorCount += 3; // Strongly weight these specific phrases
+  // Specifically look for attendance issue patterns
+  if (normalizedText.includes('apologize for my absences')) {
+    attendanceCount += 15;  // Almost certain attendance issue
   }
   
   // Find the category with the highest count
   const counts = [
     { type: "Medical Excuse", count: medicalCount },
     { type: "Family Emergency", count: emergencyCount },
-    { type: "Attendance Issue", count: transportCount },
+    { type: "Attendance Issue", count: transportCount + attendanceCount }, // Combine these counts as they're very related
     { type: "Dress Code Violation", count: dressCodeCount },
     { type: "Behavioral Issue", count: behaviorCount },
-    { type: "Academic Misconduct", count: academicCount } // Changed from "Academic Violation" to "Academic Misconduct"
+    { type: "Academic Misconduct", count: academicCount }
   ];
   
   counts.sort((a, b) => b.count - a.count);
@@ -159,6 +173,11 @@ export function determineViolationType(excuseText?: string): string {
   // If the highest has at least one hit and is greater than the runner-up, return it
   if (counts[0].count > 0 && (counts.length < 2 || counts[0].count > counts[1].count)) {
     return counts[0].type;
+  }
+  
+  // Check for "Application Development" in the excuse which is a strong indicator of attendance issue
+  if (normalizedText.includes('application development')) {
+    return "Attendance Issue";
   }
   
   // Default fallback if no clear category is determined

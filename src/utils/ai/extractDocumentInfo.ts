@@ -1,4 +1,3 @@
-
 // Define the structure for the extracted information
 export interface ExtractedDocumentInfo {
   studentNumber?: string;
