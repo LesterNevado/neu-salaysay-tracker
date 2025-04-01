@@ -3,11 +3,15 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const checkSupabaseConnection = async (): Promise<boolean> => {
   try {
+    // Use the constants from the client file instead of trying to access protected properties
+    const SUPABASE_URL = "https://mhpuvcolekfrvvcypgdz.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ocHV2Y29sZWtmcnZ2Y3lwZ2R6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzg5MTk4MTUsImV4cCI6MjA1NDQ5NTgxNX0.M6biIvgBUZ-gX9NRePCh835MSSvM0x3ZyZxu_eV3aRk";
+    
     // First ping - check if the service is responding at all
-    const initialPing = await fetch(`${supabase.supabaseUrl}/auth/v1/user`, {
+    const initialPing = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
       method: 'GET',
       headers: {
-        'apikey': supabase.supabaseKey,
+        'apikey': SUPABASE_KEY,
         'Content-Type': 'application/json',
       },
     });
