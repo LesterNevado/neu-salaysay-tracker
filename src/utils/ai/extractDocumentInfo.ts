@@ -25,6 +25,9 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
     // Clean up the text
     const cleanText = text.replace(/\s+/g, ' ').trim();
     
+    // Split text into lines for line-by-line analysis
+    const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+    
     // Extract student number using various common formats
     // Format patterns: 20XX-XXXXX, XX-XXXXX-XXX, XXXXXXXXX
     const studentNumberPatterns = [
@@ -39,6 +42,8 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       // Tagalog patterns
       /\bkabilang\s+sa\s+([A-Za-z0-9-]{5,15})/i,  // "kabilang sa XXX-XXX"
       /\bEstudyante(?:\s+(?:Numero|Num|#|)):?\s*([0-9-]+)/i, // "Estudyante Numero: XXXXXX"
+      // Course-section pattern (e.g., 2CE-3)
+      /\b\d{1,2}[A-Z]{2,3}-\d{1}\b/g,  // e.g., 2CE-3, 4IT-1
     ];
     
     for (const pattern of studentNumberPatterns) {
@@ -86,6 +91,7 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       /Maraming Salamat po[.,]?\s*(?:\n+|.+\n+)([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,  // "Maraming Salamat po..." followed eventually by a name
       /Ang inyong kapatid sa Panginoon,\s*(?:\n+|.+\n+)([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,  // "Ang inyong kapatid sa Panginoon," followed by name
       /Lubos na nagpapasalamat,\s*([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i,  // "Lubos na nagpapasalamat, Name"
+      /[Kk]apatid [nN]a\s+([A-Za-z\s.]+?)(?:,|;|\r?\n|$)/i,  // "Kapatid na Name"
     ];
     
     for (const pattern of senderNamePatterns) {
@@ -115,6 +121,15 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       const akoPoSiMatch = akoPoSiPattern.exec(cleanText);
       if (akoPoSiMatch && akoPoSiMatch[1]) {
         result.senderName = akoPoSiMatch[1].trim();
+      }
+    }
+    
+    // Look for "Kapatid na [name]" pattern in signature (common in religious/fraternal contexts)
+    if (!result.senderName) {
+      const kapatidNaPattern = /(?:Ang )?(?:[Ii]yong|[Aa]ng inyong)? [Kk]apatid(?: na| sa Panginoon)?[,:]?\s+([A-Za-z\s.]+?)(?:\r?\n|\d|$)/i;
+      const kapatidMatch = kapatidNaPattern.exec(cleanText);
+      if (kapatidMatch && kapatidMatch[1]) {
+        result.senderName = kapatidMatch[1].trim();
       }
     }
     
@@ -180,34 +195,70 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       }
     }
     
-    // Enhanced addressee extraction
-    // Focus heavily on salutation patterns 
-    const addresseePatterns = [
-      // English patterns
-      /Dear\s+(?:(?:Mr|Mrs|Ms|Dr|Prof|Sir|Madam|Teacher|Professor|Dean|Director|Principal)\.?\s+)?([A-Za-z\s.,]+?)(?:,|;|\r?\n|$)/i,  // "Dear [Title] Name,"
-      /To:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "To: Name"
-      /Attn:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "Attn: Name"
-      /Attention:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "Attention: Name"
-      /Addressed to:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "Addressed to: Name"
-      /For the attention of:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "For the attention of: Name"
-      
-      // Tagalog patterns
-      /Minamahal\s+(?:(?:G|Ginang|Gng|Ginoong|Bb|Binibini|Dr|Prop|Propesor|Dekano|Direktor|Prinsipal)\.?\s+)?([A-Za-z\s.,]+?)(?:,|;|\r?\n|$)/i,  // "Minamahal [Title] Name,"
-      /Sa\s+(?:(?:G|Ginang|Gng|Ginoong|Bb|Binibini|Dr|Prop|Propesor|Dekano|Direktor|Prinsipal)\.?\s+)?([A-Za-z\s.,]+?)(?:,|;|\r?\n|$)/i,  // "Sa [Title] Name,"
-      /Para kay:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "Para kay: Name"
-      /Kay:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "Kay: Name"
-      /Kapatid\s+na\s+([A-Za-z\s.,]+?)(?:,|;|\r?\n|$)/i,  // "Kapatid na Name,"
-    ];
+    // Enhanced addressee extraction with improved Tagalog support
+    // First, try to find addressee at the top of the letter (before the body)
+    // In many Tagalog letters, addressee is simply a name on its own line near the top
+    let possibleAddressee = null;
     
-    // Try each pattern
-    for (const pattern of addresseePatterns) {
-      const match = pattern.exec(cleanText);
-      if (match && match[1]) {
-        const addressee = match[1].trim();
-        // Verify it's a name (at least 2 characters, not just whitespace)
-        if (addressee.length >= 2) {
-          result.addressee = addressee;
-          break;
+    // Check if the addressee is in the first few lines of the document
+    const firstFewLines = lines.slice(0, 10); // Examine first 10 lines
+    
+    for (let i = 0; i < firstFewLines.length; i++) {
+      const line = firstFewLines[i].trim();
+      
+      // Skip empty lines, dates, or salutation words
+      if (line.length < 2 || 
+          /\d{1,2}\/\d{1,2}\/\d{4}/.test(line) || 
+          /^(Dear|To|Attn|Sa|Kay|Para kay|Minamahal na|Ginoo|Ginang|Binibini)/i.test(line)) {
+        continue;
+      }
+      
+      // If just a name is on a line by itself (1-3 words, only alphabetic)
+      if (/^[A-Za-z\s\.]{2,40}$/.test(line) && line.split(/\s+/).length <= 3) {
+        possibleAddressee = line;
+        break;
+      }
+      
+      // Check for name followed by title or designation
+      const nameTitleMatch = /^([A-Za-z\s\.]{2,30})(?:,|\s+)(?:Department Chair|Professor|Dean|Teacher|Chair|Coordinator|Guro|Propesor|Dekano)/i.exec(line);
+      if (nameTitleMatch) {
+        possibleAddressee = nameTitleMatch[1].trim();
+        break;
+      }
+    }
+    
+    // If we found a name directly, use it as addressee
+    if (possibleAddressee) {
+      result.addressee = possibleAddressee;
+    } else {
+      // If not found directly, try traditional patterns
+      const addresseePatterns = [
+        // English patterns
+        /Dear\s+(?:(?:Mr|Mrs|Ms|Dr|Prof|Sir|Madam|Teacher|Professor|Dean|Director|Principal)\.?\s+)?([A-Za-z\s.,]+?)(?:,|;|\r?\n|$)/i,  // "Dear [Title] Name,"
+        /To:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "To: Name"
+        /Attn:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "Attn: Name"
+        /Attention:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "Attention: Name"
+        /Addressed to:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "Addressed to: Name"
+        /For the attention of:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "For the attention of: Name"
+        
+        // Tagalog patterns
+        /Minamahal\s+(?:(?:G|Ginang|Gng|Ginoong|Bb|Binibini|Dr|Prop|Propesor|Dekano|Direktor|Prinsipal)\.?\s+)?([A-Za-z\s.,]+?)(?:,|;|\r?\n|$)/i,  // "Minamahal [Title] Name,"
+        /Sa\s+(?:(?:G|Ginang|Gng|Ginoong|Bb|Binibini|Dr|Prop|Propesor|Dekano|Direktor|Prinsipal)\.?\s+)?([A-Za-z\s.,]+?)(?:,|;|\r?\n|$)/i,  // "Sa [Title] Name,"
+        /Para kay:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "Para kay: Name"
+        /Kay:?\s+([A-Za-z\s.,]+?)(?:\r?\n|,|;|$)/i,  // "Kay: Name"
+        /Kapatid\s+na\s+([A-Za-z\s.,]+?)(?:,|;|\r?\n|$)/i,  // "Kapatid na Name,"
+      ];
+      
+      // Try each pattern
+      for (const pattern of addresseePatterns) {
+        const match = pattern.exec(cleanText);
+        if (match && match[1]) {
+          const addressee = match[1].trim();
+          // Verify it's a name (at least 2 characters, not just whitespace)
+          if (addressee.length >= 2) {
+            result.addressee = addressee;
+            break;
+          }
         }
       }
     }
@@ -221,7 +272,7 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       }
     }
     
-    // Extract nature of excuse
+    // Enhanced extraction of nature of excuse with improved Tagalog support
     // Look for common phrases/patterns in excuse letters in both English and Tagalog
     const excuseKeywords = [
       // English keywords
@@ -235,7 +286,9 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       "humihingi ng paumanhin", "patawad", "patawarin", "dahilan", "paliwanag",
       "dahil sa", "sanhi ng", "karamdaman", "sakit", "pamilya", "kagipitan",
       "emergency", "insidente", "problema", "sitwasyon", "kalagayan",
-      "hindi nakaayon", "hindi nakarating", "hindi nakasipot", "hindi nakapunta"
+      "hindi nakaayon", "hindi nakarating", "hindi nakasipot", "hindi nakapunta",
+      "nagawang pagkakasala", "pagkakamali", "pagkukulang", "hindi nakapagsumite",
+      "pagsuway", "hindi nasunod", "hindi natupad"
     ];
     
     const excuseIndicators = [
@@ -255,6 +308,9 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       /(?:dahilan|paliwanag|pagpapatunay)(.*?)(?:\.|\n)/i,
       /uri ng dahilan:?(.*?)(?:\.|\n)/i,
       /nagsasalaysay ukol sa(.*?)(?:\.|\n)/i,
+      // Additional Tagalog patterns
+      /dahil sa aking nagawang(.*?)(?:\.|\n)/i,
+      /dahil sa aking(.*?)(?:pagkakasala|pagkakamali|pagkukulang)(?:\.|\n)/i,
     ];
     
     // Try to find the excuse based on keyword context
@@ -263,7 +319,7 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       if (match && match[1]) {
         // Limit to reasonable length
         const excuseText = match[1].trim();
-        if (excuseText.length > 10 && excuseText.length < 200) {
+        if (excuseText.length > 5 && excuseText.length < 400) {
           result.natureOfExcuse = excuseText;
           break;
         }
@@ -281,6 +337,16 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
           result.natureOfExcuse = sentence.trim();
           break;
         }
+      }
+    }
+    
+    // Search for direct Tagalog phrases indicating the nature of the excuse
+    if (!result.natureOfExcuse) {
+      // Look for phrases like "dahil sa [reason]"
+      const dahilSaPattern = /dahil sa ([^\.]+)/i;
+      const dahilMatch = dahilSaPattern.exec(cleanText);
+      if (dahilMatch && dahilMatch[1] && dahilMatch[1].length > 5) {
+        result.natureOfExcuse = `dahil sa ${dahilMatch[1].trim()}`;
       }
     }
     

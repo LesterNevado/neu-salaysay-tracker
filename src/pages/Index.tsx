@@ -101,8 +101,6 @@ export default function Index() {
               Salaysay Tracking And Archival Tool
             </p>
 
-            {/* Removed SupabaseConnectionStatus component */}
-
             {/* Error message */}
             {error && (
               <Alert variant="destructive" className="mt-8 max-w-md">
