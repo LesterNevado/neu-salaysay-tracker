@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Trash, FileIcon, Loader2, Eye, ChevronDown, ChevronRight, Info } from "lucide-react";
@@ -54,7 +55,7 @@ export function FileExplorer({
   violationTypeFilters = [],
   dateRangeFilter = { startDate: null, endDate: null },
   userFilter = null,
-  fileNameFilter = ""
+  keywordFilter = ""
 }: { 
   userId: string;
   refreshTrigger: number;
@@ -62,7 +63,7 @@ export function FileExplorer({
   violationTypeFilters?: string[];
   dateRangeFilter?: { startDate: string | null, endDate: string | null };
   userFilter?: string | null;
-  fileNameFilter?: string;
+  keywordFilter?: string;
 }) {
   const [files, setFiles] = useState<SalaysayFile[]>([]);
   const [filteredFiles, setFilteredFiles] = useState<SalaysayFile[]>([]);
@@ -122,7 +123,7 @@ export function FileExplorer({
           setUserProfiles(profileMap);
           setFiles(processedData);
           
-          applyFilters(processedData, violationTypeFilters, fileNameFilter);
+          applyFilters(processedData, violationTypeFilters, keywordFilter);
         }
       } catch (error) {
         console.error("Unexpected error:", error);
@@ -135,7 +136,12 @@ export function FileExplorer({
     fetchFiles();
   }, [userId, refreshTrigger, showAllUsers, userFilter, dateRangeFilter.startDate, dateRangeFilter.endDate]);
 
-  const applyFilters = (files: SalaysayFile[], violationTypeFilters: string[], fileNameFilter: string) => {
+  // Update filtered files when filters change
+  useEffect(() => {
+    applyFilters(files, violationTypeFilters, keywordFilter);
+  }, [violationTypeFilters, keywordFilter]);
+
+  const applyFilters = (files: SalaysayFile[], violationTypeFilters: string[], keywordFilter: string) => {
     if (!files.length) return;
     
     let filtered = files;
@@ -146,11 +152,26 @@ export function FileExplorer({
       );
     }
     
-    if (fileNameFilter.trim()) {
-      const searchTerm = fileNameFilter.toLowerCase();
+    if (keywordFilter.trim()) {
+      const searchTerm = keywordFilter.toLowerCase();
       filtered = filtered.filter(file => {
+        // Search in filename
         const fileName = file.file_name || file.file_path.split('/').pop() || '';
-        return fileName.toLowerCase().includes(searchTerm);
+        if (fileName.toLowerCase().includes(searchTerm)) return true;
+        
+        // Search in metadata if available
+        if (file.metadata) {
+          const metadata = file.metadata as any;
+          
+          // Check all metadata fields for the search term
+          if (metadata.student_number && metadata.student_number.toLowerCase().includes(searchTerm)) return true;
+          if (metadata.sender_name && metadata.sender_name.toLowerCase().includes(searchTerm)) return true;
+          if (metadata.incident_date && metadata.incident_date.toLowerCase().includes(searchTerm)) return true;
+          if (metadata.excuse_description && metadata.excuse_description.toLowerCase().includes(searchTerm)) return true;
+          if (metadata.addressee && metadata.addressee.toLowerCase().includes(searchTerm)) return true;
+        }
+        
+        return false;
       });
     }
     
@@ -301,7 +322,7 @@ export function FileExplorer({
     );
   }
 
-  if (filteredFiles.length === 0 && (violationTypeFilters.length > 0 || dateRangeFilter.startDate || dateRangeFilter.endDate || userFilter || fileNameFilter)) {
+  if (filteredFiles.length === 0 && (violationTypeFilters.length > 0 || dateRangeFilter.startDate || dateRangeFilter.endDate || userFilter || keywordFilter)) {
     return (
       <tr>
         <td colSpan={5} className="px-4 py-8 text-center text-gray-500">

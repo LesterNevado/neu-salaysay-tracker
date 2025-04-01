@@ -41,19 +41,19 @@ export default function Dashboard() {
   const [isFilterPopoverOpen, setIsFilterPopoverOpen] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState<'start' | 'end' | null>(null);
   const [usersList, setUsersList] = useState<{id: string, name: string}[]>([]);
-  const [fileNameFilter, setFileNameFilter] = useState("");
+  const [keywordFilter, setKeywordFilter] = useState("");
   const [filters, setFilters] = useState<{
     violationTypes: Record<string, boolean>;
     startDate: Date | null;
     endDate: Date | null;
     userId: string | null;
-    fileName: string;
+    keyword: string;
   }>({
     violationTypes: VIOLATION_TYPES.reduce((acc, type) => ({ ...acc, [type]: false }), {}),
     startDate: null,
     endDate: null,
     userId: null,
-    fileName: ""
+    keyword: ""
   });
   const [userProfile, setUserProfile] = useState<{
     email: string | null;
@@ -98,7 +98,6 @@ export default function Dashboard() {
         return;
       }
 
-      // Initialize the storage bucket
       await setupSalaysayStorageBucket();
 
       setUserProfile(prev => ({ 
@@ -248,12 +247,12 @@ export default function Dashboard() {
     }
   };
 
-  const handleFileNameFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleKeywordFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    setFileNameFilter(value);
+    setKeywordFilter(value);
     setFilters(prev => ({
       ...prev,
-      fileName: value
+      keyword: value
     }));
   };
 
@@ -263,16 +262,16 @@ export default function Dashboard() {
       startDate: null,
       endDate: null,
       userId: null,
-      fileName: ""
+      keyword: ""
     });
-    setFileNameFilter("");
+    setKeywordFilter("");
   };
 
   const hasActiveFilters = Object.values(filters.violationTypes).some(val => val) || 
     filters.startDate !== null || 
     filters.endDate !== null ||
     filters.userId !== null ||
-    filters.fileName !== "";
+    filters.keyword !== "";
 
   const activeViolationTypeFilters = Object.entries(filters.violationTypes)
     .filter(([_, isActive]) => isActive)
@@ -288,7 +287,7 @@ export default function Dashboard() {
     
     if (filters.userId) count++;
     
-    if (filters.fileName) count++;
+    if (filters.keyword) count++;
     
     return count;
   };
@@ -406,16 +405,19 @@ export default function Dashboard() {
                       </div>
 
                       <div className="space-y-2">
-                        <h5 className="text-sm font-medium">Filter by File Name</h5>
+                        <h5 className="text-sm font-medium">Search by Keyword</h5>
                         <div className="relative">
                           <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
                           <Input
-                            placeholder="Search by file name"
-                            value={fileNameFilter}
-                            onChange={handleFileNameFilterChange}
+                            placeholder="Search in filename, student number, sender name..."
+                            value={keywordFilter}
+                            onChange={handleKeywordFilterChange}
                             className="pl-8"
                           />
                         </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Search in file name, student number, sender name, and other AI-extracted information
+                        </p>
                       </div>
 
                       <div className="space-y-2">
@@ -556,7 +558,7 @@ export default function Dashboard() {
                       endDate: filters.endDate ? format(filters.endDate, 'yyyy-MM-dd') : null
                     }}
                     userFilter={filters.userId}
-                    fileNameFilter={filters.fileName}
+                    keywordFilter={filters.keyword}
                   />
                 )}
               </tbody>
