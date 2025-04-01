@@ -8,7 +8,7 @@ export async function setupSalaysayStorageBucket() {
     
     if (getBucketsError) {
       console.error("Error checking storage buckets:", getBucketsError);
-      return;
+      return { success: false, error: getBucketsError };
     }
     
     // Check if our bucket already exists
@@ -23,7 +23,7 @@ export async function setupSalaysayStorageBucket() {
       
       if (createBucketError) {
         console.error("Error creating storage bucket:", createBucketError);
-        return;
+        return { success: false, error: createBucketError };
       }
       
       console.log("Storage bucket 'salaysay-uploads' created successfully");
@@ -33,11 +33,16 @@ export async function setupSalaysayStorageBucket() {
       
       if (policyError && !policyError.message.includes('already exists')) {
         console.error("Error setting up storage policies:", policyError);
+        return { success: false, error: policyError };
       }
+      
+      return { success: true, message: "Storage bucket created successfully" };
     } else {
       console.log("Storage bucket 'salaysay-uploads' already exists");
+      return { success: true, message: "Storage bucket already exists" };
     }
   } catch (error) {
     console.error("Error setting up storage:", error);
+    return { success: false, error };
   }
 }
