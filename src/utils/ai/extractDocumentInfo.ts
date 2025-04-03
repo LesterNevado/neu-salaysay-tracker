@@ -190,12 +190,12 @@ export async function extractDocumentInfo(file: File): Promise<DocumentInfo> {
     console.error("Error in extractDocumentInfo:", error);
     
     // Even in case of error, return an object with default values
-    const defaultInfo = {
+    const defaultInfo: DocumentInfo = {
       extractedText: "Error extracting text from document",
       pdfTitle: file.name,
       submissionDate: format(new Date(), 'MMMM d, yyyy'),
       natureOfExcuse: "for my absences in your Application Development class",
-      violationType: "Other",
+      violationType: "Other" as ViolationType,
       studentId: "22-13917-429",
       studentName: "Ysac Blu Advincula",
       addressee: "Sir Gaspar"

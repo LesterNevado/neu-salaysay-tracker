@@ -111,7 +111,7 @@ export function enhanceDocumentInfo(documentInfo: DocumentInfo): DocumentInfo {
     return {
       ...documentInfo,
       natureOfExcuse: "for my absences in your Application Development class",
-      violationType: "Other"
+      violationType: "Other" as ViolationType
     };
   }
 }

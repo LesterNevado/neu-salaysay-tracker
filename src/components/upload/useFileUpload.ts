@@ -1,10 +1,10 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { FileUpload } from "./types";
 import { logActivity } from "@/utils/activity";
 import { extractDocumentInfo, DocumentInfo } from "@/utils/ai/extractDocumentInfo";
+import { ViolationType } from "@/types/database.types";
 
 // Default values for when extraction fails
 const DEFAULT_EXCUSE = "for my absences in your Application Development class";
@@ -77,10 +77,7 @@ export function useFileUpload(userId: string) {
         confidence: 'high'
       });
       
-      return {
-        ...extractedInfo,
-        natureOfExcuse
-      };
+      return extractedInfo;
     } catch (error) {
       console.error('Error analyzing file:', error);
       toast({
@@ -90,10 +87,10 @@ export function useFileUpload(userId: string) {
       });
       
       // Use default values if extraction fails
-      const defaultInfo = {
+      const defaultInfo: DocumentInfo = {
         extractedText: "Error analyzing document",
         natureOfExcuse: DEFAULT_EXCUSE,
-        violationType: "Other",
+        violationType: "Other" as ViolationType,
         studentId: "22-13917-429",
         studentName: "Ysac Blu Advincula",
         addressee: "Sir Gaspar",

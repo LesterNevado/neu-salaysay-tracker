@@ -1,9 +1,11 @@
 
+import { ViolationType } from "@/types/database.types";
+
 export interface FileUpload {
   file: File;
   progress: number;
   status: 'pending' | 'analyzing' | 'uploading' | 'completed' | 'error';
-  violationType?: string;
+  violationType?: ViolationType;
   extractedInfo?: {
     studentNumber?: string;
     senderName?: string;
@@ -22,6 +24,6 @@ export const VIOLATION_TYPES = [
   "Family Emergency",
   "Medical Excuse",
   "Other"
-];
+] as const;
 
 export const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
