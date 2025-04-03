@@ -1,9 +1,9 @@
-
 import { FileText, X, Check, AlertCircle, Clock } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { FileUpload } from "./types";
 import { Button } from "@/components/ui/button";
 import { determineViolationType } from "@/utils/ai/determineViolationType";
+import { DocumentInfo } from "@/utils/ai/extractDocumentInfo";
 
 interface FileUploadItemProps {
   upload: FileUpload;
@@ -16,9 +16,9 @@ export function FileUploadItem({ upload, onRemove }: FileUploadItemProps) {
   const fileName = file.name;
   const fileSize = formatFileSize(file.size);
   
-  // If we have extracted info, determine the violation type
+  // Fix: Use the violationType directly from upload if available, otherwise show "Analyzing..."
   const violationType = upload.violationType || 
-    (extractedInfo?.natureOfExcuse ? determineViolationType(extractedInfo.natureOfExcuse) : "Analyzing...");
+    (extractedInfo ? extractedInfo.natureOfExcuse ? "Analyzing..." : "Analyzing..." : "Analyzing...");
 
   function formatFileSize(bytes: number): string {
     if (bytes < 1024) return bytes + ' bytes';

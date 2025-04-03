@@ -7,3 +7,13 @@ export interface Profile {
   updated_at: string | null;
   created_at: string;
 }
+
+// Add the missing ViolationType export
+export type ViolationType = 
+  | "Attendance Issue"
+  | "Dress Code Violation"
+  | "Academic Misconduct"
+  | "Behavioral Issue"
+  | "Family Emergency"
+  | "Medical Excuse"
+  | "Other";
