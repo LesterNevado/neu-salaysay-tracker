@@ -1,3 +1,4 @@
+
 import { FileText, X, Check, AlertCircle, Clock } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { FileUpload } from "./types";
@@ -15,7 +16,7 @@ export function FileUploadItem({ upload, onRemove }: FileUploadItemProps) {
   const fileName = file.name;
   const fileSize = formatFileSize(file.size);
   
-  // Fix: Use the violationType directly from upload if available, otherwise show "Analyzing..."
+  // Use the violationType directly from upload if available, otherwise show "Analyzing..."
   const violationType = upload.violationType || "Analyzing...";
 
   function formatFileSize(bytes: number): string {
@@ -23,6 +24,13 @@ export function FileUploadItem({ upload, onRemove }: FileUploadItemProps) {
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   }
+
+  // Helper function to show a dash when a field is missing
+  const showField = (value: string | undefined, label: string) => {
+    return (
+      <p><span className="font-medium">{label}:</span> {value || "—"}</p>
+    );
+  };
 
   return (
     <div className="flex items-start p-3 border rounded-md bg-white">
@@ -55,21 +63,20 @@ export function FileUploadItem({ upload, onRemove }: FileUploadItemProps) {
             <div className="text-xs text-gray-500 mb-1">Detected Information:</div>
             {extractedInfo ? (
               <div className="grid grid-cols-1 gap-1 text-xs text-gray-700">
-                {extractedInfo.studentNumber && (
-                  <p><span className="font-medium">Student ID:</span> {extractedInfo.studentNumber}</p>
-                )}
-                {extractedInfo.senderName && (
-                  <p><span className="font-medium">Sender:</span> {extractedInfo.senderName}</p>
-                )}
-                {extractedInfo.addressee && (
-                  <p><span className="font-medium">Addressee:</span> {extractedInfo.addressee}</p>
-                )}
-                {extractedInfo.date && (
-                  <p><span className="font-medium">Date:</span> {extractedInfo.date}</p>
-                )}
+                {showField(extractedInfo.studentNumber, "Student ID")}
+                {showField(extractedInfo.senderName, "Sender")}
+                {showField(extractedInfo.addressee, "Addressee")}
+                {showField(extractedInfo.date, "Date")}
+                
                 {extractedInfo.natureOfExcuse && (
-                  <p><span className="font-medium">Excuse:</span> {extractedInfo.natureOfExcuse.substring(0, 60)}...</p>
+                  <p>
+                    <span className="font-medium">Excuse:</span> 
+                    {extractedInfo.natureOfExcuse.length > 60 
+                      ? `${extractedInfo.natureOfExcuse.substring(0, 60)}...` 
+                      : extractedInfo.natureOfExcuse}
+                  </p>
                 )}
+                
                 <p><span className="font-medium">Violation Type:</span> {violationType}</p>
               </div>
             ) : (
