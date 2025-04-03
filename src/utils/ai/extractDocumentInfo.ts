@@ -51,35 +51,66 @@ export async function extractDocumentInfo(file: File): Promise<DocumentInfo> {
       }
     }
 
-    // Extract student name - IMPROVED to focus specifically on text after the complimentary close followed by a comma
+    // Extract student name - Focus precisely on what comes immediately after "Sincerely,"
     const namePatterns = [
-      // Look for name after "Sincerely," or similar closing - with comma
-      /(?:Sincerely|Respectfully|Regards|Yours truly|Thank you),[\s\n\r]*([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})/i,
+      // Strict pattern: Exactly what's below "Sincerely," - focusing on line breaks
+      /Sincerely,[\s\r\n]+((?:[A-Z][a-z]+[\s\r\n]*)+(?:[A-Z][a-zA-Z\.-]+[\s\r\n]*)*)/i,
       
-      // If comma is on its own line, look for name on the next line(s)
-      /(?:Sincerely|Respectfully|Regards|Yours truly|Thank you),?[\s\n\r]+([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})/i,
+      // Find name on the next line after "Sincerely,"
+      /Sincerely,[\s\r\n]+([A-Z][a-z]+(?:[\s\r\n]+[A-Z][a-zA-Z\.-]+){0,3})/i,
       
-      // Name with student ID pattern (common format in the example)
-      /(?:Sincerely|Respectfully|Regards|Yours truly|Thank you),?[\s\n\r]+([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})[\s\n\r]+\s*\d{2}-\d{4,7}-\d{3}/i,
+      // More permissive pattern but still anchored to Sincerely
+      /Sincerely,[\s\r\n]+((?:[A-Z][a-z]+[\s\r\n]+){1,3})/i,
       
-      // Handle case where closing word is on one line and name is on next line(s)
-      /(?:Sincerely|Respectfully|Regards|Yours truly|Thank you)[,\s\n\r]*([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})/i,
+      // Alternative closings with similar pattern
+      /(?:Respectfully|Regards|Yours truly|Thank you),[\s\r\n]+([A-Z][a-z]+(?:[\s\r\n]+[A-Z][a-zA-Z\.-]+){0,3})/i,
       
-      // Fallback - more generic pattern for any proper name near bottom of document
-      /[\r\n]([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})[\s\n\r]*(?:\d{2}-\d{4,7}-\d{3}|\w+\s+\w+\s+\d{4}|$)/i
+      // Last resort - look for capitalized words after Sincerely that don't match common phrases
+      /Sincerely,[\s\r\n]+([A-Z][a-z]+(?:[\s\r\n]+[A-Z][a-z]+){0,3})(?![\s\r\n]+(?:for|and|the|your|in|of|hope|thank))/i
     ];
 
     let foundName = false;
     for (const pattern of namePatterns) {
-      const nameMatch = text.match(pattern);
-      if (nameMatch && nameMatch[1]) {
-        const potentialName = nameMatch[1].trim();
-        // Check if this is a valid name (not just a short word or number)
-        if (potentialName.length > 5 && !/^\d+$/.test(potentialName) && !/^(Sincerely|Respectfully|Regards)$/i.test(potentialName)) {
-          documentInfo.studentName = potentialName;
-          console.log("Found sender name after complimentary close:", documentInfo.studentName);
-          foundName = true;
-          break;
+      const match = text.match(pattern);
+      if (match && match[1]) {
+        // Clean up the potential name (trim and remove extra whitespace)
+        let potentialName = match[1].trim()
+          .replace(/[\r\n]+/g, ' ')  // Replace line breaks with spaces
+          .replace(/\s{2,}/g, ' ');  // Replace multiple spaces with one
+        
+        // Filter out common phrases that might be misidentified as names
+        if (
+          potentialName.length > 3 && 
+          !/^\d+$/.test(potentialName) && 
+          !/^(Sincerely|Respectfully|Regards|Thank you)$/i.test(potentialName) &&
+          !/hope for your|thank you for|appreciate your/i.test(potentialName)
+        ) {
+          // Check if the potential name is more than one word
+          if (potentialName.includes(' ')) {
+            documentInfo.studentName = potentialName;
+            console.log("Found sender name after complimentary close:", documentInfo.studentName);
+            foundName = true;
+            break;
+          }
+        }
+      }
+    }
+
+    // If no name found, try a more specific pattern for the Sincerely line
+    if (!foundName) {
+      // Try to find the line with "Sincerely," and then take the next non-empty line
+      const lines = text.split(/[\r\n]+/).filter(line => line.trim().length > 0);
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].trim().match(/^Sincerely,$/i) && i + 1 < lines.length) {
+          const nextLine = lines[i + 1].trim();
+          // Make sure it looks like a name (not starting with numbers, not too short)
+          if (nextLine.length > 3 && !/^\d/.test(nextLine) && 
+              !/hope for your|thank you for|appreciate your/i.test(nextLine)) {
+            documentInfo.studentName = nextLine;
+            console.log("Found sender name on line after 'Sincerely,':", documentInfo.studentName);
+            foundName = true;
+            break;
+          }
         }
       }
     }
@@ -117,7 +148,7 @@ export async function extractDocumentInfo(file: File): Promise<DocumentInfo> {
       /Dear[\s\n\r]+(.+?)(?:,|[\n\r]+Position)/i,
       
       // Common addressee formats
-      /(?:Dear|To|Attention:)[\s\n\r]+((?:Ma'am|Sir|Prof\.?|Professor|Dr\.?|Mr\.?|Ms\.?|Mrs\.?)\s*[A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+)*)/i,
+      /(?:Dear|To|Attention:)[\s\n\r]+((?:Ma'am|Sir|Prof\.?|Professor|Dr\.?|Mr\.?|Ms\.?)\s*[A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+)*)/i,
       /(?:Dear|To|Attention:)[\s\n\r]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
       
       // Generic address
