@@ -1,11 +1,10 @@
+
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { FileUpload } from "./types";
 import { logActivity } from "@/utils/activity";
-import { extractPdfText } from "@/utils/pdf/extractPdfText";
 import { extractDocumentInfo, DocumentInfo } from "@/utils/ai/extractDocumentInfo";
-import { determineViolationType } from "@/utils/ai/determineViolationType";
 
 // Default values for when extraction fails
 const DEFAULT_EXCUSE = "for my absences in your Application Development class";
@@ -50,7 +49,7 @@ export function useFileUpload(userId: string) {
       // Ensure we have a nature of excuse
       const natureOfExcuse = extractedInfo.natureOfExcuse || DEFAULT_EXCUSE;
       
-      // Update uploads state
+      // Update uploads state with properly mapped values
       setUploads(prev => 
         prev.map(upload => 
           upload.file === file 
@@ -68,6 +67,14 @@ export function useFileUpload(userId: string) {
             : upload
         )
       );
+
+      console.log("Upload state updated with extracted info:", {
+        studentNumber: extractedInfo.studentId,
+        senderName: extractedInfo.studentName,
+        date: extractedInfo.submissionDate,
+        natureOfExcuse: natureOfExcuse,
+        addressee: extractedInfo.courseCode
+      });
       
       return {
         ...extractedInfo,
