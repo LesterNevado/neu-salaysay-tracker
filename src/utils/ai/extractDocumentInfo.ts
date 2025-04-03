@@ -1,4 +1,3 @@
-
 import { extractPdfText } from "../pdf/extractPdfText";
 import enhanceDocumentInfo from "./determineViolationType";
 import { ViolationType } from "../../types/database.types";
@@ -14,6 +13,7 @@ export interface DocumentInfo {
   natureOfExcuse?: string;
   submissionDate?: string;
   addressee?: string;
+  section?: string;
 }
 
 /**
@@ -34,10 +34,11 @@ export async function extractDocumentInfo(file: File): Promise<DocumentInfo> {
       submissionDate: format(new Date(), 'MMMM d, yyyy')
     };
     
-    // Extract student ID (numbers)
+    // Extract student ID (based on the template pattern - near the bottom)
     const studentIdPatterns = [
-      /(?:student\s+id|id\s*:|found\s+student\s+id)[\s:]*([0-9]{2}-[0-9]{4,5}-[0-9]{3})/i,
-      /\b(\d{2}-\d{4,5}-\d{3})\b/,  // Pattern like 22-12857-750
+      /Student\s+Number(?::|\/|\()?(?:[^)]*\))?[\s:]*([0-9X]{2}-[0-9X]{4,7}-[0-9X]{3})/i,
+      /\b(\d{2}-\d{4,7}-\d{3})\b/,  // Pattern like 22-12857-750
+      /Student\s+(?:ID|Number):\s*([a-zA-Z0-9-]+)/i,
       /\b\d{8,10}\b/            // General 8-10 digit number
     ];
     
@@ -50,15 +51,22 @@ export async function extractDocumentInfo(file: File): Promise<DocumentInfo> {
       }
     }
 
-    // Extract student name with improved pattern matching - prioritize "Sincerely" format
+    // Extract student name with improved pattern matching based on the template
+    // Look for a formal name at the bottom after "Sincerely" or directly find name pattern near "Student Number"
     const namePatterns = [
-      /Sincerely,?\s*(?:yours,?)?\s*[\n\r]*\s*([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})/i,  // Prioritize "Sincerely, Name"
-      /Sincerely,?\s*[\n\r]*\s*([^\n\r]{3,40})/i,  // Catch more varied formats after "Sincerely"
-      /Respectfully(?:\s+yours)?,?\s*[\n\r]*\s*([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})/i, // "Respectfully yours, Name"
-      /(?:I am|I,|My name is|This is)\s+([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})/i,
-      /From:\s*([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})/i,
-      /Submitted by:\s*([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})/i,
-      /([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})\s+(?:is|am) writing/i
+      // From template - name appears after signature on own line
+      /(?:Signature|Sincerely,?)[\s\n\r]*(?:[^\n\r]+[\n\r]+)?([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})[\s\n\r]*(?:Student\s+Number|$)/i,
+      
+      // Direct name pattern as in template 
+      /Name[\s\n\r]*(?:\(First Name Middle Initial Surname\))?[\s\n\r]*:?[\s\n\r]*([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})/i,
+      
+      // Common signature patterns  
+      /Sincerely,?[\s\n\r]*(?:yours,?)?[\s\n\r]*([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})/i,
+      /Respectfully(?:\s+yours)?,?[\s\n\r]*([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})/i,
+      
+      // Other common self-identification patterns
+      /(?:I am|I,|My name is|This is)[\s\n\r]+([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})/i,
+      /Submitted by:[\s\n\r]*([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})/i
     ];
 
     for (const pattern of namePatterns) {
@@ -74,10 +82,19 @@ export async function extractDocumentInfo(file: File): Promise<DocumentInfo> {
       }
     }
 
-    // Extract addressee/professor name with improved patterns
+    // Extract addressee/professor name with patterns specifically for "Dear Addressee" format from template
     const addresseePatterns = [
-      /(?:Dear|To|Attention:)\s+((?:Ma'am|Sir|Prof\.?|Professor|Dr\.?|Mr\.?|Ms\.?|Mrs\.?|Ma\.?)\s*[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*\s*(?:Laureta)?)/i,
-      /(?:Dear|To|Attention:)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
+      // Template format - specifically find "Dear Addressee"
+      /Dear[\s\n\r]+((?:Ma'am|Sir|Prof\.?|Professor|Dr\.?|Mr\.?|Ms\.?|Mrs\.?|Ma\.?)[^,\n\r]*)/i,
+      
+      // Alternative with position
+      /Dear[\s\n\r]+(.+?)(?:,|[\n\r]+Position)/i,
+      
+      // Common addressee formats
+      /(?:Dear|To|Attention:)[\s\n\r]+((?:Ma'am|Sir|Prof\.?|Professor|Dr\.?|Mr\.?|Ms\.?|Mrs\.?|Ma\.?)\s*[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
+      /(?:Dear|To|Attention:)[\s\n\r]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
+      
+      // Generic address
       /(?:To whom it may concern|Dear Sir\/Madam)/i
     ];
 
@@ -89,6 +106,8 @@ export async function extractDocumentInfo(file: File): Promise<DocumentInfo> {
           documentInfo.addressee = addresseeMatch[0].trim();
         } else if (addresseeMatch[1]) {
           documentInfo.addressee = addresseeMatch[1].trim();
+          // Remove any trailing commas or periods
+          documentInfo.addressee = documentInfo.addressee.replace(/[,.]+$/, '');
         }
         console.log("Found addressee:", documentInfo.addressee);
         break;
@@ -96,30 +115,52 @@ export async function extractDocumentInfo(file: File): Promise<DocumentInfo> {
     }
 
     // Extract course code with improved pattern
-    if (!documentInfo.courseCode) {
-      const coursePatterns = [
-        /\b[A-Z]{2,4}\s*\d{3,4}\b/,
-        /(?:course|subject|class):\s*([A-Z]{2,4}\s*\d{3,4})/i
-      ];
+    const coursePatterns = [
+      // Template format - specifically labeled as Course/Subject
+      /Course\/Subject(?:\s+\(If necessary\))?[\s\n\r]*:?[\s\n\r]*([A-Z]{2,4}\s*\d{3,4}[A-Z]?)/i,
+      
+      // General course code patterns
+      /\b([A-Z]{2,4}\s*\d{3,4}[A-Z]?)\b/,
+      /(?:course|subject|class):[\s\n\r]*([A-Z]{2,4}\s*\d{3,4}[A-Z]?)/i
+    ];
 
-      for (const pattern of coursePatterns) {
-        const courseMatch = text.match(pattern);
-        if (courseMatch) {
-          const matchedText = courseMatch[1] || courseMatch[0];
-          documentInfo.courseCode = matchedText.trim();
-          console.log("Found course code:", documentInfo.courseCode);
-          break;
-        }
+    for (const pattern of coursePatterns) {
+      const courseMatch = text.match(pattern);
+      if (courseMatch) {
+        const matchedText = courseMatch[1] || courseMatch[0];
+        documentInfo.courseCode = matchedText.trim();
+        console.log("Found course code:", documentInfo.courseCode);
+        break;
       }
     }
 
-    // Extract date from text with improved pattern
+    // Extract section information
+    const sectionPatterns = [
+      // Template format - specifically labeled as Section
+      /Section(?:\s+\(If necessary\))?[\s\n\r]*:?[\s\n\r]*([A-Z0-9-]+)/i,
+      
+      // General section patterns
+      /section[\s\n\r]*:?[\s\n\r]*([A-Z0-9-]+)/i
+    ];
+
+    for (const pattern of sectionPatterns) {
+      const sectionMatch = text.match(pattern);
+      if (sectionMatch && sectionMatch[1]) {
+        documentInfo.section = sectionMatch[1].trim();
+        console.log("Found section:", documentInfo.section);
+        break;
+      }
+    }
+
+    // Extract date from text with improved pattern based on template
     const datePatterns = [
-      /(?:Found and formatted date:|Incident Date:|Date:|Dated:)\s*([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i,
+      // Template format - Date at the top of the letter
+      /Date[\s\n\r]*(?:\(Month Day, Year\))?[\s\n\r]*:?[\s\n\r]*([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i,
+      
+      // Common date formats
       /(\d{1,2}\/\d{1,2}\/\d{4})/,
       /(\d{4}-\d{2}-\d{2})/,
-      /April\s+\d{1,2},?\s+\d{4}/i,  // Specific to the sample we saw
-      /([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i  // March 30, 2025
+      /([A-Za-z]+\s+\d{1,2},?\s+\d{4})/i
     ];
 
     for (const pattern of datePatterns) {
@@ -155,7 +196,7 @@ export async function extractDocumentInfo(file: File): Promise<DocumentInfo> {
       }
     }
 
-    // Extract nature of excuse
+    // Extract nature of excuse from the document body - focusing on the main content area of the template
     const excuseResult = extractNatureOfExcuse(documentInfo);
     documentInfo.natureOfExcuse = excuseResult;
     console.log("Extracted nature of excuse:", documentInfo.natureOfExcuse);
@@ -178,7 +219,7 @@ export async function extractDocumentInfo(file: File): Promise<DocumentInfo> {
   } catch (error) {
     console.error("Error in extractDocumentInfo:", error);
     
-    // In case of error, return an object with available information
+    // In case of error, return object with available information
     const baseInfo: DocumentInfo = {
       extractedText: "Error extracting text from document",
       pdfTitle: file.name,
@@ -201,7 +242,26 @@ function extractNatureOfExcuse(documentInfo: DocumentInfo): string {
   
   const { extractedText } = documentInfo;
   
-  // Try to extract a specific excuse using various patterns
+  // First, try to identify the main body content based on the template's structure
+  // This would be between "Position" and "Sincerely"
+  let mainContent = "";
+  const mainContentMatch = extractedText.match(/Position[\s\n\r]+(.*?)[\s\n\r]+Sincerely,?/is);
+  
+  if (mainContentMatch && mainContentMatch[1]) {
+    mainContent = mainContentMatch[1].trim();
+    
+    // If we found the main content, and it's substantive (not just "Salaysay Content" placeholder)
+    if (mainContent.length > 20 && !mainContent.match(/^Salaysay Content/i)) {
+      // Return a condensed version if it's very long
+      if (mainContent.length > 150) {
+        return mainContent.substring(0, 147) + "...";
+      }
+      return mainContent;
+    }
+  }
+  
+  // If we didn't find the main content using the template structure,
+  // try other patterns to extract excuse
   const excusePatterns = [
     /(?:apologize|apology|sorry|regret)\s+for\s+([^.;:]{10,150})/i,
     /(?:excuse|reason|explanation)\s+(?:is|for)\s+([^.;:]{10,150})/i,
@@ -223,10 +283,17 @@ function extractNatureOfExcuse(documentInfo: DocumentInfo): string {
     }
   }
   
-  // If no specific excuse found, look for text related to behavior in class
-  if (extractedText.includes("behavior") && 
-      (extractedText.includes("class") || extractedText.includes("course"))) {
-    return "recent behavior in your class";
+  // If no specific excuse found, check for content between salutation and signature
+  const generalContentMatch = extractedText.match(/Dear\s+[^,\n\r]*,?[\s\n\r]+(.*?)[\s\n\r]+(?:Sincerely|Respectfully)/is);
+  if (generalContentMatch && generalContentMatch[1]) {
+    const content = generalContentMatch[1].trim();
+    if (content.length > 20) {
+      // Return a condensed version if very long
+      if (content.length > 150) {
+        return content.substring(0, 147) + "...";
+      }
+      return content;
+    }
   }
   
   return "";
