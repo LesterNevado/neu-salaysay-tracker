@@ -51,24 +51,26 @@ export async function extractDocumentInfo(file: File): Promise<DocumentInfo> {
       }
     }
 
-    // Extract student name with improved pattern matching based on the template
-    // Look for a formal name at the bottom after "Sincerely" or directly find name pattern near "Student Number"
+    // Extract student name - IMPROVED to focus on the complimentary close section
+    // Look specifically for the name after "Sincerely," or other closing phrases
     const namePatterns = [
-      // From template - name appears after signature on own line
-      /(?:Signature|Sincerely,?)[\s\n\r]*(?:[^\n\r]+[\n\r]+)?([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})[\s\n\r]*(?:Student\s+Number|$)/i,
+      // Name appears directly after "Sincerely," on subsequent lines
+      /Sincerely,?\s*[\r\n]+\s*([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})[\s\n\r]*/i,
       
-      // Direct name pattern as in template 
-      /Name[\s\n\r]*(?:\(First Name Middle Initial Surname\))?[\s\n\r]*:?[\s\n\r]*([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})/i,
+      // Name with student ID pattern (common format in the example)
+      /Sincerely,?\s*[\r\n]+\s*([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})[\s\n\r]+\s*\d{2}-\d{4,7}-\d{3}/i,
       
-      // Common signature patterns  
-      /Sincerely,?[\s\n\r]*(?:yours,?)?[\s\n\r]*([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})/i,
-      /Respectfully(?:\s+yours)?,?[\s\n\r]*([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})/i,
+      // Alternative closings
+      /(?:Respectfully|Regards|Yours truly),?\s*[\r\n]+\s*([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})/i,
       
-      // Other common self-identification patterns
-      /(?:I am|I,|My name is|This is)[\s\n\r]+([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})/i,
-      /Submitted by:[\s\n\r]*([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})/i
+      // Fallback - any name-like pattern after common closings
+      /(?:Sincerely|Respectfully|Regards|Yours truly),?.*?[\r\n]+\s*([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})/is,
+      
+      // Last resort pattern for any name-like sequence near the bottom
+      /[\r\n]([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})[\s\n\r]*(?:\d{2}-\d{4,7}-\d{3}|\w+\s+\w+\s+\d{4}|$)/i
     ];
 
+    let foundName = false;
     for (const pattern of namePatterns) {
       const nameMatch = text.match(pattern);
       if (nameMatch && nameMatch[1]) {
@@ -76,8 +78,33 @@ export async function extractDocumentInfo(file: File): Promise<DocumentInfo> {
         // Check if this is a valid name (not just a short word or number)
         if (potentialName.length > 5 && !/^\d+$/.test(potentialName)) {
           documentInfo.studentName = potentialName;
-          console.log("Found student name:", documentInfo.studentName);
+          console.log("Found student name from complimentary close:", documentInfo.studentName);
+          foundName = true;
           break;
+        }
+      }
+    }
+
+    // If no name found with the complimentary close patterns, try backup patterns
+    if (!foundName) {
+      const backupNamePatterns = [
+        // Direct name pattern as in template 
+        /Name[\s\n\r]*(?:\(First Name Middle Initial Surname\))?[\s\n\r]*:?[\s\n\r]*([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})/i,
+        
+        // Other common self-identification patterns
+        /(?:I am|I,|My name is|This is)[\s\n\r]+([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})/i,
+        /Submitted by:[\s\n\r]*([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})/i
+      ];
+      
+      for (const pattern of backupNamePatterns) {
+        const nameMatch = text.match(pattern);
+        if (nameMatch && nameMatch[1]) {
+          const potentialName = nameMatch[1].trim();
+          if (potentialName.length > 5 && !/^\d+$/.test(potentialName)) {
+            documentInfo.studentName = potentialName;
+            console.log("Found student name using backup pattern:", documentInfo.studentName);
+            break;
+          }
         }
       }
     }
