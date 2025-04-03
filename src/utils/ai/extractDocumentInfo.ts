@@ -1,3 +1,4 @@
+
 // Define the structure for the extracted information
 export interface ExtractedDocumentInfo {
   studentNumber?: string;
@@ -348,90 +349,98 @@ export async function extractDocumentInfo(text: string): Promise<ExtractedDocume
       }
     }
     
-    // IMPROVED EXCUSE EXTRACTION - Academic misconduct apology specific patterns
-    // First, look for apologize patterns common in academic misconduct letters
-    const apologyPatterns = [
-      // Very specific pattern from sample (prioritize this exact text pattern)
-      /apologize for my actions related to inappropriate behavior and cheating in your Software Engineering \d+ class/i,
+    // IMPROVED EXCUSE EXTRACTION
+    // First, look for common "I am writing to apologize" patterns
+    let foundExcuse = false;
+    
+    // Check for complete apology statements first
+    const fullApologyPatterns = [
+      // Pattern 1: Very common "I am writing to apologize for my absences in your X class"
+      /I (?:am writing|hope this letter finds you well\.? I am writing) to (?:sincerely )?apologize for my absences in your ([^.]+) class\./i,
       
-      // More generic patterns for academic misconduct/cheating
-      /apologize for my actions related to (?:.*?)(?:inappropriate|cheating|academic|misconduct|dishonest|behavior)/i,
-      /apologize for (?:.*?)(?:cheating|academic|misconduct|dishonest|copying|plagiarism)/i,
-      /I (?:would like to |am |)(?:sincerely |formally |)apologize for (.{10,100})/i,
+      // Pattern 2: Direct "apologize for my actions related to X"
+      /apologize for my actions related to ([^.]+)\./i,
+      
+      // Pattern 3: "apologize for my oversight regarding X"
+      /apologize for my oversight regarding ([^.]+)\./i,
     ];
     
-    for (const pattern of apologyPatterns) {
+    for (const pattern of fullApologyPatterns) {
       const match = pattern.exec(cleanText);
       if (match) {
-        // Extract full apology sentence if possible
-        const apologyPos = cleanText.indexOf(match[0]);
-        if (apologyPos >= 0) {
-          // Extract the whole sentence containing the apology
-          const sentenceStart = cleanText.lastIndexOf('.', apologyPos) + 1;
-          const sentenceEnd = cleanText.indexOf('.', apologyPos + match[0].length);
-          
-          if (sentenceEnd > sentenceStart) {
-            const sentence = cleanText.substring(sentenceStart, sentenceEnd).trim();
-            result.natureOfExcuse = sentence;
-            break;
-          } else {
-            // If we can't find the sentence boundaries, use the match
-            result.natureOfExcuse = match[0].trim();
-            break;
-          }
-        } else {
-          // Fallback to using the match itself
-          result.natureOfExcuse = match[0].trim();
-          break;
-        }
+        const fullApologySentence = match[0];
+        foundExcuse = true;
+        result.natureOfExcuse = fullApologySentence;
+        break;
       }
     }
     
-    // If we didn't find a specific apology using the patterns above, look for sentences with apology context
-    if (!result.natureOfExcuse) {
-      // Look for the first sentence containing apologize and cheating/behavior
-      const sentences = cleanText.split(/\.|\n/).filter(s => s.trim().length > 10);
+    // If we haven't found an excuse yet, look for the complete apology sentence
+    if (!foundExcuse) {
+      // Find sentences containing "apologize" or "sorry"
+      const sentences = cleanText.split(/\.|\n/).map(s => s.trim()).filter(s => s.length > 0);
       
       for (const sentence of sentences) {
         if (
-          /apologize/i.test(sentence) && 
-          (/cheating|academic|inappropriate|behavior|misconduct|integrity|dishonest/i.test(sentence))
+          (sentence.toLowerCase().includes('apologize') || sentence.toLowerCase().includes('sorry')) && 
+          (
+            sentence.toLowerCase().includes('absences') || 
+            sentence.toLowerCase().includes('attendance') ||
+            sentence.toLowerCase().includes('class') ||
+            sentence.toLowerCase().includes('software engineering') ||
+            sentence.toLowerCase().includes('application development') ||
+            sentence.toLowerCase().includes('oversight') ||
+            sentence.toLowerCase().includes('behavior') ||
+            sentence.toLowerCase().includes('actions')
+          )
         ) {
           result.natureOfExcuse = sentence.trim();
+          foundExcuse = true;
           break;
         }
       }
     }
     
-    // If still no excuse found, try a more general approach to find explanation paragraphs
-    if (!result.natureOfExcuse) {
-      const excuseIndicators = [
-        // English patterns - explicitly targeting apology contexts
-        /I (?:would like to |am |)(?:sincerely |formally |)(?:apologize|explain|address)(.*?)(?:\.|\n)/i,
-        /I regret to inform you(.*?)(?:\.|\n)/i,
-        /This (?:letter |)is (?:to |)(?:apologize|explain|address|inform)(.*?)(?:\.|\n)/i,
-        /I am writing (?:this letter |)to (?:apologize|explain|address)(.*?)(?:\.|\n)/i,
-        /The reason for my(.*?)(?:\.|\n)/i,
-        /Due to(.*?)(?:\.|\n)/i,
-        /I was unable to(.*?)(?:\.|\n)/i,
-        /I could not(.*?)(?:\.|\n)/i,
-        /I missed(.*?)(?:\.|\n)/i,
-        /I failed to(.*?)(?:\.|\n)/i,
+    // If still no excuse found, try extraction based on keywords
+    if (!foundExcuse) {
+      const excusePatterns = [
+        // Very specific patterns that match the provided examples
+        /I hope this letter finds you well\. I am writing to sincerely apologize for my absences in your Application Development class\./i,
+        /I hope this letter finds you well\. I am writing to sincerely apologize for my oversight regarding the university's policies during our Software Engineering 2 class\./i,
         
-        // Tagalog patterns
-        /Ako (?:po |)(?:ay |)(?:humihingi ng |nais |gusto |)(?:taos |lubos |)(?:paumanhin|pasensya|patawad)(.*?)(?:\.|\n)/i,
-        /(?:Ito |Ako |Nagsisilbi |)(?:po |)(?:ay |)(?:isang |)(?:liham ng |pormal na |)(?:paumanhin|paliwanag|paghingi ng tawad)(.*?)(?:\.|\n)/i,
-        /(?:dahil sa|sanhi ng|dala ng)(.*?)(?:\.|\n)/i,
+        // More generic patterns
+        /I am writing to (?:sincerely )?apologize for (.{10,100}?)\./i,
+        /I (?:would like to|want to|wish to) (?:sincerely )?apologize for (.{10,100}?)\./i,
+        /I (?:sincerely|deeply|truly) apologize for (.{10,100}?)\./i,
+        /(?:This letter is to|I am writing this letter to) apologize for (.{10,100}?)\./i,
       ];
       
-      for (const pattern of excuseIndicators) {
+      for (const pattern of excusePatterns) {
         const match = pattern.exec(cleanText);
-        if (match && match[1]) {
-          const excuseText = match[0].trim(); // Use full match for context
-          if (excuseText.length > 10 && excuseText.length < 400) {
-            result.natureOfExcuse = excuseText;
-            break;
-          }
+        if (match) {
+          // Use the entire matching sentence to preserve context
+          result.natureOfExcuse = match[0].trim();
+          foundExcuse = true;
+          break;
+        }
+      }
+    }
+    
+    // Fallback to more general extraction if still not found
+    if (!foundExcuse) {
+      const generalExcuseIndicators = [
+        /I apologize for(.*?)(?:\.|\n)/i,
+        /I am sorry for(.*?)(?:\.|\n)/i,
+        /I regret(.*?)(?:\.|\n)/i,
+        /Please accept my apology for(.*?)(?:\.|\n)/i,
+        /I take full responsibility for(.*?)(?:\.|\n)/i,
+      ];
+      
+      for (const pattern of generalExcuseIndicators) {
+        const match = pattern.exec(cleanText);
+        if (match && match[0]) {
+          result.natureOfExcuse = match[0].trim();
+          break;
         }
       }
     }
