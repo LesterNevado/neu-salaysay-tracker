@@ -17,12 +17,12 @@ export interface FileUpload {
 }
 
 export const VIOLATION_TYPES = [
-  "Attendance Issue",
-  "Dress Code Violation",
-  "Academic Misconduct",
-  "Behavioral Issue",
-  "Family Emergency",
-  "Medical Excuse",
+  "Attendance",
+  "Technical",
+  "Academic",
+  "Transport", 
+  "Family",
+  "Medical",
   "Other"
 ] as const;
 

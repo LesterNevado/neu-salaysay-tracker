@@ -50,13 +50,14 @@ export async function extractDocumentInfo(file: File): Promise<DocumentInfo> {
       }
     }
 
-    // Extract student name with improved pattern matching
+    // Extract student name with improved pattern matching - prioritize "Sincerely" format
     const namePatterns = [
+      /Sincerely,?\s*(?:yours,?)?\s*[\n\r]*\s*([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+)+)/i,  // Prioritize "Sincerely, Name"
+      /Respectfully(?:\s+yours)?,?\s*[\n\r]*\s*([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+)+)/i, // "Respectfully yours, Name"
       /(?:I am|I,|My name is|This is)\s+([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+)+)/i,
       /From:\s*([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+)+)/i,
       /Submitted by:\s*([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+)+)/i,
-      /([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})\s+(?:is|am) writing/i,
-      /Sincerely,\s*([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+)+)/i
+      /([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})\s+(?:is|am) writing/i
     ];
 
     for (const pattern of namePatterns) {
@@ -68,9 +69,10 @@ export async function extractDocumentInfo(file: File): Promise<DocumentInfo> {
       }
     }
 
-    // Extract addressee/professor name
+    // Extract addressee/professor name with improved patterns
     const addresseePatterns = [
-      /(?:Dear|To|Attention:)\s+(?:Prof\.?|Professor|Dr\.?|Mr\.?|Ms\.?|Mrs\.?)?\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
+      /(?:Dear|To|Attention:)\s+(?:Ma'am|Sir|Prof\.?|Professor|Dr\.?|Mr\.?|Ms\.?|Mrs\.?|Ma)\s*([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
+      /(?:Dear|To|Attention:)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
       /(?:To whom it may concern|Dear Sir\/Madam)/i
     ];
 
@@ -81,7 +83,13 @@ export async function extractDocumentInfo(file: File): Promise<DocumentInfo> {
         if (addresseeMatch[0].match(/(?:To whom it may concern|Dear Sir\/Madam)/i)) {
           documentInfo.addressee = "Sir/Madam";
         } else if (addresseeMatch[1]) {
-          documentInfo.addressee = addresseeMatch[1].trim();
+          // Check if addressing as Ma'am
+          const titleMatch = addresseeMatch[0].match(/Dear\s+(Ma'am|Sir|Prof\.?|Professor|Dr\.?|Mr\.?|Ms\.?|Mrs\.?|Ma)/i);
+          if (titleMatch && (titleMatch[1].toLowerCase() === 'ma' || titleMatch[1].toLowerCase() === "ma'am")) {
+            documentInfo.addressee = "Ma'am " + addresseeMatch[1].trim();
+          } else {
+            documentInfo.addressee = addresseeMatch[1].trim();
+          }
         }
         console.log("Found addressee:", documentInfo.addressee);
         break;
@@ -147,15 +155,15 @@ export async function extractDocumentInfo(file: File): Promise<DocumentInfo> {
       }
     }
 
-    // Set addressee to "Sir Gaspar" as default if none found
+    // Set addressee to "Ma'am Laurice Laureta" as default if none found
     if (!documentInfo.addressee) {
-      documentInfo.addressee = "Sir Gaspar";
+      documentInfo.addressee = "Ma'am Laurice Laureta";
       console.log("Using default addressee:", documentInfo.addressee);
     }
 
-    // Set student name to "Ysac Blu Advincula" as default if none found
+    // Set student name to "Lester Nevado" as default if none found
     if (!documentInfo.studentName) {
-      documentInfo.studentName = "Ysac Blu Advincula";
+      documentInfo.studentName = "Lester Nevado";
       console.log("Using default student name:", documentInfo.studentName);
     }
 
@@ -197,8 +205,8 @@ export async function extractDocumentInfo(file: File): Promise<DocumentInfo> {
       natureOfExcuse: "for my absences in your Application Development class",
       violationType: "Other" as ViolationType,
       studentId: "22-13917-429",
-      studentName: "Ysac Blu Advincula",
-      addressee: "Sir Gaspar"
+      studentName: "Lester Nevado",
+      addressee: "Ma'am Laurice Laureta"
     };
 
     console.log("Using default values due to error:", defaultInfo);

@@ -22,7 +22,7 @@ export function determineViolationType(documentInfo: DocumentInfo): ViolationTyp
     textLower.includes("absences") ||
     titleLower.includes("attendance")
   ) {
-    violationType = "Attendance Issue";
+    violationType = "Attendance";
   }
   
   // Check for academic misconduct
@@ -32,7 +32,57 @@ export function determineViolationType(documentInfo: DocumentInfo): ViolationTyp
     textLower.includes("misconduct") ||
     textLower.includes("academic dishonesty")
   ) {
-    violationType = "Academic Misconduct";
+    violationType = "Academic";
+  }
+  
+  // Check for medical related excuses
+  else if (
+    textLower.includes("sick") ||
+    textLower.includes("illness") ||
+    textLower.includes("medical") ||
+    textLower.includes("doctor") ||
+    textLower.includes("hospital") ||
+    textLower.includes("health")
+  ) {
+    violationType = "Medical";
+  }
+  
+  // Check for family emergencies
+  else if (
+    (textLower.includes("family") && (
+      textLower.includes("emergency") ||
+      textLower.includes("urgent") ||
+      textLower.includes("crisis")
+    )) ||
+    textLower.includes("death") ||
+    textLower.includes("funeral") ||
+    textLower.includes("bereavement")
+  ) {
+    violationType = "Family";
+  }
+  
+  // Check for technical issues
+  else if (
+    textLower.includes("technical") ||
+    textLower.includes("internet") ||
+    textLower.includes("connection") ||
+    textLower.includes("device") ||
+    textLower.includes("computer") ||
+    textLower.includes("laptop") ||
+    textLower.includes("power outage")
+  ) {
+    violationType = "Technical";
+  }
+
+  // Check for transportation issues
+  else if (
+    textLower.includes("transport") ||
+    textLower.includes("traffic") ||
+    textLower.includes("commute") ||
+    textLower.includes("travel") ||
+    textLower.includes("late")
+  ) {
+    violationType = "Transport";
   }
   
   return violationType;
