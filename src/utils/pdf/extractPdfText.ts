@@ -12,23 +12,27 @@ GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/$
  */
 export async function extractPdfText(file: File): Promise<string> {
   try {
+    console.log("Starting PDF text extraction for:", file.name);
+    
     // Convert the File to an ArrayBuffer
     const arrayBuffer = await file.arrayBuffer();
     
     // Load the PDF using PDF.js
     const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
     const pdf = await loadingTask.promise;
+    console.log(`PDF loaded successfully with ${pdf.numPages} pages`);
     
     // Extract text from all pages
     let fullText = '';
     
     // Loop through each page
     for (let i = 1; i <= pdf.numPages; i++) {
+      console.log(`Processing page ${i} of ${pdf.numPages}`);
       const page = await pdf.getPage(i);
       
-      // Get text content with compatible parameters
-      // Note: Removed normalizeWhitespace as it's not in the type definition
+      // Get text content
       const textContent = await page.getTextContent();
+      console.log(`Text content extracted from page ${i}, items:`, textContent.items.length);
       
       // Process text with better layout preservation
       let lastY;
@@ -61,13 +65,21 @@ export async function extractPdfText(file: File): Promise<string> {
       .replace(/\s{2,}/g, ' ')         // Replace 2+ spaces with 1
       .trim();                         // Trim leading/trailing whitespace
     
-    // Print first 500 chars to console for debugging
-    console.log('Extracted text sample:', fullText.substring(0, 500));
+    console.log('Extraction complete. Text length:', fullText.length);
+    console.log('Extracted text sample:', fullText.substring(0, 200) + '...');
     
-    // Return the text content
+    // Return the text content or a message if empty
+    if (!fullText || fullText.trim() === '') {
+      console.log('No text extracted from PDF, returning empty message');
+      return "No text content could be extracted from this PDF.";
+    }
+    
     return fullText;
   } catch (error) {
     console.error('Error extracting text from PDF:', error);
     throw new Error('Failed to extract text from PDF');
   }
 }
+
+// Use same name for both exports for consistency
+export const extractTextFromPdf = extractPdfText;

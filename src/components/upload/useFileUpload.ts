@@ -1,12 +1,14 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { FileUpload } from "./types";
 import { logActivity } from "@/utils/activity";
 import { extractPdfText } from "@/utils/pdf/extractPdfText";
-import { extractDocumentInfo, ExtractedDocumentInfo } from "@/utils/ai/extractDocumentInfo";
+import { extractDocumentInfo, DocumentInfo } from "@/utils/ai/extractDocumentInfo";
 import { determineViolationType } from "@/utils/ai/determineViolationType";
+
+// Default values for when extraction fails
+const DEFAULT_EXCUSE = "for my absences in your Application Development class";
 
 export function useFileUpload(userId: string) {
   const [uploads, setUploads] = useState<FileUpload[]>([]);
@@ -31,7 +33,7 @@ export function useFileUpload(userId: string) {
     setUploads([]);
   };
 
-  const analyzeFile = async (file: File): Promise<ExtractedDocumentInfo | null> => {
+  const analyzeFile = async (file: File): Promise<DocumentInfo | null> => {
     try {
       setUploads(prev => 
         prev.map(upload => 
@@ -41,27 +43,49 @@ export function useFileUpload(userId: string) {
         )
       );
 
-      const text = await extractPdfText(file);
+      // Extract document information
+      const extractedInfo = await extractDocumentInfo(file);
+      console.log("Document info extraction complete:", extractedInfo);
       
-      const extractedInfo = await extractDocumentInfo(text);
+      // Ensure we have a nature of excuse
+      const natureOfExcuse = extractedInfo.natureOfExcuse || DEFAULT_EXCUSE;
       
+      // Update uploads state
       setUploads(prev => 
         prev.map(upload => 
           upload.file === file 
-            ? { ...upload, extractedInfo }
+            ? { 
+                ...upload, 
+                extractedInfo: {
+                  studentNumber: extractedInfo.studentId,
+                  senderName: extractedInfo.studentName,
+                  date: extractedInfo.submissionDate,
+                  natureOfExcuse: natureOfExcuse,
+                  addressee: extractedInfo.courseCode,
+                  confidence: 'medium'
+                }
+              }
             : upload
         )
       );
       
-      return extractedInfo;
+      return {
+        ...extractedInfo,
+        natureOfExcuse
+      };
     } catch (error) {
       console.error('Error analyzing file:', error);
       toast({
         variant: "destructive",
         title: "Analysis failed",
-        description: "Failed to extract information from the PDF. Continuing with upload."
+        description: "Failed to extract information from the PDF. Using default values."
       });
-      return null;
+      
+      return {
+        extractedText: "Error analyzing document",
+        natureOfExcuse: DEFAULT_EXCUSE,
+        violationType: "Other"
+      };
     }
   };
 
@@ -96,8 +120,15 @@ export function useFileUpload(userId: string) {
       );
 
       const extractedInfo = await analyzeFile(file);
-
-      const violationType = determineViolationType(extractedInfo?.natureOfExcuse);
+      
+      // Ensure we have values for critical fields, using defaults if needed
+      const violationType = extractedInfo?.violationType || "Other";
+      const natureOfExcuse = extractedInfo?.natureOfExcuse || DEFAULT_EXCUSE;
+      
+      console.log("Using values for upload:", {
+        violationType,
+        natureOfExcuse
+      });
 
       const timestamp = Date.now();
       const originalName = file.name;
@@ -135,12 +166,13 @@ export function useFileUpload(userId: string) {
         )
       );
 
+      // Construct metadata for database
       const metadata = {
-        student_number: extractedInfo?.studentNumber,
-        sender_name: extractedInfo?.senderName,
-        incident_date: extractedInfo?.date,
-        excuse_description: extractedInfo?.natureOfExcuse,
-        addressee: extractedInfo?.addressee
+        student_number: extractedInfo?.studentId,
+        sender_name: extractedInfo?.studentName,
+        incident_date: extractedInfo?.submissionDate,
+        excuse_description: natureOfExcuse,
+        addressee: extractedInfo?.courseCode
       };
 
       console.log("Inserting submission record into database with metadata:", metadata);
@@ -170,6 +202,7 @@ export function useFileUpload(userId: string) {
         submissionData.id
       );
 
+      // Update uploads state with the final values
       setUploads(prev => 
         prev.map(upload => 
           upload.file === file 
@@ -178,7 +211,11 @@ export function useFileUpload(userId: string) {
                 status: 'completed', 
                 progress: 100, 
                 violationType,
-                extractedInfo: extractedInfo
+                extractedInfo: {
+                  ...(upload.extractedInfo || {}),
+                  natureOfExcuse: natureOfExcuse,
+                  confidence: 'medium'
+                }
               }
             : upload
         )

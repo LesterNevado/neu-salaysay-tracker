@@ -12,7 +12,7 @@ export function determineViolationType(documentInfo: DocumentInfo): ViolationTyp
   let violationType: ViolationType = "Other";
   
   // Convert to lowercase for case-insensitive matching
-  const textLower = extractedText.toLowerCase();
+  const textLower = extractedText?.toLowerCase() || "";
   const titleLower = pdfTitle?.toLowerCase() || "";
   
   // Check for attendance related keywords
@@ -40,44 +40,80 @@ export function determineViolationType(documentInfo: DocumentInfo): ViolationTyp
 
 /**
  * Extract the nature of excuse from the document text
+ * Always returns a string, defaulting to "for my absences in your Application Development class"
  */
 export function extractNatureOfExcuse(documentInfo: DocumentInfo): string {
+  // Our default nature of excuse - use this when we can't determine anything specific
+  const DEFAULT_EXCUSE = "for my absences in your Application Development class";
+  
+  // Safety check - if no document info or text, return default
+  if (!documentInfo || !documentInfo.extractedText) {
+    console.log("No document info or extracted text, returning default excuse");
+    return DEFAULT_EXCUSE;
+  }
+  
   const { extractedText } = documentInfo;
+  console.log("Analyzing text for excuse:", extractedText.substring(0, 100) + "...");
   
-  // Default nature of excuse
-  const defaultNature = "for my absences in your Application Development class";
-  
-  // Try to extract a more specific excuse if possible
+  // Try to extract a specific excuse using various patterns
   const excusePatterns = [
     /(?:excuse|reason|apologize|apology|sorry).*?for\s+(my\s+)?([^.;:]+)/i,
     /(?:regarding|concerning|about)\s+(my\s+)?([^.;:]+)/i,
-    /(?:request|ask).*?consideration.*?for\s+(my\s+)?([^.;:]+)/i
+    /(?:request|ask).*?consideration.*?for\s+(my\s+)?([^.;:]+)/i,
+    /I(?:'m| am)?\s+writing\s+(?:to\s+)?(?:you\s+)?(?:about|regarding|concerning)\s+([^.;:]+)/i,
+    /This\s+letter\s+is\s+(?:to\s+)?(?:inform|explain|request)\s+([^.;:]+)/i,
   ];
   
+  // Check each pattern
   for (const pattern of excusePatterns) {
     const match = extractedText.match(pattern);
-    if (match && match[2]) {
-      const extractedExcuse = match[2].trim();
-      // If we found something meaningful, return it
-      if (extractedExcuse.length > 10) {
-        return extractedExcuse;
+    if (match) {
+      // Get the matched excuse - either from group 2 (if it exists) or group 1
+      const matchedExcuse = match[2] || match[1];
+      if (matchedExcuse && matchedExcuse.trim().length > 5) {
+        const excuse = matchedExcuse.trim();
+        console.log("Found specific excuse:", excuse);
+        return excuse;
       }
     }
   }
   
-  // If we couldn't extract a specific excuse, return the default
-  return defaultNature;
+  // If no specific excuse found, return the default
+  console.log("No specific excuse patterns matched, returning default excuse");
+  return DEFAULT_EXCUSE;
 }
 
 /**
  * Update the document info with the violation type and nature of excuse
  */
 export function enhanceDocumentInfo(documentInfo: DocumentInfo): DocumentInfo {
-  return {
-    ...documentInfo,
-    violationType: determineViolationType(documentInfo),
-    natureOfExcuse: extractNatureOfExcuse(documentInfo)
-  };
+  try {
+    // Always make sure we have a valid document info object
+    const safeDocumentInfo = documentInfo || { extractedText: "" };
+    
+    // Extract the nature of excuse first
+    const natureOfExcuse = extractNatureOfExcuse(safeDocumentInfo);
+    console.log("Nature of excuse determined:", natureOfExcuse);
+    
+    // Then determine the violation type
+    const violationType = determineViolationType(safeDocumentInfo);
+    console.log("Violation type determined:", violationType);
+    
+    // Return the enhanced document info
+    return {
+      ...safeDocumentInfo,
+      violationType,
+      natureOfExcuse
+    };
+  } catch (error) {
+    console.error("Error enhancing document info:", error);
+    // Even if an error occurs, return the document info with default values
+    return {
+      ...documentInfo,
+      natureOfExcuse: "for my absences in your Application Development class",
+      violationType: "Other"
+    };
+  }
 }
 
 export default enhanceDocumentInfo;
