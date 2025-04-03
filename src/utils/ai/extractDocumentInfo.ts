@@ -51,22 +51,21 @@ export async function extractDocumentInfo(file: File): Promise<DocumentInfo> {
       }
     }
 
-    // Extract student name - IMPROVED to focus on the complimentary close section
-    // Look specifically for the name after "Sincerely," or other closing phrases
+    // Extract student name - IMPROVED to focus specifically on text after the complimentary close followed by a comma
     const namePatterns = [
-      // Name appears directly after "Sincerely," on subsequent lines
-      /Sincerely,?\s*[\r\n]+\s*([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})[\s\n\r]*/i,
+      // Look for name after "Sincerely," or similar closing - with comma
+      /(?:Sincerely|Respectfully|Regards|Yours truly|Thank you),[\s\n\r]*([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})/i,
+      
+      // If comma is on its own line, look for name on the next line(s)
+      /(?:Sincerely|Respectfully|Regards|Yours truly|Thank you),?[\s\n\r]+([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})/i,
       
       // Name with student ID pattern (common format in the example)
-      /Sincerely,?\s*[\r\n]+\s*([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})[\s\n\r]+\s*\d{2}-\d{4,7}-\d{3}/i,
+      /(?:Sincerely|Respectfully|Regards|Yours truly|Thank you),?[\s\n\r]+([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})[\s\n\r]+\s*\d{2}-\d{4,7}-\d{3}/i,
       
-      // Alternative closings
-      /(?:Respectfully|Regards|Yours truly),?\s*[\r\n]+\s*([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})/i,
+      // Handle case where closing word is on one line and name is on next line(s)
+      /(?:Sincerely|Respectfully|Regards|Yours truly|Thank you)[,\s\n\r]*([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})/i,
       
-      // Fallback - any name-like pattern after common closings
-      /(?:Sincerely|Respectfully|Regards|Yours truly),?.*?[\r\n]+\s*([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})/is,
-      
-      // Last resort pattern for any name-like sequence near the bottom
+      // Fallback - more generic pattern for any proper name near bottom of document
       /[\r\n]([A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+){1,3})[\s\n\r]*(?:\d{2}-\d{4,7}-\d{3}|\w+\s+\w+\s+\d{4}|$)/i
     ];
 
@@ -76,16 +75,16 @@ export async function extractDocumentInfo(file: File): Promise<DocumentInfo> {
       if (nameMatch && nameMatch[1]) {
         const potentialName = nameMatch[1].trim();
         // Check if this is a valid name (not just a short word or number)
-        if (potentialName.length > 5 && !/^\d+$/.test(potentialName)) {
+        if (potentialName.length > 5 && !/^\d+$/.test(potentialName) && !/^(Sincerely|Respectfully|Regards)$/i.test(potentialName)) {
           documentInfo.studentName = potentialName;
-          console.log("Found student name from complimentary close:", documentInfo.studentName);
+          console.log("Found sender name after complimentary close:", documentInfo.studentName);
           foundName = true;
           break;
         }
       }
     }
 
-    // If no name found with the complimentary close patterns, try backup patterns
+    // If no name found with the primary patterns, try backup patterns
     if (!foundName) {
       const backupNamePatterns = [
         // Direct name pattern as in template 
@@ -118,7 +117,7 @@ export async function extractDocumentInfo(file: File): Promise<DocumentInfo> {
       /Dear[\s\n\r]+(.+?)(?:,|[\n\r]+Position)/i,
       
       // Common addressee formats
-      /(?:Dear|To|Attention:)[\s\n\r]+((?:Ma'am|Sir|Prof\.?|Professor|Dr\.?|Mr\.?|Ms\.?|Mrs\.?|Ma\.?)\s*[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
+      /(?:Dear|To|Attention:)[\s\n\r]+((?:Ma'am|Sir|Prof\.?|Professor|Dr\.?|Mr\.?|Ms\.?|Mrs\.?)\s*[A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+)*)/i,
       /(?:Dear|To|Attention:)[\s\n\r]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
       
       // Generic address
