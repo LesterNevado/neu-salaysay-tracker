@@ -31,6 +31,7 @@ export async function extractPdfText(file: File): Promise<string> {
       const page = await pdf.getPage(i);
       
       // Get text content with compatible options
+      // Note: PDF.js v3 no longer uses normalizeWhitespace
       const textContent = await page.getTextContent();
       
       console.log(`Text content extracted from page ${i}, items:`, textContent.items.length);

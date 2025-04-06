@@ -45,15 +45,7 @@ export async function convertImageToPdf(imageFile: File): Promise<File> {
     const ocrResult = await performOCR(imageFile);
     console.log("OCR completed with text:", ocrResult.text.substring(0, 100) + "...");
     
-    // IMPORTANT CHANGE: First add the text layer (which will be behind other elements)
-    // If we have OCR text, add it as an invisible text layer for searchability
-    if (ocrResult.text.trim()) {
-      // Add invisible text layer that makes the PDF searchable
-      // Position text layer at the bottom of the page to keep it out of view
-      addInvisibleTextLayerToPdf(doc, ocrResult.text, x, pageHeight - 20, imgWidth, 10);
-    }
-    
-    // THEN add the image on top of the text layer
+    // Add the image to the PDF
     doc.addImage(
       imageDataUrl,
       imageFile.type === 'image/png' ? 'PNG' : 'JPEG',
@@ -62,6 +54,12 @@ export async function convertImageToPdf(imageFile: File): Promise<File> {
       imgWidth,
       imgHeight
     );
+    
+    // If we have OCR text, add it as an invisible text layer for searchability
+    if (ocrResult.text.trim()) {
+      // Add invisible text layer that makes the PDF searchable
+      addInvisibleTextLayerToPdf(doc, ocrResult.text, x, y, imgWidth, imgHeight);
+    }
     
     // Generate the PDF as a blob
     const pdfBlob = doc.output('blob');
