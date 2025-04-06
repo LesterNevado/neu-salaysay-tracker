@@ -50,9 +50,19 @@ export function useFileUpload(userId: string) {
         )
       );
       
-      console.log(`Converting ${file.name} from ${file.type} to PDF`);
+      console.log(`Converting ${file.name} from ${file.type} to PDF with OCR`);
+      
+      // Start OCR processing
+      setUploads(prev => 
+        prev.map(upload => 
+          upload.file === file 
+            ? { ...upload, status: 'ocr-processing' }
+            : upload
+        )
+      );
+      
       const pdfFile = await convertImageToPdf(file);
-      console.log(`Conversion complete: ${pdfFile.name}, size: ${pdfFile.size} bytes`);
+      console.log(`Conversion with OCR complete: ${pdfFile.name}, size: ${pdfFile.size} bytes`);
       
       // Update the uploads state with the new file
       setUploads(prev => 
@@ -77,7 +87,7 @@ export function useFileUpload(userId: string) {
       toast({
         variant: "destructive",
         title: "Conversion failed",
-        description: "Failed to convert image to PDF format."
+        description: "Failed to convert image to PDF format with OCR."
       });
       
       throw error;
