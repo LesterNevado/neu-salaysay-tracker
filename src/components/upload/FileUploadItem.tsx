@@ -4,6 +4,7 @@ import { Progress } from "@/components/ui/progress";
 import { FileUpload } from "./types";
 import { Button } from "@/components/ui/button";
 import { ViolationType } from "@/types/database.types";
+import { Badge } from "@/components/ui/badge";
 
 interface FileUploadItemProps {
   upload: FileUpload;
@@ -42,7 +43,14 @@ export function FileUploadItem({ upload, onRemove }: FileUploadItemProps) {
         <div className="flex justify-between">
           <div className="truncate">
             <p className="text-sm font-medium text-black truncate">{fileName}</p>
-            <p className="text-xs text-gray-500">{fileSize}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-gray-500">{fileSize}</p>
+              {extractedInfo?.language && (
+                <Badge variant="outline" className={extractedInfo.language === 'Tagalog' ? 'bg-blue-50 text-blue-700' : 'bg-gray-50'}>
+                  {extractedInfo.language}
+                </Badge>
+              )}
+            </div>
           </div>
           
           {status === 'pending' && (

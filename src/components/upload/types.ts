@@ -13,6 +13,7 @@ export interface FileUpload {
     natureOfExcuse?: string;
     addressee?: string;
     confidence: 'high' | 'medium' | 'low';
+    language?: 'English' | 'Tagalog';
   } | null;
 }
 
