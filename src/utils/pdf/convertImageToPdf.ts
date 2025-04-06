@@ -38,7 +38,7 @@ export async function convertImageToPdf(imageFile: File): Promise<File> {
     
     // Calculate position to center the image
     const x = (pageWidth - imgWidth) / 2;
-    const y = (pageHeight - imgHeight) / 2;
+    const y = (pageWidth - imgHeight) / 2;
     
     console.log(`Starting OCR processing on ${imageFile.name}`);
     
@@ -59,7 +59,7 @@ export async function convertImageToPdf(imageFile: File): Promise<File> {
     // If we have OCR text, add it as an invisible text layer for searchability
     if (ocrResult.text.trim()) {
       // Add invisible text layer that makes the PDF searchable
-      addTextLayerToPdf(doc, ocrResult.text, x, y, imgWidth, imgHeight);
+      addInvisibleTextLayerToPdf(doc, ocrResult.text, x, y, imgWidth, imgHeight);
     }
     
     // Generate the PDF as a blob
@@ -123,26 +123,32 @@ async function performOCR(imageFile: File): Promise<{ text: string }> {
  * @param width The width of the text area
  * @param height The height of the text area
  */
-function addTextLayerToPdf(doc: jsPDF, text: string, x: number, y: number, width: number, height: number) {
-  // Set text color to transparent
+function addInvisibleTextLayerToPdf(doc: jsPDF, text: string, x: number, y: number, width: number, height: number) {
+  // Set text color to transparent (completely invisible)
   doc.setTextColor(255, 255, 255, 0);
-  
-  // Split text into lines to fit within the image area
-  const fontSize = 8; // Small font size for the text layer
+
+  // Use a very small font size to reduce visual impact if it does appear
+  const fontSize = 1;
   doc.setFontSize(fontSize);
-  
-  // Calculate approximate characters per line
-  const avgCharWidth = doc.getStringUnitWidth('a') * fontSize / doc.internal.scaleFactor;
-  const charsPerLine = Math.floor(width / avgCharWidth);
   
   // Split text into words
   const words = text.split(/\s+/);
+  
+  // Create a hidden text layer by setting special rendering mode that maintains searchability
+  // This uses PDF.js advanced features to make text invisible but still searchable
+  const textRenderingMode = 3; // 3 = invisible text for search engines
+  doc.saveGraphicsState();
+  doc.setTextRenderingMode(textRenderingMode);
+  
+  // Calculate approximate characters per line (not critical since text is invisible)
+  const avgCharWidth = doc.getStringUnitWidth('a') * fontSize / doc.internal.scaleFactor;
+  const charsPerLine = Math.floor(width / avgCharWidth);
+  
+  // Set up line tracking
   let currentLine = '';
   let currentLineLength = 0;
-  
-  // Calculate line height
   const lineHeight = fontSize * 1.2 / doc.internal.scaleFactor;
-  let currentY = y + fontSize; // Start at the top of the image area
+  let currentY = y + fontSize;
   
   // Process each word
   words.forEach(word => {
@@ -168,6 +174,9 @@ function addTextLayerToPdf(doc: jsPDF, text: string, x: number, y: number, width
   if (currentLine.trim() !== '' && currentY < y + height) {
     doc.text(currentLine, x, currentY);
   }
+  
+  // Restore normal rendering mode
+  doc.restoreGraphicsState();
 }
 
 /**
