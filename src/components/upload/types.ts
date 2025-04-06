@@ -27,15 +27,4 @@ export const VIOLATION_TYPES = [
   "Other"
 ] as const;
 
-// Add Tagalog violation types mapping
-export const TAGALOG_VIOLATION_TYPES: Record<string, ViolationType> = {
-  "Pagdalo": "Attendance",
-  "Teknikal": "Technical",
-  "Akademiko": "Academic",
-  "Transportasyon": "Transport",
-  "Pamilya": "Family",
-  "Medikal": "Medical",
-  "Iba Pa": "Other"
-};
-
 export const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes

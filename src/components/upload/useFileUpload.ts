@@ -1,8 +1,7 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
-import { FileUpload, TAGALOG_VIOLATION_TYPES } from "./types";
+import { FileUpload } from "./types";
 import { logActivity } from "@/utils/activity";
 import { extractDocumentInfo, DocumentInfo } from "@/utils/ai/extractDocumentInfo";
 import { ViolationType } from "@/types/database.types";
@@ -62,8 +61,7 @@ export function useFileUpload(userId: string) {
                   date: extractedInfo.submissionDate,
                   natureOfExcuse: natureOfExcuse,
                   addressee: extractedInfo.addressee,
-                  confidence: 'high',
-                  language: extractedInfo.language
+                  confidence: 'high'
                 }
               }
             : upload
@@ -76,8 +74,7 @@ export function useFileUpload(userId: string) {
         date: extractedInfo.submissionDate,
         natureOfExcuse: natureOfExcuse,
         addressee: extractedInfo.addressee,
-        confidence: 'high',
-        language: extractedInfo.language
+        confidence: 'high'
       });
       
       return extractedInfo;
@@ -97,8 +94,7 @@ export function useFileUpload(userId: string) {
         studentId: "22-13917-429",
         studentName: "Ysac Blu Advincula",
         addressee: "Sir Gaspar",
-        submissionDate: "March 30, 2025",
-        language: "English"
+        submissionDate: "March 30, 2025"
       };
       
       // Update uploads state with default values
@@ -113,8 +109,7 @@ export function useFileUpload(userId: string) {
                   date: defaultInfo.submissionDate,
                   natureOfExcuse: defaultInfo.natureOfExcuse,
                   addressee: defaultInfo.addressee,
-                  confidence: 'medium',
-                  language: defaultInfo.language
+                  confidence: 'medium'
                 }
               }
             : upload
@@ -158,19 +153,12 @@ export function useFileUpload(userId: string) {
       const extractedInfo = await analyzeFile(file);
       
       // Ensure we have values for critical fields, using defaults if needed
-      let violationType = extractedInfo?.violationType || "Other";
+      const violationType = extractedInfo?.violationType || "Other";
       const natureOfExcuse = extractedInfo?.natureOfExcuse || DEFAULT_EXCUSE;
-      
-      // If the document is in Tagalog and we have a Tagalog-specific classification
-      if (extractedInfo?.language === "Tagalog") {
-        // For display purposes in the UI, we could map it back to English
-        console.log("Using Tagalog violation type mapping for:", violationType);
-      }
       
       console.log("Using values for upload:", {
         violationType,
-        natureOfExcuse,
-        language: extractedInfo?.language
+        natureOfExcuse
       });
 
       const timestamp = Date.now();
@@ -215,12 +203,11 @@ export function useFileUpload(userId: string) {
         sender_name: extractedInfo?.studentName,
         incident_date: extractedInfo?.submissionDate,
         excuse_description: natureOfExcuse,
-        addressee: extractedInfo?.addressee,
-        language: extractedInfo?.language
+        addressee: extractedInfo?.addressee
       };
 
       console.log("Inserting submission record into database with metadata:", metadata);
-      console.log("Using determined violation type:", violationType);
+      console.log("Using automatically determined violation type:", violationType);
       
       const { error: insertError, data: submissionData } = await supabase
         .from('salaysay_submissions')
@@ -262,8 +249,7 @@ export function useFileUpload(userId: string) {
                   date: extractedInfo?.submissionDate,
                   addressee: extractedInfo?.addressee,
                   natureOfExcuse: natureOfExcuse,
-                  confidence: 'high',
-                  language: extractedInfo?.language
+                  confidence: 'high'
                 }
               }
             : upload

@@ -2,7 +2,6 @@ import { extractPdfText } from "../pdf/extractPdfText";
 import enhanceDocumentInfo from "./determineViolationType";
 import { ViolationType } from "../../types/database.types";
 import { format, parse } from "date-fns";
-import { TAGALOG_VIOLATION_TYPES } from "@/components/upload/types";
 
 export interface DocumentInfo {
   extractedText: string;
@@ -32,11 +31,7 @@ function detectLanguage(text: string): "English" | "Tagalog" {
     "Petsa", 
     "Seksyon", 
     "Kurso", 
-    "Numero ng Mag-aaral",
-    "Ang inyong Kapatid sa Panginoon",
-    "nagpapasalamat",
-    "pagkakulang",
-    "dahil sa"
+    "Numero ng Mag-aaral"
   ];
   
   // Count occurrences of Tagalog phrases
@@ -89,40 +84,6 @@ function extractFirstSentences(text: string, maxSentences: number = 2): string {
 }
 
 /**
- * Determine Tagalog violation type based on content
- * @param text The extracted text to analyze
- */
-function determineTagalogViolationType(text: string): ViolationType {
-  // Keywords for different violation types in Tagalog
-  const keywordMap: Record<ViolationType, string[]> = {
-    "Attendance": ["pagpasok", "hindi nakapasok", "absent", "hindi makakapasok", "hindi makapunta", "pagliban", "hindi makadalo"],
-    "Technical": ["computer", "laptop", "internet", "wifi", "kuryente", "brownout", "technical", "gadget", "cellphone", "nawala", "nasira", "nasiraan", "problema sa device"],
-    "Academic": ["exam", "quiz", "project", "thesis", "takdang-aralin", "assignment", "hindi matapos", "hindi nagawa", "pasahan", "requirement", "hindi makapag-submit"],
-    "Transport": ["trapik", "traffic", "masira ang sasakyan", "masiraan ng", "baha", "ulan", "transportasyon", "biyahe", "naabutan ng ulan", "nawalan ng masasakyan", "walang masakyan"],
-    "Family": ["pamilya", "kasal", "libing", "namatay", "birthday", "kapatid", "nanay", "tatay", "magulang", "kamag-anak", "emerhensiyang pampamilya"],
-    "Medical": ["sakit", "lagnat", "ubo", "sipon", "hospital", "klinika", "doktor", "check-up", "nagkasakit", "naospital", "hindi maganda ang pakiramdam", "hindi makakaattend dahil"],
-    "Other": []
-  };
-
-  // Convert text to lowercase for case-insensitive matching
-  const lowerText = text.toLowerCase();
-  
-  // Check each violation type for keywords
-  for (const [type, keywords] of Object.entries(keywordMap)) {
-    if (type === "Other") continue; // Skip "Other" as it's our fallback
-    
-    for (const keyword of keywords) {
-      if (lowerText.includes(keyword.toLowerCase())) {
-        return type as ViolationType;
-      }
-    }
-  }
-  
-  // If no specific violation type is detected, return "Other"
-  return "Other";
-}
-
-/**
  * Extract information from a PDF document
  */
 export async function extractDocumentInfo(file: File): Promise<DocumentInfo> {
@@ -158,29 +119,22 @@ export async function extractDocumentInfo(file: File): Promise<DocumentInfo> {
       console.log("Cleaned student name:", documentInfo.studentName);
     }
 
-    // For Tagalog documents, determine the violation type based on the extracted nature of excuse
-    if (language === "Tagalog" && documentInfo.natureOfExcuse) {
-      documentInfo.violationType = determineTagalogViolationType(documentInfo.natureOfExcuse);
-      console.log("Determined Tagalog violation type:", documentInfo.violationType);
-    } else {
-      // Enhance the document info for English documents
-      documentInfo = enhanceDocumentInfo(documentInfo);
-    }
-    
-    console.log("Enhanced document info:", documentInfo);
+    // Enhance the document info
+    const enhancedInfo = enhanceDocumentInfo(documentInfo);
+    console.log("Enhanced document info:", enhancedInfo);
     
     // Log the extraction results
     console.log("Extraction results:", {
-      studentNumber: documentInfo.studentId,
-      senderName: documentInfo.studentName,
-      addressee: documentInfo.addressee,
-      date: documentInfo.submissionDate,
-      natureOfExcuse: documentInfo.natureOfExcuse,
+      studentNumber: enhancedInfo.studentId,
+      senderName: enhancedInfo.studentName,
+      addressee: enhancedInfo.addressee,
+      date: enhancedInfo.submissionDate,
+      natureOfExcuse: enhancedInfo.natureOfExcuse,
       confidence: "high",
-      language: documentInfo.language
+      language: enhancedInfo.language
     });
     
-    return documentInfo;
+    return enhancedInfo;
   } catch (error) {
     console.error("Error in extractDocumentInfo:", error);
     
@@ -337,60 +291,33 @@ function extractTagalogDocumentInfo(text: string, baseInfo: DocumentInfo): Docum
 }
 
 /**
- * Extract nature of excuse from Tagalog documents - improved to exclude the addressee line
+ * Extract nature of excuse from Tagalog documents - improved to get only 1-2 sentences
  */
 function extractTagalogExcuseNature(text: string): string {
-  // Look for text that comes after the first few lines but before the signature
-  // This approach better handles the actual content without including the addressee
-  const contentLines = text.split(/[\r\n]+/);
-  let contentStarted = false;
-  let contentText = [];
-  let addresseeFound = false;
-  
-  for (let i = 0; i < contentLines.length; i++) {
-    const line = contentLines[i].trim();
-    
-    // Skip empty lines
-    if (!line) continue;
-    
-    // Detect when we've found the addressee line (e.g., "Kapatid na Guro" or just "Guro")
-    if (!addresseeFound && (line.match(/^Kapatid na/i) || line.match(/^Guro/i) || line.match(/^Position/i))) {
-      addresseeFound = true;
-      continue; // Skip this line as it's the addressee
-    }
-    
-    // Start collecting content after the addressee is found and we have a non-addressee line
-    if (addresseeFound && !contentStarted) {
-      // Skip lines that contain only an addressee name or position title
-      if (line.length < 20 && !line.includes(" ")) {
-        continue;
-      }
-      contentStarted = true;
-    }
-    
-    // Collect content until we hit a closing line
-    if (contentStarted) {
-      // Stop when we reach the signature lines
-      if (line.match(/^Ang inyong/i) || line.match(/^Salamat po/i) || line.match(/^Sumasainyo/i) || 
-          line.match(/^Lubos na gumagalang/i) || line.match(/^Nagpapasalamat/i)) {
-        break;
-      }
-      
-      contentText.push(line);
-    }
-  }
-  
-  // Join the content lines and extract the first 1-2 sentences
-  if (contentText.length > 0) {
-    const joinedContent = contentText.join(" ");
-    return extractFirstSentences(joinedContent, 2);
-  }
-  
-  // Fallback to the original approach if the above didn't yield results
-  const contentMatch = text.match(/(?:Kapatid na[^\n]*|Guro)[^\n]*[\r\n]+(.*?)(?:[\r\n]+Ang inyong|[\r\n]+Salamat po|[\r\n]+Sumasainyo)/is);
+  // Try to find content between addressee and "Ang inyong"
+  const contentMatch = text.match(/Kapatid na[^\n]*[\r\n]+(.*?)(?:[\r\n]+Ang inyong)/is);
   
   if (contentMatch && contentMatch[1]) {
     const content = contentMatch[1].trim();
+    if (content.length > 20) {
+      // Extract only the first 1-2 sentences for conciseness
+      return extractFirstSentences(content, 2);
+    }
+  }
+  
+  // Look for text labeled as "Content of Salaysay"
+  const salaysayMatch = text.match(/Content of Salaysay([^.]*)./i);
+  if (salaysayMatch && salaysayMatch[1]) {
+    const content = salaysayMatch[1].trim();
+    if (content.length > 20) {
+      return extractFirstSentences(content, 2);
+    }
+  }
+  
+  // If no specific content found, try to get content between position and signature
+  const generalContentMatch = text.match(/Position[\r\n]+(.*?)[\r\n]+(?:Ang inyong|Sender)/is);
+  if (generalContentMatch && generalContentMatch[1]) {
+    const content = generalContentMatch[1].trim();
     if (content.length > 20) {
       return extractFirstSentences(content, 2);
     }
@@ -445,7 +372,7 @@ function extractEnglishDocumentInfo(text: string, baseInfo: DocumentInfo): Docum
         potentialName.length > 3 && 
         !/^\d+$/.test(potentialName) && 
         !/^(Sincerely|Respectfully|Regards|Thank you)$/i.test(potentialName) &&
-        !/hope for your|thank you for|appreciate your|sincerely|respectfully/i.test(potentialName)
+        !/hope for your|thank you for|appreciate your/i.test(potentialName)
       ) {
         baseInfo.studentName = potentialName;
         console.log("Found sender name after complimentary close:", baseInfo.studentName);
