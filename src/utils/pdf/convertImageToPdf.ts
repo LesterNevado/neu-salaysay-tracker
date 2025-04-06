@@ -83,8 +83,18 @@ export async function convertImageToPdf(imageFile: File): Promise<File> {
  */
 async function performOCR(imageFile: File): Promise<{ text: string }> {
   try {
-    // Create and initialize a Tesseract worker
-    const worker = await createWorker('eng');
+    // Create and initialize a Tesseract worker with proper options
+    const worker = await createWorker({
+      logger: progress => {
+        if (progress.status === 'recognizing text') {
+          console.log(`OCR progress: ${Math.round(progress.progress * 100)}%`);
+        }
+      }
+    });
+    
+    // Initialize worker with English language
+    await worker.loadLanguage('eng');
+    await worker.initialize('eng');
     
     // Convert the image file to a format Tesseract can use
     const imageBlob = new Blob([await imageFile.arrayBuffer()], { type: imageFile.type });
