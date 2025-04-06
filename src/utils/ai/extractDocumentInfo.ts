@@ -1,3 +1,4 @@
+
 import { extractPdfText } from "../pdf/extractPdfText";
 import enhanceDocumentInfo from "./determineViolationType";
 import { ViolationType } from "../../types/database.types";
@@ -44,6 +45,19 @@ function detectLanguage(text: string): "English" | "Tagalog" {
 }
 
 /**
+ * Clean a potential name by removing any numbers and extra spaces
+ */
+function cleanName(name: string): string {
+  // Remove any numbers
+  const nameWithoutNumbers = name.replace(/\d+/g, '');
+  
+  // Remove extra spaces and trim
+  return nameWithoutNumbers
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+/**
  * Extract information from a PDF document
  */
 export async function extractDocumentInfo(file: File): Promise<DocumentInfo> {
@@ -71,6 +85,12 @@ export async function extractDocumentInfo(file: File): Promise<DocumentInfo> {
       documentInfo = extractTagalogDocumentInfo(text, documentInfo);
     } else {
       documentInfo = extractEnglishDocumentInfo(text, documentInfo);
+    }
+
+    // If we found a student name, clean it to remove any numbers
+    if (documentInfo.studentName) {
+      documentInfo.studentName = cleanName(documentInfo.studentName);
+      console.log("Cleaned student name:", documentInfo.studentName);
     }
 
     // Enhance the document info
