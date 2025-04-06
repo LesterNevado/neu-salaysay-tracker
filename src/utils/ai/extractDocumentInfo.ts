@@ -1,3 +1,4 @@
+
 import { extractPdfText } from "../pdf/extractPdfText";
 import enhanceDocumentInfo from "./determineViolationType";
 import { ViolationType } from "../../types/database.types";
@@ -292,9 +293,53 @@ function extractTagalogDocumentInfo(text: string, baseInfo: DocumentInfo): Docum
 
 /**
  * Extract nature of excuse from Tagalog documents - improved to get only 1-2 sentences
+ * Fixed to properly exclude the addressee "Guro" from the nature of excuse
  */
 function extractTagalogExcuseNature(text: string): string {
-  // Try to find content between addressee and "Ang inyong"
+  // First, identify if the text has the structure where the body comes after the addressee
+  let addresseeKeywords = ["Guro", "Kapatid na", "Sir", "Ma'am", "Professor", "Propesor"];
+  let addresseePosition = -1;
+  
+  // Find the position of the addressee in the text
+  for (const keyword of addresseeKeywords) {
+    const position = text.indexOf(keyword);
+    if (position !== -1) {
+      if (addresseePosition === -1 || position < addresseePosition) {
+        addresseePosition = position;
+      }
+    }
+  }
+  
+  // If we found an addressee, look for the actual content after it
+  if (addresseePosition !== -1) {
+    // Find the next paragraph or sentence after the addressee line
+    const lines = text.substring(addresseePosition).split(/[\r\n]+/);
+    
+    // Skip the addressee line and find the first non-empty paragraph that contains actual content
+    let contentStartIndex = 0;
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      
+      // Skip empty lines or lines that still contain addressee keywords
+      const isAddresseeLine = addresseeKeywords.some(keyword => line.includes(keyword));
+      
+      // If line has substantial content and is not an addressee line, it's likely the start of the excuse
+      if (line.length > 20 && !isAddresseeLine) {
+        contentStartIndex = i;
+        break;
+      }
+    }
+    
+    // Get the actual content starting from the identified paragraph
+    if (contentStartIndex > 0) {
+      const actualContent = lines.slice(contentStartIndex).join(" ").trim();
+      if (actualContent.length > 20) {
+        return extractFirstSentences(actualContent, 2);
+      }
+    }
+  }
+  
+  // If we couldn't extract using the addressee method, try the original pattern matching
   const contentMatch = text.match(/Kapatid na[^\n]*[\r\n]+(.*?)(?:[\r\n]+Ang inyong)/is);
   
   if (contentMatch && contentMatch[1]) {
@@ -318,8 +363,16 @@ function extractTagalogExcuseNature(text: string): string {
   const generalContentMatch = text.match(/Position[\r\n]+(.*?)[\r\n]+(?:Ang inyong|Sender)/is);
   if (generalContentMatch && generalContentMatch[1]) {
     const content = generalContentMatch[1].trim();
-    if (content.length > 20) {
-      return extractFirstSentences(content, 2);
+    // Filter out lines that might contain addressee information
+    const contentLines = content.split(/[\r\n]+/).filter(line => 
+      !addresseeKeywords.some(keyword => line.includes(keyword))
+    );
+    
+    if (contentLines.length > 0) {
+      const filteredContent = contentLines.join(" ");
+      if (filteredContent.length > 20) {
+        return extractFirstSentences(filteredContent, 2);
+      }
     }
   }
   
