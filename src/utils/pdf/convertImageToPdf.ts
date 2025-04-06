@@ -1,4 +1,3 @@
-
 import { jsPDF } from 'jspdf';
 import { createWorker } from 'tesseract.js';
 
@@ -38,7 +37,7 @@ export async function convertImageToPdf(imageFile: File): Promise<File> {
     
     // Calculate position to center the image
     const x = (pageWidth - imgWidth) / 2;
-    const y = (pageWidth - imgHeight) / 2;
+    const y = (pageHeight - imgHeight) / 2;
     
     console.log(`Starting OCR processing on ${imageFile.name}`);
     
@@ -134,12 +133,6 @@ function addInvisibleTextLayerToPdf(doc: jsPDF, text: string, x: number, y: numb
   // Split text into words
   const words = text.split(/\s+/);
   
-  // Create a hidden text layer by setting special rendering mode that maintains searchability
-  // This uses PDF.js advanced features to make text invisible but still searchable
-  const textRenderingMode = 3; // 3 = invisible text for search engines
-  doc.saveGraphicsState();
-  doc.setTextRenderingMode(textRenderingMode);
-  
   // Calculate approximate characters per line (not critical since text is invisible)
   const avgCharWidth = doc.getStringUnitWidth('a') * fontSize / doc.internal.scaleFactor;
   const charsPerLine = Math.floor(width / avgCharWidth);
@@ -174,9 +167,6 @@ function addInvisibleTextLayerToPdf(doc: jsPDF, text: string, x: number, y: numb
   if (currentLine.trim() !== '' && currentY < y + height) {
     doc.text(currentLine, x, currentY);
   }
-  
-  // Restore normal rendering mode
-  doc.restoreGraphicsState();
 }
 
 /**
