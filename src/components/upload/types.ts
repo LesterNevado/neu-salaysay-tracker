@@ -4,7 +4,7 @@ import { ViolationType } from "@/types/database.types";
 export interface FileUpload {
   file: File;
   progress: number;
-  status: 'pending' | 'analyzing' | 'uploading' | 'completed' | 'error';
+  status: 'pending' | 'analyzing' | 'uploading' | 'converting' | 'completed' | 'error';
   violationType?: ViolationType;
   extractedInfo?: {
     studentNumber?: string;
@@ -28,3 +28,16 @@ export const VIOLATION_TYPES = [
 ] as const;
 
 export const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes
+
+// Allowed file types
+export const ALLOWED_FILE_TYPES = {
+  'application/pdf': '.pdf',
+  'image/jpeg': '.jpg',
+  'image/jpg': '.jpg',
+  'image/png': '.png'
+};
+
+// Helper function to check if a file type is allowed
+export const isFileTypeAllowed = (file: File): boolean => {
+  return Object.keys(ALLOWED_FILE_TYPES).includes(file.type);
+};

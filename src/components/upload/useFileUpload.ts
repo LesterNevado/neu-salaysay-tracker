@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
-import { FileUpload } from "./types";
+import { FileUpload, isFileTypeAllowed } from "./types";
 import { logActivity } from "@/utils/activity";
 import { extractDocumentInfo, DocumentInfo } from "@/utils/ai/extractDocumentInfo";
 import { ViolationType } from "@/types/database.types";
+import { convertImageToPdf } from "@/utils/pdf/convertImageToPdf";
 
 // Default values for when extraction fails
 const DEFAULT_EXCUSE = "for my absences in your Application Development class";
@@ -32,6 +33,57 @@ export function useFileUpload(userId: string) {
     setUploads([]);
   };
 
+  // Function to convert image to PDF if needed
+  const ensurePdfFormat = async (file: File): Promise<File> => {
+    // If the file is already a PDF, return it unchanged
+    if (file.type === 'application/pdf') {
+      return file;
+    }
+    
+    // Otherwise, convert image to PDF
+    try {
+      setUploads(prev => 
+        prev.map(upload => 
+          upload.file === file 
+            ? { ...upload, status: 'converting' }
+            : upload
+        )
+      );
+      
+      console.log(`Converting ${file.name} from ${file.type} to PDF`);
+      const pdfFile = await convertImageToPdf(file);
+      console.log(`Conversion complete: ${pdfFile.name}, size: ${pdfFile.size} bytes`);
+      
+      // Update the uploads state with the new file
+      setUploads(prev => 
+        prev.map(upload => 
+          upload.file === file 
+            ? { ...upload, file: pdfFile, status: 'pending' }
+            : upload
+        )
+      );
+      
+      return pdfFile;
+    } catch (error) {
+      console.error('Error converting image to PDF:', error);
+      setUploads(prev => 
+        prev.map(upload => 
+          upload.file === file 
+            ? { ...upload, status: 'error' }
+            : upload
+        )
+      );
+      
+      toast({
+        variant: "destructive",
+        title: "Conversion failed",
+        description: "Failed to convert image to PDF format."
+      });
+      
+      throw error;
+    }
+  };
+
   const analyzeFile = async (file: File): Promise<DocumentInfo | null> => {
     try {
       setUploads(prev => 
@@ -42,8 +94,11 @@ export function useFileUpload(userId: string) {
         )
       );
 
+      // First ensure the file is in PDF format
+      const pdfFile = await ensurePdfFormat(file);
+
       // Extract document information
-      const extractedInfo = await extractDocumentInfo(file);
+      const extractedInfo = await extractDocumentInfo(pdfFile);
       console.log("Document info extraction complete:", extractedInfo);
       
       // Ensure we have a nature of excuse
@@ -52,9 +107,10 @@ export function useFileUpload(userId: string) {
       // Update uploads state with properly mapped values
       setUploads(prev => 
         prev.map(upload => 
-          upload.file === file 
+          upload.file === file || upload.file === pdfFile
             ? { 
                 ...upload, 
+                file: pdfFile,
                 extractedInfo: {
                   studentNumber: extractedInfo.studentId,
                   senderName: extractedInfo.studentName,
@@ -150,7 +206,10 @@ export function useFileUpload(userId: string) {
         )
       );
 
-      const extractedInfo = await analyzeFile(file);
+      // Ensure the file is in PDF format before processing
+      const pdfFile = await ensurePdfFormat(file);
+      
+      const extractedInfo = await analyzeFile(pdfFile);
       
       // Ensure we have values for critical fields, using defaults if needed
       const violationType = extractedInfo?.violationType || "Other";
@@ -162,12 +221,12 @@ export function useFileUpload(userId: string) {
       });
 
       const timestamp = Date.now();
-      const originalName = file.name;
+      const originalName = pdfFile.name;
       const filePath = `${userId}/${timestamp}_${originalName}`;
       
       setUploads(prev => 
         prev.map(upload => 
-          upload.file === file 
+          upload.file === file || upload.file === pdfFile
             ? { ...upload, progress: 33 }
             : upload
         )
@@ -177,7 +236,7 @@ export function useFileUpload(userId: string) {
       
       const { error: uploadError, data } = await supabase.storage
         .from('salaysay-uploads')
-        .upload(filePath, file, {
+        .upload(filePath, pdfFile, {
           cacheControl: '3600',
           upsert: false
         });
@@ -191,7 +250,7 @@ export function useFileUpload(userId: string) {
       
       setUploads(prev => 
         prev.map(upload => 
-          upload.file === file 
+          upload.file === file || upload.file === pdfFile
             ? { ...upload, progress: 66 }
             : upload
         )
@@ -236,9 +295,10 @@ export function useFileUpload(userId: string) {
       // Update uploads state with the final values
       setUploads(prev => 
         prev.map(upload => 
-          upload.file === file 
+          upload.file === file || upload.file === pdfFile
             ? { 
                 ...upload, 
+                file: pdfFile,
                 status: 'completed', 
                 progress: 100, 
                 violationType,

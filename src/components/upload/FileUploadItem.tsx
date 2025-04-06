@@ -1,5 +1,5 @@
 
-import { FileText, X, Check, AlertCircle, Clock } from "lucide-react";
+import { FileText, X, Check, AlertCircle, Clock, FileImage } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { FileUpload } from "./types";
 import { Button } from "@/components/ui/button";
@@ -33,10 +33,18 @@ export function FileUploadItem({ upload, onRemove }: FileUploadItemProps) {
     );
   };
 
+  // Determine icon based on file type
+  const getFileIcon = () => {
+    if (file.type.startsWith('image/')) {
+      return <FileImage className="h-6 w-6 text-green-500" />;
+    }
+    return <FileText className="h-6 w-6 text-blue-500" />;
+  };
+
   return (
     <div className="flex items-start p-3 border rounded-md bg-white">
       <div className="flex-shrink-0 mr-3">
-        <FileText className="h-6 w-6 text-blue-500" />
+        {getFileIcon()}
       </div>
       
       <div className="flex-1 min-w-0">
@@ -45,6 +53,16 @@ export function FileUploadItem({ upload, onRemove }: FileUploadItemProps) {
             <p className="text-sm font-medium text-black truncate">{fileName}</p>
             <div className="flex items-center gap-2">
               <p className="text-xs text-gray-500">{fileSize}</p>
+              {file.type.startsWith('image/') && (
+                <Badge variant="outline" className="bg-green-50 text-green-700">
+                  Image
+                </Badge>
+              )}
+              {file.type === 'application/pdf' && (
+                <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                  PDF
+                </Badge>
+              )}
               {extractedInfo?.language && (
                 <Badge variant="outline" className={extractedInfo.language === 'Tagalog' ? 'bg-blue-50 text-blue-700' : 'bg-gray-50'}>
                   {extractedInfo.language}
@@ -90,6 +108,15 @@ export function FileUploadItem({ upload, onRemove }: FileUploadItemProps) {
             ) : (
               <p className="text-xs text-gray-500">Waiting for analysis...</p>
             )}
+          </div>
+        )}
+        
+        {status === 'converting' && (
+          <div className="mt-2">
+            <div className="flex items-center text-amber-600 text-xs">
+              <Clock className="h-3 w-3 mr-1" />
+              Converting image to PDF...
+            </div>
           </div>
         )}
         

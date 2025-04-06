@@ -1,7 +1,6 @@
 
-
 import { Upload } from "lucide-react";
-import { MAX_FILE_SIZE } from "./types";
+import { MAX_FILE_SIZE, ALLOWED_FILE_TYPES } from "./types";
 import { useToast } from "@/components/ui/use-toast";
 import { useState, useEffect } from "react";
 
@@ -13,7 +12,7 @@ export function DropZone({ onFilesSelected }: DropZoneProps) {
   const { toast } = useToast();
   const [isDragging, setIsDragging] = useState(false);
 
-  // Prevent the browser from opening PDFs when dropped outside the drop zone
+  // Prevent the browser from opening files when dropped outside the drop zone
   useEffect(() => {
     const preventDefaults = (e: DragEvent) => {
       e.preventDefault();
@@ -36,11 +35,11 @@ export function DropZone({ onFilesSelected }: DropZoneProps) {
 
   const handleFiles = async (files: File[]) => {
     for (const file of files) {
-      if (file.type !== 'application/pdf') {
+      if (!Object.keys(ALLOWED_FILE_TYPES).includes(file.type)) {
         toast({
           variant: "destructive",
           title: "Invalid file type",
-          description: "Please upload only PDF files."
+          description: "Please upload only PDF or image files (JPG, JPEG, PNG)."
         });
         return;
       }
@@ -80,6 +79,9 @@ export function DropZone({ onFilesSelected }: DropZoneProps) {
     }
   };
 
+  // Build the list of accepted file extensions
+  const acceptedFileTypes = Object.values(ALLOWED_FILE_TYPES).join(',');
+
   return (
     <div 
       className={`border-2 border-dashed rounded-lg p-8 transition-colors ${
@@ -95,18 +97,18 @@ export function DropZone({ onFilesSelected }: DropZoneProps) {
           <input
             type="file"
             className="hidden"
-            accept=".pdf"
+            accept={acceptedFileTypes}
             onChange={handleFileInput}
             multiple
           />
           <span className="text-sm text-gray-500">
-            Drop PDF files here or{" "}
+            Drop PDF or image files here or{" "}
             <span className="text-blue-600 hover:text-blue-700 underline">
               browse
             </span>
           </span>
           <p className="text-xs text-gray-400 mt-1">
-            Maximum file size: 5MB
+            Supported formats: PDF, JPG, PNG • Maximum file size: 5MB
           </p>
         </label>
       </div>
