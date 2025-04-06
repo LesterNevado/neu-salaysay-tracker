@@ -1,4 +1,3 @@
-
 import { extractPdfText } from "../pdf/extractPdfText";
 import enhanceDocumentInfo from "./determineViolationType";
 import { ViolationType } from "../../types/database.types";
@@ -55,6 +54,33 @@ function cleanName(name: string): string {
   return nameWithoutNumbers
     .replace(/\s{2,}/g, ' ')
     .trim();
+}
+
+/**
+ * Extract 1-2 sentences from a longer text
+ * @param text The text to extract from
+ */
+function extractFirstSentences(text: string, maxSentences: number = 2): string {
+  if (!text) return "";
+  
+  // Define sentence-ending patterns including period, exclamation, question mark
+  const sentenceEndingPattern = /[.!?]+["']?\s/g;
+  
+  // Find sentence endings
+  const matches = [...text.matchAll(sentenceEndingPattern)];
+  
+  if (matches.length === 0) {
+    // If no sentence endings found, return first 150 chars with ellipsis if needed
+    return text.length > 150 ? text.substring(0, 147) + "..." : text;
+  }
+  
+  // If we have fewer sentences than requested, use all of them
+  const sentencesToUse = Math.min(maxSentences, matches.length);
+  
+  // Get the end position of the nth sentence
+  const endIndex = matches[sentencesToUse - 1].index + matches[sentencesToUse - 1][0].length;
+  
+  return text.substring(0, endIndex).trim();
 }
 
 /**
@@ -257,7 +283,7 @@ function extractTagalogDocumentInfo(text: string, baseInfo: DocumentInfo): Docum
     }
   }
   
-  // Extract nature of excuse
+  // Extract nature of excuse - improved to get only 1-2 sentences
   baseInfo.natureOfExcuse = extractTagalogExcuseNature(text);
   console.log("Extracted nature of excuse:", baseInfo.natureOfExcuse);
   
@@ -265,7 +291,7 @@ function extractTagalogDocumentInfo(text: string, baseInfo: DocumentInfo): Docum
 }
 
 /**
- * Extract nature of excuse from Tagalog documents
+ * Extract nature of excuse from Tagalog documents - improved to get only 1-2 sentences
  */
 function extractTagalogExcuseNature(text: string): string {
   // Try to find content between addressee and "Ang inyong"
@@ -274,11 +300,8 @@ function extractTagalogExcuseNature(text: string): string {
   if (contentMatch && contentMatch[1]) {
     const content = contentMatch[1].trim();
     if (content.length > 20) {
-      // Return a condensed version if it's very long
-      if (content.length > 150) {
-        return content.substring(0, 147) + "...";
-      }
-      return content;
+      // Extract only the first 1-2 sentences for conciseness
+      return extractFirstSentences(content, 2);
     }
   }
   
@@ -287,22 +310,16 @@ function extractTagalogExcuseNature(text: string): string {
   if (salaysayMatch && salaysayMatch[1]) {
     const content = salaysayMatch[1].trim();
     if (content.length > 20) {
-      if (content.length > 150) {
-        return content.substring(0, 147) + "...";
-      }
-      return content;
+      return extractFirstSentences(content, 2);
     }
   }
   
-  // If no specific content found, try to get all content between position and signature
+  // If no specific content found, try to get content between position and signature
   const generalContentMatch = text.match(/Position[\r\n]+(.*?)[\r\n]+(?:Ang inyong|Sender)/is);
   if (generalContentMatch && generalContentMatch[1]) {
     const content = generalContentMatch[1].trim();
     if (content.length > 20) {
-      if (content.length > 150) {
-        return content.substring(0, 147) + "...";
-      }
-      return content;
+      return extractFirstSentences(content, 2);
     }
   }
   
@@ -335,10 +352,10 @@ function extractEnglishDocumentInfo(text: string, baseInfo: DocumentInfo): Docum
   // Extract student name - Focus precisely on what comes immediately after "Sincerely,"
   const namePatterns = [
     // Pattern specifically looking for name after "Sincerely," and a comma
-    /Sincerely,[\s\r\n]+([A-Z][a-z]+(?:[\s\r\n]+[A-Z][a-zA-Z\.-]+){0,3})(?![\s\r\n]+(?:hope|for|your|understanding|thank|you))/i,
+    /Sincerely,[\s\r\n]+([A-Z][a-z]+(?:[\s\r\n]+[A-Z][a-z\.-]+){0,3})(?![\s\r\n]+(?:hope|for|your|understanding|thank|you))/i,
     
     // Alternative with complimentary close followed by name
-    /(?:Respectfully|Regards|Yours truly|Thank you),[\s\r\n]+([A-Z][a-z]+(?:[\s\r\n]+[A-Z][a-zA-Z\.-]+){0,3})(?![\s\r\n]+(?:hope|for|your|understanding|thank|you))/i,
+    /(?:Respectfully|Regards|Yours truly|Thank you),[\s\r\n]+([A-Z][a-z]+(?:[\s\r\n]+[A-Z][a-z\.-]+){0,3})(?![\s\r\n]+(?:hope|for|your|understanding|thank|you))/i,
   ];
 
   let foundName = false;
@@ -420,7 +437,7 @@ function extractEnglishDocumentInfo(text: string, baseInfo: DocumentInfo): Docum
   // Extract addressee
   const addresseePatterns = [
     // Template format - specifically find "Dear Addressee"
-    /Dear[\s\n\r]+((?:Ma'am|Sir|Prof\.?|Professor|Dr\.?|Mr\.?|Ms\.?|Mrs\.?|Ma\.?)[^,\n\r]*)/i,
+    /Dear[\s\n\r]+((?:Ma'am|Sir|Prof\.?|Professor|Dr\.?|Mr\.?|Ms\.?|Ma\.?)[^,\n\r]*)/i,
     
     // Alternative with position
     /Dear[\s\n\r]+(.+?)(?:,|[\n\r]+Position)/i,
@@ -528,7 +545,7 @@ function extractEnglishDocumentInfo(text: string, baseInfo: DocumentInfo): Docum
     }
   }
 
-  // Extract nature of excuse
+  // Extract nature of excuse - improved to get only 1-2 sentences
   baseInfo.natureOfExcuse = extractEnglishExcuseNature(text);
   console.log("Extracted nature of excuse:", baseInfo.natureOfExcuse);
   
@@ -536,7 +553,7 @@ function extractEnglishDocumentInfo(text: string, baseInfo: DocumentInfo): Docum
 }
 
 /**
- * Extract the nature of excuse from English documents
+ * Extract the nature of excuse from English documents - improved to get only 1-2 sentences
  */
 function extractEnglishExcuseNature(text: string): string {
   // First, try to identify the main body content based on the template's structure
@@ -548,22 +565,19 @@ function extractEnglishExcuseNature(text: string): string {
     
     // If we found the main content, and it's substantive
     if (mainContent.length > 20 && !mainContent.match(/^Salaysay Content/i)) {
-      // Return a condensed version if it's very long
-      if (mainContent.length > 150) {
-        return mainContent.substring(0, 147) + "...";
-      }
-      return mainContent;
+      // Extract only the first 1-2 sentences
+      return extractFirstSentences(mainContent, 2);
     }
   }
   
   // If we didn't find the main content using the template structure,
   // try other patterns to extract excuse
   const excusePatterns = [
-    /(?:apologize|apology|sorry|regret)\s+for\s+([^.;:]{10,150})/i,
-    /(?:excuse|reason|explanation)\s+(?:is|for)\s+([^.;:]{10,150})/i,
-    /(?:regarding|concerning|about)\s+([^.;:]{10,150})/i,
-    /(?:request|ask)\s+(?:your|for)\s+(?:consideration|understanding)\s+(?:for|regarding)\s+([^.;:]{10,150})/i,
-    /I(?:'m| am)?\s+writing\s+(?:to\s+)?(?:you\s+)?(?:about|regarding|concerning)\s+([^.;:]{10,150})/i
+    /(?:apologize|apology|sorry|regret)\s+for\s+([^.;:]{10,150}[.!?])/i,
+    /(?:excuse|reason|explanation)\s+(?:is|for)\s+([^.;:]{10,150}[.!?])/i,
+    /(?:regarding|concerning|about)\s+([^.;:]{10,150}[.!?])/i,
+    /(?:request|ask)\s+(?:your|for)\s+(?:consideration|understanding)\s+(?:for|regarding)\s+([^.;:]{10,150}[.!?])/i,
+    /I(?:'m| am)?\s+writing\s+(?:to\s+)?(?:you\s+)?(?:about|regarding|concerning)\s+([^.;:]{10,150}[.!?])/i
   ];
   
   // Check each pattern
@@ -573,7 +587,7 @@ function extractEnglishExcuseNature(text: string): string {
       // Get the matched excuse
       const matchedExcuse = match[1] || match[0];
       if (matchedExcuse && matchedExcuse.trim().length > 5) {
-        return matchedExcuse.trim();
+        return extractFirstSentences(matchedExcuse.trim(), 1);
       }
     }
   }
@@ -583,11 +597,8 @@ function extractEnglishExcuseNature(text: string): string {
   if (generalContentMatch && generalContentMatch[1]) {
     const content = generalContentMatch[1].trim();
     if (content.length > 20) {
-      // Return a condensed version if very long
-      if (content.length > 150) {
-        return content.substring(0, 147) + "...";
-      }
-      return content;
+      // Extract only first 1-2 sentences
+      return extractFirstSentences(content, 2);
     }
   }
   

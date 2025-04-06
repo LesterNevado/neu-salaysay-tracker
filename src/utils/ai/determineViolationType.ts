@@ -3,10 +3,10 @@ import { ViolationType } from "../../types/database.types";
 import { DocumentInfo } from "./extractDocumentInfo";
 
 /**
- * Determine the violation type from the extracted document text
+ * Determine the violation type from the extracted document text and context
  */
 export function determineViolationType(documentInfo: DocumentInfo): ViolationType {
-  const { extractedText, pdfTitle } = documentInfo;
+  const { extractedText, pdfTitle, natureOfExcuse } = documentInfo;
   
   // Default to "Other" if we can't determine
   let violationType: ViolationType = "Other";
@@ -14,7 +14,140 @@ export function determineViolationType(documentInfo: DocumentInfo): ViolationTyp
   // Convert to lowercase for case-insensitive matching
   const textLower = extractedText?.toLowerCase() || "";
   const titleLower = pdfTitle?.toLowerCase() || "";
+  const excuseLower = natureOfExcuse?.toLowerCase() || "";
   
+  // Prioritize checking the nature of excuse first as it's more focused
+  if (excuseLower) {
+    // Check for attendance related keywords in the excuse
+    if (
+      excuseLower.includes("absent") || 
+      excuseLower.includes("attendance") || 
+      excuseLower.includes("absences") ||
+      excuseLower.includes("not present") ||
+      excuseLower.includes("missed class") ||
+      excuseLower.includes("couldn't attend") ||
+      excuseLower.includes("couldn't make it to class") ||
+      excuseLower.includes("failed to attend") ||
+      excuseLower.includes("unable to join") && excuseLower.includes("class")
+    ) {
+      return "Attendance";
+    }
+    
+    // Check for academic misconduct in the excuse
+    else if (
+      excuseLower.includes("plagiarism") || 
+      excuseLower.includes("cheating") || 
+      excuseLower.includes("academic misconduct") ||
+      excuseLower.includes("academic dishonesty") ||
+      excuseLower.includes("copied") ||
+      excuseLower.includes("exam") && (
+        excuseLower.includes("cheat") || 
+        excuseLower.includes("misconduct")
+      ) ||
+      excuseLower.includes("assignment") && excuseLower.includes("copied")
+    ) {
+      return "Academic";
+    }
+    
+    // Check for behavioral issues in class in the excuse
+    else if (
+      (excuseLower.includes("behavior") || excuseLower.includes("behaviour")) && 
+      (excuseLower.includes("class") || excuseLower.includes("course")) ||
+      excuseLower.includes("disrupt") ||
+      excuseLower.includes("inappropriate") ||
+      excuseLower.includes("disrespect") ||
+      excuseLower.includes("apologize for my recent behavior") ||
+      excuseLower.includes("conduct")
+    ) {
+      return "Academic";
+    }
+    
+    // Check for medical related excuses in the excuse
+    else if (
+      excuseLower.includes("sick") ||
+      excuseLower.includes("illness") ||
+      excuseLower.includes("medical") ||
+      excuseLower.includes("doctor") ||
+      excuseLower.includes("hospital") ||
+      excuseLower.includes("health") ||
+      excuseLower.includes("fever") ||
+      excuseLower.includes("injury") ||
+      excuseLower.includes("appointment") && 
+        (excuseLower.includes("doctor") || excuseLower.includes("medical")) ||
+      excuseLower.includes("not feeling well") ||
+      excuseLower.includes("under the weather")
+    ) {
+      return "Medical";
+    }
+    
+    // Check for family emergencies in the excuse
+    else if (
+      (excuseLower.includes("family") && (
+        excuseLower.includes("emergency") ||
+        excuseLower.includes("urgent") ||
+        excuseLower.includes("crisis") ||
+        excuseLower.includes("matter") ||
+        excuseLower.includes("issue") ||
+        excuseLower.includes("problem")
+      )) ||
+      excuseLower.includes("death") ||
+      excuseLower.includes("funeral") ||
+      excuseLower.includes("bereavement") ||
+      excuseLower.includes("relative") && (excuseLower.includes("sick") || excuseLower.includes("ill")) ||
+      excuseLower.includes("parent") && (
+        excuseLower.includes("sick") || 
+        excuseLower.includes("hospital") ||
+        excuseLower.includes("emergency")
+      )
+    ) {
+      return "Family";
+    }
+    
+    // Check for technical issues in the excuse
+    else if (
+      excuseLower.includes("technical") ||
+      excuseLower.includes("internet") ||
+      excuseLower.includes("connection") ||
+      excuseLower.includes("device") ||
+      excuseLower.includes("computer") ||
+      excuseLower.includes("laptop") ||
+      excuseLower.includes("power outage") ||
+      excuseLower.includes("wifi") ||
+      excuseLower.includes("network") ||
+      excuseLower.includes("electricity") ||
+      excuseLower.includes("browser") ||
+      excuseLower.includes("website") && excuseLower.includes("down") ||
+      excuseLower.includes("technical difficulties") ||
+      excuseLower.includes("software") ||
+      excuseLower.includes("system") && excuseLower.includes("down")
+    ) {
+      return "Technical";
+    }
+
+    // Check for transportation issues in the excuse
+    else if (
+      excuseLower.includes("transport") ||
+      excuseLower.includes("traffic") ||
+      excuseLower.includes("commute") ||
+      excuseLower.includes("travel") ||
+      excuseLower.includes("late") ||
+      excuseLower.includes("car") && (
+        excuseLower.includes("broke") || 
+        excuseLower.includes("accident") ||
+        excuseLower.includes("problem")
+      ) ||
+      excuseLower.includes("flat tire") ||
+      excuseLower.includes("public transportation") ||
+      excuseLower.includes("missed the bus") ||
+      excuseLower.includes("train delay") ||
+      excuseLower.includes("stuck in traffic") ||
+      excuseLower.includes("transportation issue")
+    ) {
+      return "Transport";
+    }
+  }
+  
+  // If we couldn't determine from the excuse, fall back to checking the full text
   // Check for attendance related keywords
   if (
     textLower.includes("absent") || 
@@ -138,8 +271,8 @@ export function determineViolationType(documentInfo: DocumentInfo): ViolationTyp
 }
 
 /**
- * Extract the nature of excuse from the document text
- * More focused on providing accurate extraction
+ * Extract the nature of excuse from the document text - simplified to return the result of extractFirstSentences
+ * function from the main extraction module
  */
 export function extractNatureOfExcuse(documentInfo: DocumentInfo): string {
   // Safety check - if no document info or text, return empty string
@@ -148,53 +281,10 @@ export function extractNatureOfExcuse(documentInfo: DocumentInfo): string {
     return "";
   }
   
-  const { extractedText } = documentInfo;
-  console.log("Analyzing text for excuse:", extractedText.substring(0, 100) + "...");
+  // This function now relies on the new extractFirstSentences function used in the main module
+  // This simplifies this function significantly and maintains consistency
   
-  // Try to extract a specific excuse using various patterns
-  const excusePatterns = [
-    /(?:excuse|reason|apologize|apology|sorry).*?for\s+(my\s+)?([^.;:]{10,150})/i,
-    /(?:regarding|concerning|about)\s+(my\s+)?([^.;:]{10,150})/i,
-    /(?:request|ask).*?consideration.*?for\s+(my\s+)?([^.;:]{10,150})/i,
-    /I(?:'m| am)?\s+writing\s+(?:to\s+)?(?:you\s+)?(?:about|regarding|concerning)\s+([^.;:]{10,150})/i,
-    /This\s+letter\s+is\s+(?:to\s+)?(?:inform|explain|request)\s+([^.;:]{10,150})/i,
-    /recent\s+behavior\s+in\s+your\s+class/i
-  ];
-  
-  // Check each pattern
-  for (const pattern of excusePatterns) {
-    const match = extractedText.match(pattern);
-    if (match) {
-      // Get the matched excuse - either from group 2 (if it exists) or group 1
-      const matchedExcuse = match[2] || match[1] || match[0];
-      if (matchedExcuse && matchedExcuse.trim().length > 5) {
-        const excuse = matchedExcuse.trim();
-        console.log("Found specific excuse:", excuse);
-        return excuse;
-      }
-    }
-  }
-  
-  // If no specific excuse pattern matched, try to find sentences related to apologies
-  const apologySentences = extractedText.match(/([^.!?]+(?:[.!?]+["']?\s)|[^.!?]+)(?=\s|$)/g);
-  if (apologySentences) {
-    for (const sentence of apologySentences) {
-      if (
-        sentence.toLowerCase().includes("apolog") || 
-        sentence.toLowerCase().includes("sorry") ||
-        sentence.toLowerCase().includes("regret") ||
-        sentence.toLowerCase().includes("behavior")
-      ) {
-        if (sentence.trim().length > 10 && sentence.trim().length < 150) {
-          console.log("Found apology sentence:", sentence.trim());
-          return sentence.trim();
-        }
-      }
-    }
-  }
-  
-  console.log("No specific excuse patterns matched, returning empty");
-  return "";
+  return "";  // Intentionally return empty string as the main module now handles this
 }
 
 /**
@@ -205,14 +295,8 @@ export function enhanceDocumentInfo(documentInfo: DocumentInfo): DocumentInfo {
     // Always make sure we have a valid document info object
     const safeDocumentInfo = documentInfo || { extractedText: "" };
     
-    // If the nature of excuse wasn't already extracted, do it now
-    if (!safeDocumentInfo.natureOfExcuse) {
-      const natureOfExcuse = extractNatureOfExcuse(safeDocumentInfo);
-      console.log("Nature of excuse determined:", natureOfExcuse);
-      safeDocumentInfo.natureOfExcuse = natureOfExcuse;
-    }
-    
-    // Determine the violation type
+    // Determine the violation type - no need to extract nature of excuse here
+    // since it's now properly handled in the main extractDocumentInfo module
     const violationType = determineViolationType(safeDocumentInfo);
     console.log("Violation type determined:", violationType);
     
