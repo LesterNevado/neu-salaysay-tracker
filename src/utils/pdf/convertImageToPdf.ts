@@ -1,4 +1,3 @@
-
 import { jsPDF } from 'jspdf';
 import { createWorker } from 'tesseract.js';
 
@@ -46,7 +45,15 @@ export async function convertImageToPdf(imageFile: File): Promise<File> {
     const ocrResult = await performOCR(imageFile);
     console.log("OCR completed with text:", ocrResult.text.substring(0, 100) + "...");
     
-    // Add the image to the PDF first
+    // IMPORTANT CHANGE: First add the text layer (which will be behind other elements)
+    // If we have OCR text, add it as an invisible text layer for searchability
+    if (ocrResult.text.trim()) {
+      // Add invisible text layer that makes the PDF searchable
+      // Position text layer at the bottom of the page to keep it out of view
+      addInvisibleTextLayerToPdf(doc, ocrResult.text, x, pageHeight - 20, imgWidth, 10);
+    }
+    
+    // THEN add the image on top of the text layer
     doc.addImage(
       imageDataUrl,
       imageFile.type === 'image/png' ? 'PNG' : 'JPEG',
@@ -55,13 +62,6 @@ export async function convertImageToPdf(imageFile: File): Promise<File> {
       imgWidth,
       imgHeight
     );
-    
-    // If we have OCR text, add it as an invisible text layer for searchability
-    if (ocrResult.text.trim()) {
-      // Add invisible text layer that makes the PDF searchable
-      // Overlay directly on top of the image with 0 opacity
-      addInvisibleTextLayerToPdf(doc, ocrResult.text, x, y, imgWidth, imgHeight);
-    }
     
     // Generate the PDF as a blob
     const pdfBlob = doc.output('blob');
@@ -125,18 +125,17 @@ async function performOCR(imageFile: File): Promise<{ text: string }> {
  * @param height The height of the text area
  */
 function addInvisibleTextLayerToPdf(doc: jsPDF, text: string, x: number, y: number, width: number, height: number) {
-  // Set text color to white with 0 opacity (completely invisible)
+  // Set text color to transparent (completely invisible)
   doc.setTextColor(255, 255, 255, 0);
 
-  // Calculate font size based on image size to better match text positioning
-  // This is a heuristic - actual text positioning would require more complex layout analysis
-  const fontSize = Math.max(width / 100, 8); // Dynamic font size based on image width
+  // Use a very small font size to reduce visual impact if it does appear
+  const fontSize = 1;
   doc.setFontSize(fontSize);
   
   // Split text into words
   const words = text.split(/\s+/);
   
-  // Calculate approximate characters per line based on image width
+  // Calculate approximate characters per line (not critical since text is invisible)
   const avgCharWidth = doc.getStringUnitWidth('a') * fontSize / doc.internal.scaleFactor;
   const charsPerLine = Math.floor(width / avgCharWidth);
   
@@ -144,7 +143,7 @@ function addInvisibleTextLayerToPdf(doc: jsPDF, text: string, x: number, y: numb
   let currentLine = '';
   let currentLineLength = 0;
   const lineHeight = fontSize * 1.2 / doc.internal.scaleFactor;
-  let currentY = y + fontSize; // Start at the top of the image
+  let currentY = y + fontSize;
   
   // Process each word
   words.forEach(word => {
