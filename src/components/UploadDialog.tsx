@@ -106,7 +106,7 @@ export function UploadDialog({ isOpen, onClose, userId, onUploadComplete }: Uplo
               <Button
                 onClick={handleUpload}
                 className="px-6"
-                disabled={uploads.length === 0}
+                disabled={uploads.length === 0 || uploads.some(upload => ['converting', 'ocr-processing', 'uploading', 'analyzing'].includes(upload.status))}
               >
                 Upload files
               </Button>

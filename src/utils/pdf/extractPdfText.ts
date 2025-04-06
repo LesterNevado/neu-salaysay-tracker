@@ -30,8 +30,9 @@ export async function extractPdfText(file: File): Promise<string> {
       console.log(`Processing page ${i} of ${pdf.numPages}`);
       const page = await pdf.getPage(i);
       
-      // Get text content
+      // Get text content with compatible options
       const textContent = await page.getTextContent();
+      
       console.log(`Text content extracted from page ${i}, items:`, textContent.items.length);
       
       // Process text with better layout preservation
@@ -66,7 +67,13 @@ export async function extractPdfText(file: File): Promise<string> {
       .trim();                         // Trim leading/trailing whitespace
     
     console.log('Extraction complete. Text length:', fullText.length);
-    console.log('Extracted text sample:', fullText.substring(0, 200) + '...');
+    
+    // If text was extracted, log a sample
+    if (fullText.length > 0) {
+      console.log('Extracted text sample:', fullText.substring(0, 200) + '...');
+    } else {
+      console.log('No text was extracted from the PDF');
+    }
     
     // Return the text content or a message if empty
     if (!fullText || fullText.trim() === '') {

@@ -4,7 +4,7 @@ import { ViolationType } from "@/types/database.types";
 export interface FileUpload {
   file: File;
   progress: number;
-  status: 'pending' | 'analyzing' | 'uploading' | 'converting' | 'completed' | 'error';
+  status: 'pending' | 'analyzing' | 'uploading' | 'converting' | 'ocr-processing' | 'completed' | 'error';
   violationType?: ViolationType;
   extractedInfo?: {
     studentNumber?: string;
