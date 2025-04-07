@@ -1,3 +1,4 @@
+
 import { jsPDF } from 'jspdf';
 import { createWorker } from 'tesseract.js';
 
@@ -49,8 +50,7 @@ export async function convertImageToPdf(imageFile: File): Promise<File> {
     // If we have OCR text, add it as an invisible text layer for searchability
     if (ocrResult.text.trim()) {
       // Add invisible text layer that makes the PDF searchable
-      // Position text layer at the bottom of the page to keep it out of view
-      addInvisibleTextLayerToPdf(doc, ocrResult.text, x, pageHeight - 20, imgWidth, 10);
+      addInvisibleTextLayerToPdf(doc, ocrResult.text, x, y, imgWidth, imgHeight);
     }
     
     // THEN add the image on top of the text layer
@@ -119,23 +119,23 @@ async function performOCR(imageFile: File): Promise<{ text: string }> {
  * Adds an invisible text layer to the PDF for searchability
  * @param doc The jsPDF document
  * @param text The OCR text to add
- * @param x The x position
- * @param y The y position
- * @param width The width of the text area
- * @param height The height of the text area
+ * @param x The x position (same as image)
+ * @param y The y position (same as image)
+ * @param width The width of the text area (same as image)
+ * @param height The height of the text area (same as image)
  */
 function addInvisibleTextLayerToPdf(doc: jsPDF, text: string, x: number, y: number, width: number, height: number) {
-  // Set text color to transparent (completely invisible)
+  // Set text color to white with 0 opacity (completely invisible)
   doc.setTextColor(255, 255, 255, 0);
 
-  // Use a very small font size to reduce visual impact if it does appear
-  const fontSize = 1;
+  // Use a reasonable font size that won't affect layout
+  const fontSize = 12;
   doc.setFontSize(fontSize);
   
-  // Split text into words
+  // Split text into words and then lines
   const words = text.split(/\s+/);
   
-  // Calculate approximate characters per line (not critical since text is invisible)
+  // Calculate approximate characters per line based on image width
   const avgCharWidth = doc.getStringUnitWidth('a') * fontSize / doc.internal.scaleFactor;
   const charsPerLine = Math.floor(width / avgCharWidth);
   
@@ -143,7 +143,10 @@ function addInvisibleTextLayerToPdf(doc: jsPDF, text: string, x: number, y: numb
   let currentLine = '';
   let currentLineLength = 0;
   const lineHeight = fontSize * 1.2 / doc.internal.scaleFactor;
-  let currentY = y + fontSize;
+  let currentY = y + fontSize; // Start at the top of the image area
+  
+  // Maximum Y position (don't go beyond image height)
+  const maxY = y + height;
   
   // Process each word
   words.forEach(word => {
@@ -152,7 +155,7 @@ function addInvisibleTextLayerToPdf(doc: jsPDF, text: string, x: number, y: numb
     // If adding this word would exceed the line width, add the current line to the PDF
     if (currentLineLength + wordLength > charsPerLine) {
       // Only add the line if within the image area
-      if (currentY < y + height) {
+      if (currentY < maxY) {
         doc.text(currentLine, x, currentY);
         currentY += lineHeight;
       }
@@ -166,7 +169,7 @@ function addInvisibleTextLayerToPdf(doc: jsPDF, text: string, x: number, y: numb
   });
   
   // Add the last line if not empty and within image area
-  if (currentLine.trim() !== '' && currentY < y + height) {
+  if (currentLine.trim() !== '' && currentY < maxY) {
     doc.text(currentLine, x, currentY);
   }
 }
