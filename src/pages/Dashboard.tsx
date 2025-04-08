@@ -81,7 +81,6 @@ export default function Dashboard() {
     id: null,
   });
 
-  const [showStatisticsInFilter, setShowStatisticsInFilter] = useState(true);
   const [showStatisticsInMain, setShowStatisticsInMain] = useState(true);
 
   useEffect(() => {
@@ -146,7 +145,34 @@ export default function Dashboard() {
             }>
           };
 
-          data.forEach(file => {
+          let filteredData = data;
+          
+          if (filters.keyword) {
+            const searchTerm = filters.keyword.toLowerCase();
+            filteredData = data.filter(file => {
+              if (file.metadata) {
+                const metadata = file.metadata as any;
+                if (metadata.sender_name && metadata.sender_name.toLowerCase().includes(searchTerm)) {
+                  return true;
+                }
+                if (metadata.student_number && metadata.student_number.toLowerCase().includes(searchTerm)) {
+                  return true;
+                }
+                if (metadata.excuse_description && metadata.excuse_description.toLowerCase().includes(searchTerm)) {
+                  return true;
+                }
+                if (metadata.addressee && metadata.addressee.toLowerCase().includes(searchTerm)) {
+                  return true;
+                }
+                if (metadata.incident_date && metadata.incident_date.toLowerCase().includes(searchTerm)) {
+                  return true;
+                }
+              }
+              return false;
+            });
+          }
+          
+          filteredData.forEach(file => {
             if (file.violation_type) {
               stats.violationTypeCounts[file.violation_type] = 
                 (stats.violationTypeCounts[file.violation_type] || 0) + 1;
@@ -174,7 +200,11 @@ export default function Dashboard() {
             }
           });
 
-          setFileStats(stats);
+          setFileStats({
+            totalFiles: filteredData.length,
+            violationTypeCounts: stats.violationTypeCounts,
+            senderNames: stats.senderNames
+          });
         }
       } catch (error) {
         console.error("Error fetching file statistics:", error);
@@ -501,42 +531,6 @@ export default function Dashboard() {
                       </div>
 
                       <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <Label htmlFor="show-statistics-filter" className="text-sm flex items-center gap-2">
-                            <BarChart className="h-4 w-4 text-blue-500" />
-                            <span>Show Files Statistics</span>
-                          </Label>
-                          <Switch 
-                            id="show-statistics-filter" 
-                            checked={showStatisticsInFilter} 
-                            onCheckedChange={setShowStatisticsInFilter}
-                          />
-                        </div>
-                      </div>
-
-                      {showStatisticsInFilter && (
-                        <div className="space-y-2 bg-blue-50 p-3 rounded-md border border-blue-100">
-                          <div className="bg-white p-2 rounded border border-blue-100">
-                            <p className="text-xs font-medium text-gray-500">Total Files</p>
-                            <p className="text-xl font-bold text-blue-600">{fileStats.totalFiles}</p>
-                          </div>
-                          <div className="bg-white p-2 rounded border border-blue-100">
-                            <p className="text-xs font-medium text-gray-500 mb-1">By Classification</p>
-                            <div className="space-y-1">
-                              {Object.entries(fileStats.violationTypeCounts)
-                                .sort((a, b) => b[1] - a[1]) // Sort by count descending
-                                .map(([type, count]) => (
-                                <div key={type} className="flex justify-between items-center">
-                                  <span className="text-xs text-gray-600">{type}</span>
-                                  <Badge variant="outline" className="text-xs bg-blue-50">{count}</Badge>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="space-y-2">
                         <h5 className="text-sm font-medium">Search by Keyword</h5>
                         <div className="relative">
                           <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
@@ -680,7 +674,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {showStatisticsInMain && (hasActiveFilters || keywordFilter) && (
+          {showStatisticsInMain && (
             <div className="mb-6">
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
                 <FileStatistics 
