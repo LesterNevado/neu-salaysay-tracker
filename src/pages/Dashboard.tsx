@@ -1,9 +1,10 @@
+
 import { useEffect, useState, useCallback, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { Send, User, Users, ActivitySquare, FileIcon, Filter, Calendar, Search, ChevronDown } from "lucide-react";
+import { Send, User, Users, ActivitySquare, FileIcon, Filter, Calendar, Search, ChevronDown, BarChart } from "lucide-react";
 import { UploadDialog } from "@/components/UploadDialog";
 import { FileExplorer } from "@/components/salaysay/FileExplorer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -30,6 +31,7 @@ import { AuthContext } from "@/App";
 import { logLogoutActivity } from "@/utils/activity";
 import { VIOLATION_TYPES } from "@/components/upload/types";
 import { setupSalaysayStorageBucket } from "@/integrations/supabase/setupStorage";
+import { Badge } from "@/components/ui/badge";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -55,6 +57,13 @@ export default function Dashboard() {
     userId: null,
     keyword: ""
   });
+  const [fileStats, setFileStats] = useState<{
+    totalFiles: number;
+    violationTypeCounts: Record<string, number>;
+  }>({
+    totalFiles: 0,
+    violationTypeCounts: {}
+  });
   const [userProfile, setUserProfile] = useState<{
     email: string | null;
     fullName: string | null;
@@ -66,6 +75,9 @@ export default function Dashboard() {
     avatarUrl: null,
     id: null,
   });
+
+  // Fetch files statistics for the filter menu
+  const [showStatisticsInFilter, setShowStatisticsInFilter] = useState(true);
 
   useEffect(() => {
     if (showAllUsers) {
@@ -89,6 +101,63 @@ export default function Dashboard() {
       fetchUsers();
     }
   }, [showAllUsers]);
+
+  // Fetch file statistics when filters change
+  useEffect(() => {
+    const fetchFileStats = async () => {
+      try {
+        let query = supabase
+          .from('salaysay_submissions')
+          .select('violation_type, metadata')
+          .order('created_at', { ascending: false });
+        
+        if (!showAllUsers) {
+          query = query.eq('user_id', userProfile.id || '');
+        } else if (filters.userId) {
+          query = query.eq('user_id', filters.userId);
+        }
+
+        if (filters.startDate) {
+          query = query.gte('created_at', `${format(filters.startDate, 'yyyy-MM-dd')}T00:00:00`);
+        }
+        
+        if (filters.endDate) {
+          query = query.lte('created_at', `${format(filters.endDate, 'yyyy-MM-dd')}T23:59:59`);
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+          console.error("Error fetching file stats:", error);
+          return;
+        }
+
+        if (data) {
+          // Count total files and files by violation type
+          const stats = {
+            totalFiles: data.length,
+            violationTypeCounts: {} as Record<string, number>
+          };
+
+          // Calculate counts by violation type
+          data.forEach(file => {
+            if (file.violation_type) {
+              stats.violationTypeCounts[file.violation_type] = 
+                (stats.violationTypeCounts[file.violation_type] || 0) + 1;
+            }
+          });
+
+          setFileStats(stats);
+        }
+      } catch (error) {
+        console.error("Error fetching file statistics:", error);
+      }
+    };
+
+    if (userProfile.id) {
+      fetchFileStats();
+    }
+  }, [filters.startDate, filters.endDate, filters.userId, userProfile.id, showAllUsers]);
 
   useEffect(() => {
     const checkUser = async () => {
@@ -403,6 +472,39 @@ export default function Dashboard() {
                           </Button>
                         )}
                       </div>
+
+                      {/* Statistics Display in Filter Menu */}
+                      {showStatisticsInFilter && (
+                        <div className="space-y-2 bg-blue-50 p-3 rounded-md border border-blue-100">
+                          <div className="flex items-center gap-2 text-blue-700">
+                            <BarChart className="h-4 w-4" />
+                            <span className="text-sm font-medium">Files Statistics</span>
+                            <Switch 
+                              id="show-statistics" 
+                              checked={showStatisticsInFilter} 
+                              onCheckedChange={setShowStatisticsInFilter}
+                              className="ml-auto h-4 w-7"
+                            />
+                          </div>
+                          <div className="bg-white p-2 rounded border border-blue-100">
+                            <p className="text-xs font-medium text-gray-500">Total Files</p>
+                            <p className="text-xl font-bold text-blue-600">{fileStats.totalFiles}</p>
+                          </div>
+                          <div className="bg-white p-2 rounded border border-blue-100">
+                            <p className="text-xs font-medium text-gray-500 mb-1">By Classification</p>
+                            <div className="space-y-1">
+                              {Object.entries(fileStats.violationTypeCounts)
+                                .sort((a, b) => b[1] - a[1]) // Sort by count descending
+                                .map(([type, count]) => (
+                                <div key={type} className="flex justify-between items-center">
+                                  <span className="text-xs text-gray-600">{type}</span>
+                                  <Badge variant="outline" className="text-xs bg-blue-50">{count}</Badge>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
                       <div className="space-y-2">
                         <h5 className="text-sm font-medium">Search by Keyword</h5>
