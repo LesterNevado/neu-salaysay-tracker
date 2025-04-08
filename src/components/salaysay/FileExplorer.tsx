@@ -1,7 +1,6 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Trash, FileIcon, Loader2, Eye, ChevronDown, ChevronRight, Info, BarChart } from "lucide-react";
+import { Trash, FileIcon, Loader2, Eye, ChevronDown, ChevronRight, Info } from "lucide-react";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { 
@@ -25,6 +24,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Json } from "@/integrations/supabase/types";
+import { FileStatistics } from "./FileStatistics";
 
 type SalaysayFile = {
   id: string;
@@ -325,15 +325,6 @@ export function FileExplorer({
       .substring(0, 2);
   };
 
-  const getConfidenceColor = (confidence?: 'high' | 'medium' | 'low') => {
-    switch (confidence) {
-      case 'high': return 'bg-green-100 text-green-800';
-      case 'medium': return 'bg-yellow-100 text-yellow-800';
-      case 'low': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   const toggleExpandRow = (fileId: string) => {
     setExpandedFileId(expandedFileId === fileId ? null : fileId);
   };
@@ -356,74 +347,6 @@ export function FileExplorer({
     }
     
     return undefined;
-  };
-
-  // Render statistics based on current filters
-  const renderStatistics = () => {
-    // Only show statistics when a search term is applied or filters are active
-    if (keywordFilter || violationTypeFilters.length > 0) {
-      return (
-        <tr>
-          <td colSpan={5} className="px-4 py-3 bg-blue-50 border-t border-blue-100">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-blue-700">
-                <BarChart className="h-4 w-4" />
-                <span className="font-medium">File Statistics</span>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                <div className="bg-white p-3 rounded-md border border-blue-100 shadow-sm">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Total Matching Files</h4>
-                  <p className="text-2xl font-bold text-blue-600">{fileStats.totalFiles}</p>
-                </div>
-                
-                <div className="bg-white p-3 rounded-md border border-blue-100 shadow-sm">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">By Classification</h4>
-                  <div className="space-y-1">
-                    {Object.entries(fileStats.violationTypeCounts).map(([type, count]) => (
-                      <div key={type} className="flex justify-between items-center">
-                        <span className="text-sm text-gray-600">{type}</span>
-                        <Badge variant="outline" className="bg-blue-50">{count}</Badge>
-                      </div>
-                    ))}
-                    {Object.keys(fileStats.violationTypeCounts).length === 0 && (
-                      <p className="text-sm text-gray-500">No classification data</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-              
-              {/* Show sender name statistics if keyword search is active */}
-              {keywordFilter && fileStats.senderNames && Object.keys(fileStats.senderNames).length > 0 && (
-                <div className="bg-white p-3 rounded-md border border-blue-100 shadow-sm mt-2">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Sender Analysis</h4>
-                  <div className="space-y-3">
-                    {Object.entries(fileStats.senderNames).map(([name, data]) => (
-                      <div key={name} className="pb-2 border-b border-gray-100 last:border-0">
-                        <div className="flex justify-between items-center mb-1">
-                          <span className="font-medium">{name}</span>
-                          <Badge variant="outline" className="bg-blue-50">{data.count} file(s)</Badge>
-                        </div>
-                        <div className="pl-2 space-y-1">
-                          {Object.entries(data.violationTypes).map(([type, count]) => (
-                            <div key={`${name}-${type}`} className="flex justify-between items-center text-xs">
-                              <span className="text-gray-600">{type}</span>
-                              <span className="text-gray-700">{count}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </td>
-        </tr>
-      );
-    }
-    
-    return null;
   };
 
   if (loading) {
@@ -460,9 +383,6 @@ export function FileExplorer({
 
   return (
     <>
-      {/* Statistics row */}
-      {renderStatistics()}
-      
       {filteredFiles.map((file) => {
         const uploader = userProfiles[file.user_id];
         const isExpanded = expandedFileId === file.id;

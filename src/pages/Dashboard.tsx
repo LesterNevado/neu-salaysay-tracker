@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useCallback, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -7,6 +6,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { Send, User, Users, ActivitySquare, FileIcon, Filter, Calendar, Search, ChevronDown, BarChart } from "lucide-react";
 import { UploadDialog } from "@/components/UploadDialog";
 import { FileExplorer } from "@/components/salaysay/FileExplorer";
+import { FileStatistics } from "@/components/salaysay/FileStatistics";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Tooltip,
@@ -32,6 +32,7 @@ import { logLogoutActivity } from "@/utils/activity";
 import { VIOLATION_TYPES } from "@/components/upload/types";
 import { setupSalaysayStorageBucket } from "@/integrations/supabase/setupStorage";
 import { Badge } from "@/components/ui/badge";
+import { Toggle } from "@/components/ui/toggle";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -60,6 +61,10 @@ export default function Dashboard() {
   const [fileStats, setFileStats] = useState<{
     totalFiles: number;
     violationTypeCounts: Record<string, number>;
+    senderNames?: Record<string, {
+      count: number;
+      violationTypes: Record<string, number>;
+    }>;
   }>({
     totalFiles: 0,
     violationTypeCounts: {}
@@ -76,8 +81,8 @@ export default function Dashboard() {
     id: null,
   });
 
-  // Fetch files statistics for the filter menu
   const [showStatisticsInFilter, setShowStatisticsInFilter] = useState(true);
+  const [showStatisticsInMain, setShowStatisticsInMain] = useState(true);
 
   useEffect(() => {
     if (showAllUsers) {
@@ -102,7 +107,6 @@ export default function Dashboard() {
     }
   }, [showAllUsers]);
 
-  // Fetch file statistics when filters change
   useEffect(() => {
     const fetchFileStats = async () => {
       try {
@@ -133,17 +137,40 @@ export default function Dashboard() {
         }
 
         if (data) {
-          // Count total files and files by violation type
           const stats = {
             totalFiles: data.length,
-            violationTypeCounts: {} as Record<string, number>
+            violationTypeCounts: {} as Record<string, number>,
+            senderNames: {} as Record<string, {
+              count: number;
+              violationTypes: Record<string, number>;
+            }>
           };
 
-          // Calculate counts by violation type
           data.forEach(file => {
             if (file.violation_type) {
               stats.violationTypeCounts[file.violation_type] = 
                 (stats.violationTypeCounts[file.violation_type] || 0) + 1;
+            }
+            
+            if (filters.keyword && file.metadata) {
+              const metadata = file.metadata as any;
+              if (metadata.sender_name) {
+                const senderName = metadata.sender_name;
+                
+                if (!stats.senderNames[senderName]) {
+                  stats.senderNames[senderName] = {
+                    count: 0,
+                    violationTypes: {}
+                  };
+                }
+                
+                stats.senderNames[senderName].count += 1;
+                
+                if (file.violation_type) {
+                  stats.senderNames[senderName].violationTypes[file.violation_type] = 
+                    (stats.senderNames[senderName].violationTypes[file.violation_type] || 0) + 1;
+                }
+              }
             }
           });
 
@@ -157,7 +184,7 @@ export default function Dashboard() {
     if (userProfile.id) {
       fetchFileStats();
     }
-  }, [filters.startDate, filters.endDate, filters.userId, userProfile.id, showAllUsers]);
+  }, [filters.startDate, filters.endDate, filters.userId, filters.keyword, userProfile.id, showAllUsers]);
 
   useEffect(() => {
     const checkUser = async () => {
@@ -473,19 +500,22 @@ export default function Dashboard() {
                         )}
                       </div>
 
-                      {/* Statistics Display in Filter Menu */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="show-statistics-filter" className="text-sm flex items-center gap-2">
+                            <BarChart className="h-4 w-4 text-blue-500" />
+                            <span>Show Files Statistics</span>
+                          </Label>
+                          <Switch 
+                            id="show-statistics-filter" 
+                            checked={showStatisticsInFilter} 
+                            onCheckedChange={setShowStatisticsInFilter}
+                          />
+                        </div>
+                      </div>
+
                       {showStatisticsInFilter && (
                         <div className="space-y-2 bg-blue-50 p-3 rounded-md border border-blue-100">
-                          <div className="flex items-center gap-2 text-blue-700">
-                            <BarChart className="h-4 w-4" />
-                            <span className="text-sm font-medium">Files Statistics</span>
-                            <Switch 
-                              id="show-statistics" 
-                              checked={showStatisticsInFilter} 
-                              onCheckedChange={setShowStatisticsInFilter}
-                              className="ml-auto h-4 w-7"
-                            />
-                          </div>
                           <div className="bg-white p-2 rounded border border-blue-100">
                             <p className="text-xs font-medium text-gray-500">Total Files</p>
                             <p className="text-xl font-bold text-blue-600">{fileStats.totalFiles}</p>
@@ -636,6 +666,30 @@ export default function Dashboard() {
               </Popover>
             </div>
           </div>
+
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Toggle 
+                pressed={showStatisticsInMain}
+                onPressedChange={setShowStatisticsInMain}
+                className={`data-[state=on]:bg-blue-50 data-[state=on]:text-blue-700`}
+              >
+                <BarChart className="h-4 w-4 mr-1" />
+                File Statistics
+              </Toggle>
+            </div>
+          </div>
+
+          {showStatisticsInMain && (hasActiveFilters || keywordFilter) && (
+            <div className="mb-6">
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                <FileStatistics 
+                  stats={fileStats} 
+                  keywordFilter={filters.keyword} 
+                />
+              </div>
+            </div>
+          )}
 
           <div className="border rounded-lg overflow-hidden">
             <table className="w-full">
