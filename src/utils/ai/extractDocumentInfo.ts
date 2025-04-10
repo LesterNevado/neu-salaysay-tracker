@@ -1,3 +1,4 @@
+
 import { extractPdfText } from "../pdf/extractPdfText";
 import enhanceDocumentInfo from "./determineViolationType";
 import { ViolationType } from "../../types/database.types";
@@ -119,8 +120,8 @@ export async function extractDocumentInfo(file: File): Promise<DocumentInfo> {
       console.log("Cleaned student name:", documentInfo.studentName);
     }
 
-    // Enhance the document info
-    const enhancedInfo = enhanceDocumentInfo(documentInfo);
+    // Enhance the document info - this is now async for the translation step
+    const enhancedInfo = await enhanceDocumentInfo(documentInfo);
     console.log("Enhanced document info:", enhancedInfo);
     
     // Log the extraction results
@@ -131,7 +132,8 @@ export async function extractDocumentInfo(file: File): Promise<DocumentInfo> {
       date: enhancedInfo.submissionDate,
       natureOfExcuse: enhancedInfo.natureOfExcuse,
       confidence: "high",
-      language: enhancedInfo.language
+      language: enhancedInfo.language,
+      violationType: enhancedInfo.violationType
     });
     
     return enhancedInfo;

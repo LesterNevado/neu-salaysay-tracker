@@ -3,18 +3,75 @@ import { ViolationType } from "../../types/database.types";
 import { DocumentInfo } from "./extractDocumentInfo";
 
 /**
+ * Translate text from Tagalog to English using LibreTranslate API
+ */
+export async function translateTagalogToEnglish(text: string): Promise<string> {
+  if (!text) return "";
+  
+  try {
+    console.log("Translating Tagalog text to English...");
+    
+    // Use LibreTranslate API for translation
+    const response = await fetch("https://libretranslate.com/translate", {
+      method: "POST",
+      body: JSON.stringify({
+        q: text,
+        source: "tl", // Tagalog
+        target: "en", // English
+        format: "text"
+      }),
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
+    
+    if (!response.ok) {
+      console.error("Translation API error:", response.status, response.statusText);
+      return text; // Return original text if translation fails
+    }
+    
+    const data = await response.json();
+    console.log("Translation successful");
+    return data.translatedText || text;
+  } catch (error) {
+    console.error("Translation error:", error);
+    return text; // Return original text if translation fails
+  }
+}
+
+/**
  * Determine the violation type from the extracted document text and context
  */
-export function determineViolationType(documentInfo: DocumentInfo): ViolationType {
-  const { extractedText, pdfTitle, natureOfExcuse } = documentInfo;
+export async function determineViolationType(documentInfo: DocumentInfo): Promise<ViolationType> {
+  const { extractedText, pdfTitle, natureOfExcuse, language } = documentInfo;
   
   // Default to "Other" if we can't determine
   let violationType: ViolationType = "Other";
   
+  // If the document is in Tagalog, translate the relevant parts to English first
+  let textToAnalyze = extractedText || "";
+  let excuseToAnalyze = natureOfExcuse || "";
+  
+  if (language === "Tagalog") {
+    console.log("Detected Tagalog document, translating before analysis");
+    
+    // Translate the nature of excuse if available (this is most important)
+    if (natureOfExcuse) {
+      excuseToAnalyze = await translateTagalogToEnglish(natureOfExcuse);
+      console.log("Translated nature of excuse:", excuseToAnalyze);
+    }
+    
+    // Only translate the full text if the nature of excuse is not available or very short
+    if (!natureOfExcuse || natureOfExcuse.length < 20) {
+      textToAnalyze = await translateTagalogToEnglish(extractedText || "");
+      console.log("Translated full text (excerpt):", textToAnalyze.substring(0, 100) + "...");
+    }
+  }
+  
   // Convert to lowercase for case-insensitive matching
-  const textLower = extractedText?.toLowerCase() || "";
+  const textLower = textToAnalyze.toLowerCase();
   const titleLower = pdfTitle?.toLowerCase() || "";
-  const excuseLower = natureOfExcuse?.toLowerCase() || "";
+  const excuseLower = excuseToAnalyze.toLowerCase();
   
   // Prioritize checking the nature of excuse first as it's more focused
   if (excuseLower) {
@@ -290,14 +347,13 @@ export function extractNatureOfExcuse(documentInfo: DocumentInfo): string {
 /**
  * Update the document info with the violation type and nature of excuse
  */
-export function enhanceDocumentInfo(documentInfo: DocumentInfo): DocumentInfo {
+export async function enhanceDocumentInfo(documentInfo: DocumentInfo): Promise<DocumentInfo> {
   try {
     // Always make sure we have a valid document info object
     const safeDocumentInfo = documentInfo || { extractedText: "" };
     
-    // Determine the violation type - no need to extract nature of excuse here
-    // since it's now properly handled in the main extractDocumentInfo module
-    const violationType = determineViolationType(safeDocumentInfo);
+    // Determine the violation type - we now use async/await for translation
+    const violationType = await determineViolationType(safeDocumentInfo);
     console.log("Violation type determined:", violationType);
     
     // Return the enhanced document info

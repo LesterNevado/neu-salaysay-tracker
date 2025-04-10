@@ -107,7 +107,7 @@ export function useFileUpload(userId: string) {
       // First ensure the file is in PDF format
       const pdfFile = await ensurePdfFormat(file);
 
-      // Extract document information
+      // Extract document information - now returns a Promise with the translated and classified document
       const extractedInfo = await extractDocumentInfo(pdfFile);
       console.log("Document info extraction complete:", extractedInfo);
       
@@ -128,7 +128,8 @@ export function useFileUpload(userId: string) {
                   natureOfExcuse: natureOfExcuse,
                   addressee: extractedInfo.addressee,
                   confidence: 'high',
-                  language: extractedInfo.language
+                  language: extractedInfo.language,
+                  violationType: extractedInfo.violationType
                 }
               }
             : upload
@@ -142,7 +143,8 @@ export function useFileUpload(userId: string) {
         natureOfExcuse: natureOfExcuse,
         addressee: extractedInfo.addressee,
         confidence: 'high',
-        language: extractedInfo.language
+        language: extractedInfo.language,
+        violationType: extractedInfo.violationType
       });
       
       return extractedInfo;
