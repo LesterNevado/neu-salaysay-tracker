@@ -3,36 +3,37 @@ import { ViolationType } from "../../types/database.types";
 import { DocumentInfo } from "./extractDocumentInfo";
 
 /**
- * Translate text from Tagalog to English using LibreTranslate API
+ * Translate text from Tagalog to English using an alternative translation service
+ * Since LibreTranslate is giving 400 errors, we'll use MyMemory translation API
+ * which is free and doesn't require authentication for limited usage
  */
 export async function translateTagalogToEnglish(text: string): Promise<string> {
-  if (!text) return "";
+  if (!text || text.trim().length === 0) return "";
   
   try {
     console.log("Translating Tagalog text to English...");
     
-    // Use LibreTranslate API for translation
-    const response = await fetch("https://libretranslate.com/translate", {
-      method: "POST",
-      body: JSON.stringify({
-        q: text,
-        source: "tl", // Tagalog
-        target: "en", // English
-        format: "text"
-      }),
-      headers: {
-        "Content-Type": "application/json"
-      }
-    });
+    // Use MyMemory Translation API instead of LibreTranslate
+    const encodedText = encodeURIComponent(text);
+    const url = `https://api.mymemory.translated.net/get?q=${encodedText}&langpair=tl|en`;
+    
+    const response = await fetch(url);
     
     if (!response.ok) {
       console.error("Translation API error:", response.status, response.statusText);
-      return text; // Return original text if translation fails
+      // Return original text if translation fails
+      return text;
     }
     
     const data = await response.json();
-    console.log("Translation successful");
-    return data.translatedText || text;
+    
+    if (data.responseStatus === 200 && data.responseData) {
+      console.log("Translation successful");
+      return data.responseData.translatedText || text;
+    } else {
+      console.warn("Translation response incomplete:", data);
+      return text; // Return original text if response is unexpected
+    }
   } catch (error) {
     console.error("Translation error:", error);
     return text; // Return original text if translation fails
