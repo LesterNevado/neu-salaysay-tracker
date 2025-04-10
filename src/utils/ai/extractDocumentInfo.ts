@@ -120,6 +120,15 @@ export async function extractDocumentInfo(file: File): Promise<DocumentInfo> {
       console.log("Cleaned student name:", documentInfo.studentName);
     }
 
+    // If Tagalog document, translate the nature of excuse to English here
+    if (language === "Tagalog" && documentInfo.natureOfExcuse) {
+      console.log("Translating nature of excuse from Tagalog to English");
+      // Import from determineViolationType.ts
+      const { translateTagalogToEnglish } = await import('./determineViolationType');
+      documentInfo.natureOfExcuse = await translateTagalogToEnglish(documentInfo.natureOfExcuse);
+      console.log("Nature of excuse translated to English:", documentInfo.natureOfExcuse);
+    }
+
     // Enhance the document info - this is now async for the translation step
     const enhancedInfo = await enhanceDocumentInfo(documentInfo);
     console.log("Enhanced document info:", enhancedInfo);

@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -111,7 +112,7 @@ export function useFileUpload(userId: string) {
       const extractedInfo = await extractDocumentInfo(pdfFile);
       console.log("Document info extraction complete:", extractedInfo);
       
-      // Ensure we have a nature of excuse
+      // Ensure we have a nature of excuse - it should be translated to English already
       const natureOfExcuse = extractedInfo.natureOfExcuse || DEFAULT_EXCUSE;
       
       // Update uploads state with properly mapped values

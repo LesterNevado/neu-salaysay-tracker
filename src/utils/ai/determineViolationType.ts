@@ -49,23 +49,21 @@ export async function determineViolationType(documentInfo: DocumentInfo): Promis
   // Default to "Other" if we can't determine
   let violationType: ViolationType = "Other";
   
-  // If the document is in Tagalog, translate the relevant parts to English first
+  // If the document is in Tagalog, translate the entire document to English first
   let textToAnalyze = extractedText || "";
   let excuseToAnalyze = natureOfExcuse || "";
   
   if (language === "Tagalog") {
-    console.log("Detected Tagalog document, translating before analysis");
+    console.log("Detected Tagalog document, translating entire document before analysis");
     
-    // Translate the nature of excuse if available (this is most important)
+    // Always translate the full text for better context understanding
+    textToAnalyze = await translateTagalogToEnglish(extractedText || "");
+    console.log("Translated full text (excerpt):", textToAnalyze.substring(0, 100) + "...");
+    
+    // If we have a nature of excuse, translate that too
     if (natureOfExcuse) {
       excuseToAnalyze = await translateTagalogToEnglish(natureOfExcuse);
       console.log("Translated nature of excuse:", excuseToAnalyze);
-    }
-    
-    // Only translate the full text if the nature of excuse is not available or very short
-    if (!natureOfExcuse || natureOfExcuse.length < 20) {
-      textToAnalyze = await translateTagalogToEnglish(extractedText || "");
-      console.log("Translated full text (excerpt):", textToAnalyze.substring(0, 100) + "...");
     }
   }
   
@@ -115,7 +113,10 @@ export async function determineViolationType(documentInfo: DocumentInfo): Promis
       excuseLower.includes("inappropriate") ||
       excuseLower.includes("disrespect") ||
       excuseLower.includes("apologize for my recent behavior") ||
-      excuseLower.includes("conduct")
+      excuseLower.includes("conduct") ||
+      excuseLower.includes("damage") && excuseLower.includes("property") ||
+      excuseLower.includes("university property") ||
+      excuseLower.includes("sincerely apologize") && excuseLower.includes("damage")
     ) {
       return "Academic";
     }
@@ -205,7 +206,8 @@ export async function determineViolationType(documentInfo: DocumentInfo): Promis
     }
   }
   
-  // If we couldn't determine from the excuse, fall back to checking the full text
+  // If we couldn't determine from the excuse, check the full text
+  // Now that we have the full text translated, we can do a more thorough analysis
   // Check for attendance related keywords
   if (
     textLower.includes("absent") || 
@@ -231,7 +233,10 @@ export async function determineViolationType(documentInfo: DocumentInfo): Promis
       textLower.includes("cheat") || 
       textLower.includes("misconduct")
     ) ||
-    textLower.includes("assignment") && textLower.includes("copied")
+    textLower.includes("assignment") && textLower.includes("copied") ||
+    textLower.includes("damage") && textLower.includes("property") ||
+    textLower.includes("university property") ||
+    textLower.includes("sincerely apologize") && textLower.includes("damage")
   ) {
     violationType = "Academic";
   }
