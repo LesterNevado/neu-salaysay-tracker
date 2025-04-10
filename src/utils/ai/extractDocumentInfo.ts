@@ -1,4 +1,3 @@
-
 import { extractPdfText } from "../pdf/extractPdfText";
 import enhanceDocumentInfo from "./determineViolationType";
 import { ViolationType } from "../../types/database.types";
@@ -231,19 +230,23 @@ function extractTagalogDocumentInfo(text: string, baseInfo: DocumentInfo): Docum
     }
   }
 
-  // Extract date (Petsa)
+  // Extract date (Petsa) - FIX HERE: Improved date extraction for Tagalog docs
   const datePatterns = [
     /Petsa[\s\r\n]*:?[\s\r\n]*([^\r\n]+)/i,
     /Date[\s\r\n]*:?[\s\r\n]*([^\r\n]+)/i,
     /(\d{1,2}\/\d{1,2}\/\d{4})/,
-    /(\d{4}-\d{2}-\d{2})/
+    /(\d{4}-\d{2}-\d{2})/,
+    // Look for date in specific format like "April 2, 2025"
+    /(?:Abril|April|Mayo|May|Hunyo|June|Hulyo|July|Agosto|August|Setyembre|September|Oktubre|October|Nobyembre|November|Disyembre|December)[\s\r\n]+\d{1,2},?[\s\r\n]+\d{4}/i
   ];
   
   for (const pattern of datePatterns) {
     const dateMatch = text.match(pattern);
-    if (dateMatch && dateMatch[1]) {
+    if (dateMatch && dateMatch[0]) {
       try {
-        const dateStr = dateMatch[1].trim();
+        const dateStr = dateMatch[1] ? dateMatch[1].trim() : dateMatch[0].trim();
+        console.log("Found potential date in Tagalog document:", dateStr);
+        
         let parsedDate;
         
         // Try different date formats
@@ -251,20 +254,64 @@ function extractTagalogDocumentInfo(text: string, baseInfo: DocumentInfo): Docum
           parsedDate = parse(dateStr, 'MM/dd/yyyy', new Date());
         } else if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
           parsedDate = parse(dateStr, 'yyyy-MM-dd', new Date());
-        } else if (dateStr.includes(',')) {
-          parsedDate = parse(dateStr, 'MMMM d, yyyy', new Date());
         } else {
-          parsedDate = parse(dateStr, 'MMMM d yyyy', new Date());
+          // For date formats like "April 2, 2025" or "April 2 2025"
+          const withComma = dateStr.includes(',');
+          try {
+            if (withComma) {
+              parsedDate = parse(dateStr, 'MMMM d, yyyy', new Date());
+            } else {
+              parsedDate = parse(dateStr, 'MMMM d yyyy', new Date());
+            }
+          } catch (e) {
+            // If that fails, try with day first (common in some locales)
+            try {
+              if (withComma) {
+                parsedDate = parse(dateStr, 'd MMMM, yyyy', new Date());
+              } else {
+                parsedDate = parse(dateStr, 'd MMMM yyyy', new Date());
+              }
+            } catch (e2) {
+              console.warn("Failed to parse date with both formats:", e2);
+            }
+          }
         }
         
-        if (!isNaN(parsedDate.getTime())) {
+        if (!isNaN(parsedDate?.getTime())) {
           baseInfo.submissionDate = format(parsedDate, 'MMMM d, yyyy');
-          console.log("Found date:", baseInfo.submissionDate);
+          console.log("Successfully parsed date from Tagalog document:", baseInfo.submissionDate);
           break;
         }
       } catch (error) {
-        console.warn("Error parsing date:", error);
+        console.warn("Error parsing date in Tagalog document:", error);
         continue;
+      }
+    }
+  }
+
+  // If date is still not found, look for specific date patterns in the text
+  if (!baseInfo.submissionDate || baseInfo.submissionDate === format(new Date(), 'MMMM d, yyyy')) {
+    // Look for "April 2, 2025" or similar pattern anywhere in the text
+    const specificDateMatch = text.match(/(?:Abril|April|Mayo|May|Hunyo|June|Hulyo|July|Agosto|August|Setyembre|September|Oktubre|October|Nobyembre|November|Disyembre|December)[\s\r\n]+(\d{1,2}),?[\s\r\n]+(\d{4})/i);
+    
+    if (specificDateMatch) {
+      try {
+        const monthStr = specificDateMatch[0].split(/\s+/)[0].trim();
+        const day = specificDateMatch[1];
+        const year = specificDateMatch[2];
+        const dateStr = `${monthStr} ${day}, ${year}`;
+        
+        console.log("Found specific date format in Tagalog document:", dateStr);
+        
+        // Try to parse the date
+        const parsedDate = parse(dateStr, 'MMMM d, yyyy', new Date());
+        
+        if (!isNaN(parsedDate.getTime())) {
+          baseInfo.submissionDate = format(parsedDate, 'MMMM d, yyyy');
+          console.log("Successfully parsed specific date from Tagalog document:", baseInfo.submissionDate);
+        }
+      } catch (error) {
+        console.warn("Error parsing specific date in Tagalog document:", error);
       }
     }
   }
@@ -496,7 +543,7 @@ function extractEnglishDocumentInfo(text: string, baseInfo: DocumentInfo): Docum
     /Dear[\s\n\r]+(.+?)(?:,|[\n\r]+Position)/i,
     
     // Common addressee formats
-    /(?:Dear|To|Attention:)[\s\n\r]+((?:Ma'am|Sir|Prof\.?|Professor|Dr\.?|Mr\.?|Ms\.?)\s*[A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+)*)/i,
+    /(?:Dear|To|Attention:)[\s\n\r]+((?:Ma'am|Sir|Prof\.?|Professor|Dr\.?|Mr\.?)\s*[A-Z][a-z]+(?:\s+[A-Z][a-zA-Z\.-]+)*)/i,
     /(?:Dear|To|Attention:)[\s\n\r]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
     
     // Generic address

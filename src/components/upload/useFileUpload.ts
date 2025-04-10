@@ -127,7 +127,8 @@ export function useFileUpload(userId: string) {
                   date: extractedInfo.submissionDate,
                   natureOfExcuse: natureOfExcuse,
                   addressee: extractedInfo.addressee,
-                  confidence: 'high'
+                  confidence: 'high',
+                  language: extractedInfo.language
                 }
               }
             : upload
@@ -140,7 +141,8 @@ export function useFileUpload(userId: string) {
         date: extractedInfo.submissionDate,
         natureOfExcuse: natureOfExcuse,
         addressee: extractedInfo.addressee,
-        confidence: 'high'
+        confidence: 'high',
+        language: extractedInfo.language
       });
       
       return extractedInfo;
@@ -227,7 +229,8 @@ export function useFileUpload(userId: string) {
       
       console.log("Using values for upload:", {
         violationType,
-        natureOfExcuse
+        natureOfExcuse,
+        submissionDate: extractedInfo?.submissionDate
       });
 
       const timestamp = Date.now();
@@ -319,7 +322,8 @@ export function useFileUpload(userId: string) {
                   date: extractedInfo?.submissionDate,
                   addressee: extractedInfo?.addressee,
                   natureOfExcuse: natureOfExcuse,
-                  confidence: 'high'
+                  confidence: 'high',
+                  language: extractedInfo.language
                 }
               }
             : upload
