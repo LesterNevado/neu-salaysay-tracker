@@ -49,26 +49,18 @@ export async function determineViolationType(documentInfo: DocumentInfo): Promis
   // Default to "Other" if we can't determine
   let violationType: ViolationType = "Other";
   
-  // If the document is in Tagalog, translate the entire document to English first
-  let textToAnalyze = extractedText || "";
+  // For Tagalog documents, we'll only translate the nature of excuse
+  // instead of the entire document to avoid hitting API limits
   let excuseToAnalyze = natureOfExcuse || "";
   
-  if (language === "Tagalog") {
-    console.log("Detected Tagalog document, translating entire document before analysis");
-    
-    // Always translate the full text for better context understanding
-    textToAnalyze = await translateTagalogToEnglish(extractedText || "");
-    console.log("Translated full text (excerpt):", textToAnalyze.substring(0, 100) + "...");
-    
-    // If we have a nature of excuse, translate that too
-    if (natureOfExcuse) {
-      excuseToAnalyze = await translateTagalogToEnglish(natureOfExcuse);
-      console.log("Translated nature of excuse:", excuseToAnalyze);
-    }
+  if (language === "Tagalog" && natureOfExcuse) {
+    console.log("Detected Tagalog document, translating nature of excuse");
+    excuseToAnalyze = await translateTagalogToEnglish(natureOfExcuse);
+    console.log("Translated nature of excuse:", excuseToAnalyze);
   }
   
   // Convert to lowercase for case-insensitive matching
-  const textLower = textToAnalyze.toLowerCase();
+  const textLower = extractedText?.toLowerCase() || "";
   const titleLower = pdfTitle?.toLowerCase() || "";
   const excuseLower = excuseToAnalyze.toLowerCase();
   
@@ -207,7 +199,7 @@ export async function determineViolationType(documentInfo: DocumentInfo): Promis
   }
   
   // If we couldn't determine from the excuse, check the full text
-  // Now that we have the full text translated, we can do a more thorough analysis
+  // Using the original text without translation
   // Check for attendance related keywords
   if (
     textLower.includes("absent") || 
