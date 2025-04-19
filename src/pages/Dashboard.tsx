@@ -418,6 +418,14 @@ export default function Dashboard() {
     return count;
   };
 
+  const handleSenderClick = (senderName: string) => {
+    setKeywordFilter(senderName);
+    setFilters(prev => ({
+      ...prev,
+      keyword: senderName
+    }));
+  };
+
   return (
     <div className="min-h-screen bg-[#BBDEFB] overflow-auto">
       <header className="h-16 bg-[#0E254E] text-white flex items-center justify-between px-6 shadow-md sticky top-0 z-10">
@@ -688,7 +696,8 @@ export default function Dashboard() {
               <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
                 <FileStatistics 
                   stats={fileStats} 
-                  keywordFilter={filters.keyword} 
+                  keywordFilter={filters.keyword}
+                  onSenderClick={handleSenderClick}
                 />
               </div>
             </div>

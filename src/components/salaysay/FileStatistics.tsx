@@ -1,6 +1,8 @@
 
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ChevronRight } from "lucide-react";
 
 type FileStats = {
   totalFiles: number;
@@ -15,14 +17,22 @@ interface FileStatisticsProps {
   stats: FileStats;
   keywordFilter: string;
   className?: string;
+  onSenderClick?: (senderName: string) => void;
 }
 
-export function FileStatistics({ stats, keywordFilter, className = "" }: FileStatisticsProps) {
+export function FileStatistics({ stats, keywordFilter, className = "", onSenderClick }: FileStatisticsProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  
+  // Get top 5 senders by file count
+  const topSenders = stats.senderNames ? 
+    Object.entries(stats.senderNames)
+      .sort(([, a], [, b]) => b.count - a.count)
+      .slice(0, 5)
+    : [];
   
   return (
     <div className={`space-y-2 ${className}`}>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
         <div className="bg-white p-3 rounded-md border border-blue-100 shadow-sm">
           <h4 className="text-sm font-medium text-gray-700 mb-2">Total Matching Files</h4>
           <p className="text-2xl font-bold text-blue-600">{stats.totalFiles}</p>
@@ -39,6 +49,29 @@ export function FileStatistics({ stats, keywordFilter, className = "" }: FileSta
             ))}
             {Object.keys(stats.violationTypeCounts).length === 0 && (
               <p className="text-sm text-gray-500">No classification data</p>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white p-3 rounded-md border border-blue-100 shadow-sm">
+          <h4 className="text-sm font-medium text-gray-700 mb-2">Top 5 Senders</h4>
+          <div className="space-y-2">
+            {topSenders.map(([name, data]) => (
+              <Button
+                key={name}
+                variant="ghost"
+                className="w-full justify-between text-left font-normal hover:bg-blue-50"
+                onClick={() => onSenderClick?.(name)}
+              >
+                <span className="truncate flex-1">{name}</span>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="bg-blue-50">{data.count}</Badge>
+                  <ChevronRight className="h-4 w-4 text-gray-400" />
+                </div>
+              </Button>
+            ))}
+            {topSenders.length === 0 && (
+              <p className="text-sm text-gray-500">No sender data available</p>
             )}
           </div>
         </div>
