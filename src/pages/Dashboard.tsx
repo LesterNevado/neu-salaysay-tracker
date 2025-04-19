@@ -71,6 +71,7 @@ export default function Dashboard() {
     violationTypeCounts: {},
     topSenders: []
   });
+  const [globalTopSenders, setGlobalTopSenders] = useState<Array<[string, { count: number }]>>([]);
   const [userProfile, setUserProfile] = useState<{
     email: string | null;
     fullName: string | null;
@@ -109,6 +110,46 @@ export default function Dashboard() {
   }, [showAllUsers]);
 
   useEffect(() => {
+    const fetchTopSenders = async () => {
+      try {
+        const { data: allData, error: allError } = await supabase
+          .from('salaysay_submissions')
+          .select('metadata')
+          .order('created_at', { ascending: false });
+
+        if (allError) {
+          console.error("Error fetching top senders data:", allError);
+          return;
+        }
+
+        const senderCounts: Record<string, number> = {};
+        
+        if (allData) {
+          allData.forEach(file => {
+            if (file.metadata) {
+              const metadata = file.metadata as any;
+              if (metadata.sender_name) {
+                senderCounts[metadata.sender_name] = (senderCounts[metadata.sender_name] || 0) + 1;
+              }
+            }
+          });
+
+          const topSenders = Object.entries(senderCounts)
+            .sort(([, a], [, b]) => b - a)
+            .slice(0, 5)
+            .map(([name, count]) => [name, { count }]);
+
+          setGlobalTopSenders(topSenders);
+        }
+      } catch (error) {
+        console.error("Error fetching global top senders:", error);
+      }
+    };
+
+    fetchTopSenders();
+  }, [refreshTrigger]);
+
+  useEffect(() => {
     const fetchFileStats = async () => {
       try {
         let query = supabase
@@ -132,17 +173,12 @@ export default function Dashboard() {
 
         const { data: filteredData, error: filteredError } = await query;
 
-        const { data: allData, error: allError } = await supabase
-          .from('salaysay_submissions')
-          .select('metadata')
-          .order('created_at', { ascending: false });
-
-        if (filteredError || allError) {
-          console.error("Error fetching file stats:", filteredError || allError);
+        if (filteredError) {
+          console.error("Error fetching file stats:", filteredError);
           return;
         }
 
-        if (filteredData && allData) {
+        if (filteredData) {
           const stats = {
             totalFiles: filteredData.length,
             violationTypeCounts: {} as Record<string, number>,
@@ -150,7 +186,7 @@ export default function Dashboard() {
               count: number;
               violationTypes: Record<string, number>;
             }>,
-            topSenders: [] as Array<[string, { count: number }]>
+            topSenders: globalTopSenders
           };
 
           filteredData.forEach(file => {
@@ -181,21 +217,6 @@ export default function Dashboard() {
             }
           });
 
-          const senderCounts: Record<string, number> = {};
-          allData.forEach(file => {
-            if (file.metadata) {
-              const metadata = file.metadata as any;
-              if (metadata.sender_name) {
-                senderCounts[metadata.sender_name] = (senderCounts[metadata.sender_name] || 0) + 1;
-              }
-            }
-          });
-
-          stats.topSenders = Object.entries(senderCounts)
-            .sort(([, a], [, b]) => b - a)
-            .slice(0, 5)
-            .map(([name, count]) => [name, { count }]);
-
           setFileStats(stats);
         }
       } catch (error) {
@@ -206,7 +227,7 @@ export default function Dashboard() {
     if (userProfile.id) {
       fetchFileStats();
     }
-  }, [filters.startDate, filters.endDate, filters.userId, filters.keyword, userProfile.id, showAllUsers]);
+  }, [filters.startDate, filters.endDate, filters.userId, filters.keyword, userProfile.id, showAllUsers, globalTopSenders]);
 
   useEffect(() => {
     const checkUser = async () => {
