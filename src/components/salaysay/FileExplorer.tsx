@@ -55,6 +55,7 @@ type FileStats = {
     count: number;
     violationTypes: Record<string, number>;
   }>;
+  topSenders: Array<[string, { count: number }]>;
 }
 
 export function FileExplorer({ 
@@ -64,7 +65,8 @@ export function FileExplorer({
   violationTypeFilters = [],
   dateRangeFilter = { startDate: null, endDate: null },
   userFilter = null,
-  keywordFilter = ""
+  keywordFilter = "",
+  onStatsCalculated
 }: { 
   userId: string;
   refreshTrigger: number;
@@ -73,6 +75,7 @@ export function FileExplorer({
   dateRangeFilter?: { startDate: string | null, endDate: string | null };
   userFilter?: string | null;
   keywordFilter?: string;
+  onStatsCalculated?: (stats: FileStats) => void;
 }) {
   const [files, setFiles] = useState<SalaysayFile[]>([]);
   const [filteredFiles, setFilteredFiles] = useState<SalaysayFile[]>([]);
@@ -81,10 +84,6 @@ export function FileExplorer({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [userProfiles, setUserProfiles] = useState<Record<string, any>>({});
   const [expandedFileId, setExpandedFileId] = useState<string | null>(null);
-  const [fileStats, setFileStats] = useState<FileStats>({
-    totalFiles: 0,
-    violationTypeCounts: {},
-  });
   
   useEffect(() => {
     const fetchFiles = async () => {
@@ -192,7 +191,8 @@ export function FileExplorer({
     const stats: FileStats = {
       totalFiles: files.length,
       violationTypeCounts: {},
-      senderNames: {}
+      senderNames: {},
+      topSenders: [] // This will be overridden by the Dashboard component
     };
 
     files.forEach(file => {
@@ -223,7 +223,10 @@ export function FileExplorer({
       }
     });
 
-    setFileStats(stats);
+    // Pass the calculated stats up to the parent component
+    if (onStatsCalculated) {
+      onStatsCalculated(stats);
+    }
   };
 
   const handleDeleteClick = async (file: SalaysayFile) => {

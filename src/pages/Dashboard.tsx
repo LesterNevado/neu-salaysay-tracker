@@ -71,6 +71,7 @@ export default function Dashboard() {
     violationTypeCounts: {},
     topSenders: []
   });
+  
   const [globalTopSenders, setGlobalTopSenders] = useState<Array<[string, { count: number }]>>([]);
   const [userProfile, setUserProfile] = useState<{
     email: string | null;
@@ -140,6 +141,12 @@ export default function Dashboard() {
             .map(([name, count]) => [name, { count }]);
 
           setGlobalTopSenders(topSenders);
+          
+          // Update fileStats with the global top senders
+          setFileStats(prev => ({
+            ...prev,
+            topSenders: topSenders
+          }));
         }
       } catch (error) {
         console.error("Error fetching global top senders:", error);
@@ -149,85 +156,17 @@ export default function Dashboard() {
     fetchTopSenders();
   }, [refreshTrigger]);
 
-  useEffect(() => {
-    const fetchFileStats = async () => {
-      try {
-        let query = supabase
-          .from('salaysay_submissions')
-          .select('violation_type, metadata')
-          .order('created_at', { ascending: false });
-        
-        if (!showAllUsers) {
-          query = query.eq('user_id', userProfile.id || '');
-        } else if (filters.userId) {
-          query = query.eq('user_id', filters.userId);
-        }
-
-        if (filters.startDate) {
-          query = query.gte('created_at', `${format(filters.startDate, 'yyyy-MM-dd')}T00:00:00`);
-        }
-        
-        if (filters.endDate) {
-          query = query.lte('created_at', `${format(filters.endDate, 'yyyy-MM-dd')}T23:59:59`);
-        }
-
-        const { data: filteredData, error: filteredError } = await query;
-
-        if (filteredError) {
-          console.error("Error fetching file stats:", filteredError);
-          return;
-        }
-
-        if (filteredData) {
-          const stats = {
-            totalFiles: filteredData.length,
-            violationTypeCounts: {} as Record<string, number>,
-            senderNames: {} as Record<string, {
-              count: number;
-              violationTypes: Record<string, number>;
-            }>,
-            topSenders: globalTopSenders
-          };
-
-          filteredData.forEach(file => {
-            if (file.violation_type) {
-              stats.violationTypeCounts[file.violation_type] = 
-                (stats.violationTypeCounts[file.violation_type] || 0) + 1;
-            }
-            
-            if (filters.keyword && file.metadata) {
-              const metadata = file.metadata as any;
-              if (metadata.sender_name) {
-                const senderName = metadata.sender_name;
-                
-                if (!stats.senderNames[senderName]) {
-                  stats.senderNames[senderName] = {
-                    count: 0,
-                    violationTypes: {}
-                  };
-                }
-                
-                stats.senderNames[senderName].count += 1;
-                
-                if (file.violation_type) {
-                  stats.senderNames[senderName].violationTypes[file.violation_type] = 
-                    (stats.senderNames[senderName].violationTypes[file.violation_type] || 0) + 1;
-                }
-              }
-            }
-          });
-
-          setFileStats(stats);
-        }
-      } catch (error) {
-        console.error("Error fetching file statistics:", error);
-      }
-    };
-
-    if (userProfile.id) {
-      fetchFileStats();
-    }
-  }, [filters.startDate, filters.endDate, filters.userId, filters.keyword, userProfile.id, showAllUsers, globalTopSenders]);
+  // Handler to update filtered statistics from FileExplorer
+  const handleStatsUpdate = (stats: any) => {
+    setFileStats(prev => ({
+      ...prev,
+      totalFiles: stats.totalFiles,
+      violationTypeCounts: stats.violationTypeCounts,
+      senderNames: stats.senderNames,
+      // Keep the global top senders unchanged
+      topSenders: globalTopSenders
+    }));
+  };
 
   useEffect(() => {
     const checkUser = async () => {
@@ -740,6 +679,7 @@ export default function Dashboard() {
                     }}
                     userFilter={filters.userId}
                     keywordFilter={filters.keyword}
+                    onStatsCalculated={handleStatsUpdate}
                   />
                 )}
               </tbody>
