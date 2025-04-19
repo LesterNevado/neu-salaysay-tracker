@@ -65,9 +65,11 @@ export default function Dashboard() {
       count: number;
       violationTypes: Record<string, number>;
     }>;
+    topSenders: Array<[string, { count: number }]>;
   }>({
     totalFiles: 0,
-    violationTypeCounts: {}
+    violationTypeCounts: {},
+    topSenders: []
   });
   const [userProfile, setUserProfile] = useState<{
     email: string | null;
@@ -128,50 +130,29 @@ export default function Dashboard() {
           query = query.lte('created_at', `${format(filters.endDate, 'yyyy-MM-dd')}T23:59:59`);
         }
 
-        const { data, error } = await query;
+        const { data: filteredData, error: filteredError } = await query;
 
-        if (error) {
-          console.error("Error fetching file stats:", error);
+        const { data: allData, error: allError } = await supabase
+          .from('salaysay_submissions')
+          .select('metadata')
+          .order('created_at', { ascending: false });
+
+        if (filteredError || allError) {
+          console.error("Error fetching file stats:", filteredError || allError);
           return;
         }
 
-        if (data) {
+        if (filteredData && allData) {
           const stats = {
-            totalFiles: data.length,
+            totalFiles: filteredData.length,
             violationTypeCounts: {} as Record<string, number>,
             senderNames: {} as Record<string, {
               count: number;
               violationTypes: Record<string, number>;
-            }>
+            }>,
+            topSenders: [] as Array<[string, { count: number }]>
           };
 
-          let filteredData = data;
-          
-          if (filters.keyword) {
-            const searchTerm = filters.keyword.toLowerCase();
-            filteredData = data.filter(file => {
-              if (file.metadata) {
-                const metadata = file.metadata as any;
-                if (metadata.sender_name && metadata.sender_name.toLowerCase().includes(searchTerm)) {
-                  return true;
-                }
-                if (metadata.student_number && metadata.student_number.toLowerCase().includes(searchTerm)) {
-                  return true;
-                }
-                if (metadata.excuse_description && metadata.excuse_description.toLowerCase().includes(searchTerm)) {
-                  return true;
-                }
-                if (metadata.addressee && metadata.addressee.toLowerCase().includes(searchTerm)) {
-                  return true;
-                }
-                if (metadata.incident_date && metadata.incident_date.toLowerCase().includes(searchTerm)) {
-                  return true;
-                }
-              }
-              return false;
-            });
-          }
-          
           filteredData.forEach(file => {
             if (file.violation_type) {
               stats.violationTypeCounts[file.violation_type] = 
@@ -200,11 +181,22 @@ export default function Dashboard() {
             }
           });
 
-          setFileStats({
-            totalFiles: filteredData.length,
-            violationTypeCounts: stats.violationTypeCounts,
-            senderNames: stats.senderNames
+          const senderCounts: Record<string, number> = {};
+          allData.forEach(file => {
+            if (file.metadata) {
+              const metadata = file.metadata as any;
+              if (metadata.sender_name) {
+                senderCounts[metadata.sender_name] = (senderCounts[metadata.sender_name] || 0) + 1;
+              }
+            }
           });
+
+          stats.topSenders = Object.entries(senderCounts)
+            .sort(([, a], [, b]) => b - a)
+            .slice(0, 5)
+            .map(([name, count]) => [name, { count }]);
+
+          setFileStats(stats);
         }
       } catch (error) {
         console.error("Error fetching file statistics:", error);

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,6 +10,7 @@ type FileStats = {
     count: number;
     violationTypes: Record<string, number>;
   }>;
+  topSenders: Array<[string, { count: number }]>;
 }
 
 interface FileStatisticsProps {
@@ -22,13 +22,6 @@ interface FileStatisticsProps {
 
 export function FileStatistics({ stats, keywordFilter, className = "", onSenderClick }: FileStatisticsProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  
-  // Get top 5 senders by file count
-  const topSenders = stats.senderNames ? 
-    Object.entries(stats.senderNames)
-      .sort(([, a], [, b]) => b.count - a.count)
-      .slice(0, 5)
-    : [];
   
   return (
     <div className={`space-y-2 ${className}`}>
@@ -54,9 +47,9 @@ export function FileStatistics({ stats, keywordFilter, className = "", onSenderC
         </div>
 
         <div className="bg-white p-3 rounded-md border border-blue-100 shadow-sm">
-          <h4 className="text-sm font-medium text-gray-700 mb-2">Top 5 Senders</h4>
+          <h4 className="text-sm font-medium text-gray-700 mb-2">Top Salaysay Count</h4>
           <div className="space-y-2">
-            {topSenders.map(([name, data]) => (
+            {stats.topSenders.map(([name, data]) => (
               <Button
                 key={name}
                 variant="ghost"
@@ -70,7 +63,7 @@ export function FileStatistics({ stats, keywordFilter, className = "", onSenderC
                 </div>
               </Button>
             ))}
-            {topSenders.length === 0 && (
+            {stats.topSenders.length === 0 && (
               <p className="text-sm text-gray-500">No sender data available</p>
             )}
           </div>
