@@ -134,7 +134,7 @@ export default function Dashboard() {
             }
           });
 
-          const topSenders = Object.entries(senderCounts)
+          const topSenders: Array<[string, { count: number }]> = Object.entries(senderCounts)
             .sort(([, a], [, b]) => b - a)
             .slice(0, 5)
             .map(([name, count]) => [name, { count }]);
