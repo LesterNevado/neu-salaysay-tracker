@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { Send, User, Users, ActivitySquare, FileIcon, Filter, Calendar, Search, ChevronDown, BarChart, ArrowPathIcon } from "lucide-react";
+import { Send, User, Users, ActivitySquare, FileIcon, Filter, Calendar, Search, ChevronDown, BarChart, RefreshCw } from "lucide-react";
 import { UploadDialog } from "@/components/UploadDialog";
 import { FileExplorer } from "@/components/salaysay/FileExplorer";
 import { FileStatistics } from "@/components/salaysay/FileStatistics";
@@ -497,7 +497,7 @@ export default function Dashboard() {
                 onClick={refreshFileExplorer}
                 className="flex items-center gap-2"
               >
-                <ArrowPathIcon className="h-4 w-4" />
+                <RefreshCw className="h-4 w-4" />
                 Refresh
               </Button>
               <div className="flex items-center gap-2">
