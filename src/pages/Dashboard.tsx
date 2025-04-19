@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { Send, User, Users, ActivitySquare, FileIcon, Filter, Calendar, Search, ChevronDown, BarChart } from "lucide-react";
+import { Send, User, Users, ActivitySquare, FileIcon, Filter, Calendar, Search, ChevronDown, BarChart, ArrowPathIcon } from "lucide-react";
 import { UploadDialog } from "@/components/UploadDialog";
 import { FileExplorer } from "@/components/salaysay/FileExplorer";
 import { FileStatistics } from "@/components/salaysay/FileStatistics";
@@ -491,6 +491,15 @@ export default function Dashboard() {
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold">Your Salaysay Files</h2>
             <div className="flex items-center gap-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={refreshFileExplorer}
+                className="flex items-center gap-2"
+              >
+                <ArrowPathIcon className="h-4 w-4" />
+                Refresh
+              </Button>
               <div className="flex items-center gap-2">
                 <Label htmlFor="show-all-users" className="text-sm flex items-center gap-2">
                   <Users className="h-4 w-4" />

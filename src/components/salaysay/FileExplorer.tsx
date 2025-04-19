@@ -226,7 +226,11 @@ export function FileExplorer({
     setFileStats(stats);
   };
 
-  const handleDeleteClick = (file: SalaysayFile) => {
+  const handleDeleteClick = async (file: SalaysayFile) => {
+    if (file.user_id !== userId) {
+      toast.error("You can only delete your own files");
+      return;
+    }
     setFileToDelete(file);
     setIsDeleteDialogOpen(true);
   };
@@ -376,6 +380,7 @@ export function FileExplorer({
       {filteredFiles.map((file) => {
         const uploader = userProfiles[file.user_id];
         const isExpanded = expandedFileId === file.id;
+        const canDelete = file.user_id === userId;
         
         const hasMetadata = file.metadata && (
           getMetadataValue(file.metadata, 'student_number') || 
@@ -468,17 +473,19 @@ export function FileExplorer({
                   >
                     <Eye className="h-4 w-4" />
                   </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteClick(file);
-                    }}
-                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                  >
-                    <Trash className="h-4 w-4" />
-                  </Button>
+                  {canDelete && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteClick(file);
+                      }}
+                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
               </td>
             </tr>
