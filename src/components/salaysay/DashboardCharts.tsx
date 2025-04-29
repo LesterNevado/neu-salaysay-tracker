@@ -132,7 +132,7 @@ export function DashboardCharts({ violationCounts, totalFiles }: DashboardCharts
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-0">
-          <div className="h-[320px]"> 
+          <div className="h-[320px]">
             {/* Increased height to ensure full visibility */}
             <ChartContainer
               config={{
@@ -143,7 +143,7 @@ export function DashboardCharts({ violationCounts, totalFiles }: DashboardCharts
               }}
             >
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart margin={{ top: 10, right: 30, left: 30, bottom: 10 }}> 
+                <PieChart margin={{ top: 10, right: 30, left: 30, bottom: 10 }}>
                   {/* Added margin to prevent cutoff */}
                   <Pie
                     data={pieData}
@@ -186,13 +186,14 @@ export function DashboardCharts({ violationCounts, totalFiles }: DashboardCharts
             System activity trend over time
           </CardDescription>
         </CardHeader>
-        <CardContent className="pt-0">
-          <div className="h-[320px]"> 
-            {/* Match height with pie chart */}
+        <CardContent className="pt-0 pb-1">
+          <div className="h-[320px] w-full">
+            {/* Match height with pie chart and ensure full width */}
             <ChartContainer
               config={{
-                count: { color: "#0E254E" },
+                count: { color: "#0088FE" },
               }}
+              className="w-full h-full"
             >
               <ResponsiveContainer width="100%" height="100%">
                 {isLoading ? (
@@ -202,33 +203,46 @@ export function DashboardCharts({ violationCounts, totalFiles }: DashboardCharts
                 ) : (
                   <LineChart
                     data={activityData}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                    margin={{ top: 20, right: 20, left: 0, bottom: 45 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" />
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.6} />
                     <XAxis 
                       dataKey="month" 
-                      tick={{ fontSize: 12 }}
+                      tick={{ fontSize: 10 }}
                       angle={-30}
                       textAnchor="end"
-                      height={60}
+                      height={50}
+                      tickMargin={10}
+                      scale="point"
+                      padding={{ left: 15, right: 15 }}
                     />
                     <YAxis 
                       allowDecimals={false}
-                      tick={{ fontSize: 12 }}
+                      tick={{ fontSize: 11 }}
+                      width={40}
+                      tickMargin={8}
+                      domain={[0, 'auto']}
                     />
                     <RechartTooltip 
                       formatter={(value) => [`${value} activities`, 'Count']}
                       labelFormatter={(label) => `Month: ${label}`}
+                      contentStyle={{ backgroundColor: '#fff', borderRadius: '6px', border: '1px solid #ddd' }}
                     />
-                    <Legend verticalAlign="top" height={36} />
+                    <Legend 
+                      verticalAlign="top" 
+                      height={30}
+                      iconType="circle"
+                      iconSize={8}
+                    />
                     <Line 
                       type="monotone" 
                       dataKey="count" 
                       name="Activity Count"
                       stroke="#0088FE" 
                       strokeWidth={2}
-                      dot={{ r: 4, strokeWidth: 2 }}
+                      dot={{ r: 4, strokeWidth: 2, fill: '#fff' }}
                       activeDot={{ r: 6, strokeWidth: 2 }}
+                      isAnimationActive={true}
                     />
                   </LineChart>
                 )}
