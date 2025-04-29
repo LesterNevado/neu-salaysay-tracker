@@ -17,6 +17,7 @@ export interface FileUpload {
   } | null;
 }
 
+// Updated to match the exact ViolationType from the database.types.ts
 export const VIOLATION_TYPES = [
   "Other",
   "Behavioral Issue",

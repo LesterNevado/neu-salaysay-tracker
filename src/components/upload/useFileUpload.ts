@@ -119,13 +119,25 @@ export function useFileUpload(userId: string) {
       let violationType = extractedInfo.violationType || "Other";
       
       // Map any legacy types to our new standardized types
-      if (violationType === "Medical" || violationType === "Family" || violationType === "Technical" || violationType === "Transport") {
+      if (
+        violationType === "Other" || 
+        // These need to be treated as strings, not as ViolationType
+        violationType === "Medical" || 
+        violationType === "Family" || 
+        violationType === "Technical" || 
+        violationType === "Transport"
+      ) {
         violationType = "Other";
       } else if (violationType === "Academic") {
         violationType = "Academic Misconduct";
       } else if (violationType === "Attendance") {
         violationType = "Attendance Issue";
       }
+      
+      // Ensure the violationType is a valid ViolationType
+      const validViolationType = (
+        ["Other", "Behavioral Issue", "Dress Code Violation", "Academic Misconduct", "Property Damage", "Attendance Issue"] as ViolationType[]
+      ).includes(violationType as ViolationType) ? (violationType as ViolationType) : "Other";
       
       // Update uploads state with properly mapped values
       setUploads(prev => 
@@ -143,17 +155,17 @@ export function useFileUpload(userId: string) {
                   confidence: 'high',
                   language: extractedInfo.language
                 },
-                violationType
+                violationType: validViolationType
               }
             : upload
         )
       );
 
-      console.log("Upload state updated with extracted info and normalized violation type:", violationType);
+      console.log("Upload state updated with extracted info and normalized violation type:", validViolationType);
       
       return {
         ...extractedInfo,
-        violationType: violationType as ViolationType
+        violationType: validViolationType
       };
     } catch (error) {
       console.error('Error analyzing file:', error);
