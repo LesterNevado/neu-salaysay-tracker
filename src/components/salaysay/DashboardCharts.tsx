@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { 
   Card,
   CardContent,
@@ -12,8 +12,8 @@ import {
   PieChart,
   Pie,
   Cell,
-  BarChart,
-  Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -26,7 +26,8 @@ import {
   ChartTooltipContent
 } from "@/components/ui/chart";
 import { cn } from "@/lib/utils";
-import { ChartBarStacked, ChartPie, FileBarChart, PieChart as PieChartIcon } from "lucide-react";
+import { ChartPie, LineChart as LineChartIcon } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface DashboardChartsProps {
   violationCounts: Record<string, number>;
@@ -34,17 +35,19 @@ interface DashboardChartsProps {
   totalFiles: number;
 }
 
-export function DashboardCharts({ violationCounts, topSenders, totalFiles }: DashboardChartsProps) {
+interface ActivityData {
+  month: string;
+  count: number;
+}
+
+export function DashboardCharts({ violationCounts, totalFiles }: DashboardChartsProps) {
+  const [activityData, setActivityData] = useState<ActivityData[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
   // Process violation types data for pie chart
   const pieData = Object.entries(violationCounts).map(([name, value]) => ({
     name,
     value
-  }));
-
-  // Process top senders data for bar chart
-  const barData = topSenders.map(([name, { count }]) => ({
-    name: name.length > 12 ? name.substring(0, 12) + '...' : name,
-    count
   }));
 
   // Colors for charts
@@ -52,6 +55,63 @@ export function DashboardCharts({ violationCounts, topSenders, totalFiles }: Das
     '#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#A259FF',
     '#4CAF50', '#F44336', '#2196F3', '#FF5722', '#607D8B'
   ];
+
+  // Fetch activity data by month
+  useEffect(() => {
+    const fetchActivityData = async () => {
+      setIsLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('activity_logs')
+          .select('created_at')
+          .order('created_at', { ascending: true });
+
+        if (error) {
+          console.error("Error fetching activity data:", error);
+          return;
+        }
+
+        // Group activities by month
+        const monthlyData: Record<string, number> = {};
+        
+        // Process last 6 months
+        const today = new Date();
+        for (let i = 5; i >= 0; i--) {
+          const date = new Date(today);
+          date.setMonth(today.getMonth() - i);
+          const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+          const monthLabel = date.toLocaleString('default', { month: 'short' }) + ' ' + date.getFullYear();
+          monthlyData[monthLabel] = 0;
+        }
+
+        // Count activities by month
+        if (data) {
+          data.forEach(log => {
+            const date = new Date(log.created_at);
+            const monthLabel = date.toLocaleString('default', { month: 'short' }) + ' ' + date.getFullYear();
+            
+            if (monthLabel in monthlyData) {
+              monthlyData[monthLabel]++;
+            }
+          });
+        }
+
+        // Convert to array format for Recharts
+        const chartData = Object.entries(monthlyData).map(([month, count]) => ({
+          month,
+          count
+        }));
+
+        setActivityData(chartData);
+      } catch (error) {
+        console.error("Error processing activity data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchActivityData();
+  }, []);
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -72,7 +132,7 @@ export function DashboardCharts({ violationCounts, topSenders, totalFiles }: Das
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-0">
-          <div className="h-[300px]">
+          <div className="h-[320px]"> {/* Increased height to ensure full visibility */}
             <ChartContainer
               config={{
                 violation: { color: "#0088FE" },
@@ -82,13 +142,13 @@ export function DashboardCharts({ violationCounts, topSenders, totalFiles }: Das
               }}
             >
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
+                <PieChart margin={{ top: 10, right: 30, left: 30, bottom: 10 }}> {/* Added margin to prevent cutoff */}
                   <Pie
                     data={pieData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={70}
-                    outerRadius={110}
+                    innerRadius={60}
+                    outerRadius={100} {/* Reduced outerRadius to fit better */}
                     paddingAngle={3}
                     dataKey="value"
                     nameKey="name"
@@ -107,49 +167,67 @@ export function DashboardCharts({ violationCounts, topSenders, totalFiles }: Das
         </CardContent>
       </Card>
       
-      {/* Top Submitters */}
+      {/* Monthly Activity Chart */}
       <Card className="shadow-md border-blue-100 hover:shadow-lg transition-shadow duration-300">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-semibold text-blue-800 flex items-center gap-2">
-              <ChartBarStacked className="h-5 w-5" />
-              Top Submitters
+              <LineChartIcon className="h-5 w-5" />
+              Monthly User Activity
             </CardTitle>
             <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-1 rounded-full">
-              Top {topSenders.length}
+              Last 6 months
             </span>
           </div>
           <CardDescription className="text-gray-600">
-            Users with most salaysay submissions
+            System activity trend over time
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-0">
-          <div className="h-[300px]">
+          <div className="h-[320px]"> {/* Match height with pie chart */}
             <ChartContainer
               config={{
                 count: { color: "#0E254E" },
               }}
             >
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={barData}
-                  margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
-                  layout="vertical"
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" />
-                  <YAxis 
-                    dataKey="name" 
-                    type="category" 
-                    width={120} 
-                    tick={{ fontSize: 11 }} 
-                  />
-                  <RechartTooltip 
-                    formatter={(value, name) => [`${value} submissions`, 'Count']}
-                    labelFormatter={(label) => `User: ${label}`}
-                  />
-                  <Bar dataKey="count" fill="#0E254E" barSize={24} radius={[0, 4, 4, 0]} />
-                </BarChart>
+                {isLoading ? (
+                  <div className="flex items-center justify-center h-full">
+                    <span className="text-gray-500">Loading activity data...</span>
+                  </div>
+                ) : (
+                  <LineChart
+                    data={activityData}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis 
+                      dataKey="month" 
+                      tick={{ fontSize: 12 }}
+                      angle={-30}
+                      textAnchor="end"
+                      height={60}
+                    />
+                    <YAxis 
+                      allowDecimals={false}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <RechartTooltip 
+                      formatter={(value) => [`${value} activities`, 'Count']}
+                      labelFormatter={(label) => `Month: ${label}`}
+                    />
+                    <Legend verticalAlign="top" height={36} />
+                    <Line 
+                      type="monotone" 
+                      dataKey="count" 
+                      name="Activity Count"
+                      stroke="#0088FE" 
+                      strokeWidth={2}
+                      dot={{ r: 4, strokeWidth: 2 }}
+                      activeDot={{ r: 6, strokeWidth: 2 }}
+                    />
+                  </LineChart>
+                )}
               </ResponsiveContainer>
             </ChartContainer>
           </div>
