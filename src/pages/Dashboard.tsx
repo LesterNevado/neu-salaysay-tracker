@@ -3,10 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
-import { Send, User, Users, ActivitySquare, FileIcon, Filter, Calendar, Search, ChevronDown, BarChart, RefreshCw } from "lucide-react";
+import { Send, User, Users, ActivitySquare, FileIcon, Filter, Calendar, Search, ChevronDown, BarChart, RefreshCw, ChevronUp } from "lucide-react";
 import { UploadDialog } from "@/components/UploadDialog";
 import { FileExplorer } from "@/components/salaysay/FileExplorer";
 import { FileStatistics } from "@/components/salaysay/FileStatistics";
+import { DashboardCharts } from "@/components/salaysay/DashboardCharts";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Tooltip,
@@ -19,6 +20,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { 
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle 
+} from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -379,8 +388,8 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-[#BBDEFB] overflow-auto">
-      <header className="h-16 bg-[#0E254E] text-white flex items-center justify-between px-6 shadow-md sticky top-0 z-10">
+    <div className="min-h-screen bg-gradient-to-b from-[#BBDEFB] to-[#90CAF9] overflow-auto">
+      <header className="h-16 bg-gradient-to-r from-[#0E254E] to-[#1E3A7B] text-white flex items-center justify-between px-6 shadow-md sticky top-0 z-10">
         <div className="flex items-center gap-3">
           <img 
             src="/lovable-uploads/42a0c089-7817-4d54-b180-12a27a76a70f.png" 
@@ -396,7 +405,7 @@ export default function Dashboard() {
                 <div className="cursor-pointer">
                   <Avatar>
                     <AvatarImage src={userProfile.avatarUrl || ""} alt={userProfile.fullName || "User"} />
-                    <AvatarFallback className="bg-gray-200 text-gray-700">
+                    <AvatarFallback className="bg-blue-100 text-blue-700 font-semibold">
                       {getInitials()}
                     </AvatarFallback>
                   </Avatar>
@@ -421,271 +430,304 @@ export default function Dashboard() {
       </header>
       
       <div className="container mx-auto px-6 py-6 max-w-6xl">
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <Card className="bg-white/80 backdrop-blur-sm rounded-lg shadow-md p-6 mb-6 border-blue-100">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">Salaysay Tracking And Archival Tool</h2>
+            <div>
+              <h2 className="text-xl font-semibold text-blue-800">Salaysay Tracking And Archival Tool</h2>
+              <p className="text-gray-600 mt-1">
+                NEU-STAT is New Era University's official Salaysay Tracking System, enabling seamless submission, monitoring, and approval of Salaysay documents.
+              </p>
+            </div>
             <div className="flex gap-3">
               <Button 
                 onClick={() => navigate('/activity-logs')} 
                 variant="outline" 
-                className="flex items-center gap-2 border-gray-200"
+                className="flex items-center gap-2 border-gray-200 hover:bg-blue-50"
               >
                 <ActivitySquare className="h-4 w-4" />
                 Activity Logs
               </Button>
               <Button 
                 onClick={handleSubmitSalaysay} 
-                className="flex items-center gap-2 bg-[#0E254E] hover:bg-[#0E254E]/90"
+                className="flex items-center gap-2 bg-gradient-to-r from-[#0E254E] to-[#1E3A7B] hover:from-[#0b1e3d] hover:to-[#162c61] shadow-sm"
               >
                 <Send className="h-4 w-4" />
                 Submit Salaysay
               </Button>
             </div>
           </div>
-          <p className="text-gray-600">
-            NEU-STAT is New Era University's official Salaysay Tracking System, enabling seamless submission, monitoring, and approval of Salaysay documents.
-          </p>
-        </div>
+        </Card>
 
-        <div className="bg-white rounded-lg shadow-sm p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">Your Salaysay Files</h2>
-            <div className="flex items-center gap-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={refreshFileExplorer}
-                className="flex items-center gap-2"
-              >
-                <RefreshCw className="h-4 w-4" />
-                Refresh
-              </Button>
-              <div className="flex items-center gap-2">
-                <Label htmlFor="show-all-users" className="text-sm flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  Show all users' files
-                </Label>
-                <Switch 
-                  id="show-all-users" 
-                  checked={showAllUsers} 
-                  onCheckedChange={toggleShowAllUsers}
-                />
+        <Card className="bg-white/80 backdrop-blur-sm rounded-lg shadow-md mb-6 border-blue-100 overflow-hidden">
+          <CardHeader className="pb-2 bg-gradient-to-r from-blue-50 to-blue-100">
+            <div className="flex justify-between items-center">
+              <CardTitle className="text-xl font-semibold text-blue-800">Dashboard Overview</CardTitle>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-blue-600 font-medium">Last updated: {new Date().toLocaleTimeString()}</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={refreshFileExplorer}
+                  className="flex items-center gap-2 hover:bg-blue-50"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Refresh
+                </Button>
               </div>
-              <Popover open={isFilterPopoverOpen} onOpenChange={setIsFilterPopoverOpen}>
-                <PopoverTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className={`flex items-center gap-1 border-gray-200 ${hasActiveFilters ? 'bg-blue-50 border-blue-200' : ''}`}
-                  >
-                    <Filter className={`h-3.5 w-3.5 ${hasActiveFilters ? 'text-blue-500' : ''}`} />
-                    Filter {hasActiveFilters && <span className="ml-1 text-xs bg-blue-500 text-white rounded-full w-4 h-4 flex items-center justify-center">{getActiveFiltersCount()}</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-80 p-0" align="end">
-                  <ScrollArea className="h-[70vh] max-h-[500px]">
-                    <div className="p-4 space-y-5">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-medium text-sm">Filters</h4>
-                        {hasActiveFilters && (
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={clearFilters} 
-                            className="text-xs text-blue-500 hover:text-blue-700 p-0 h-auto"
-                          >
-                            Clear all
-                          </Button>
-                        )}
-                      </div>
+            </div>
+            <CardDescription className="text-gray-600">
+              Visualized statistics of salaysay documents
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4">
+            {fileStats && <DashboardCharts 
+              violationCounts={fileStats.violationTypeCounts} 
+              topSenders={fileStats.topSenders}
+              totalFiles={fileStats.totalFiles}
+            />}
+          </CardContent>
+        </Card>
 
-                      <div className="space-y-2">
-                        <h5 className="text-sm font-medium">Search by Keyword</h5>
-                        <div className="relative">
-                          <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
-                          <Input
-                            placeholder="Search in filename, student number, sender name..."
-                            value={keywordFilter}
-                            onChange={handleKeywordFilterChange}
-                            className="pl-8"
-                          />
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Search in file name, student number, sender name, and other AI-extracted information
-                        </p>
-                      </div>
-
-                      <div className="space-y-2">
-                        <h5 className="text-sm font-medium mb-2">Date Range</h5>
-                        <div className="grid grid-cols-2 gap-2">
-                          <Popover 
-                            open={calendarOpen === 'start'} 
-                            onOpenChange={(open) => !open && setCalendarOpen(null)}
-                          >
-                            <PopoverTrigger asChild>
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                onClick={() => setCalendarOpen('start')}
-                                className={`justify-start text-left font-normal ${filters.startDate ? 'bg-blue-50 border-blue-200' : ''}`}
-                              >
-                                <Calendar className="mr-2 h-4 w-4" />
-                                {filters.startDate ? format(filters.startDate, 'PP') : <span>Start date</span>}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <CalendarComponent
-                                mode="single"
-                                selected={filters.startDate || undefined}
-                                onSelect={(date) => {
-                                  handleDateChange(date, 'start');
-                                }}
-                                initialFocus
-                              />
-                            </PopoverContent>
-                          </Popover>
-                          
-                          <Popover 
-                            open={calendarOpen === 'end'} 
-                            onOpenChange={(open) => !open && setCalendarOpen(null)}
-                          >
-                            <PopoverTrigger asChild>
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                onClick={() => setCalendarOpen('end')}
-                                className={`justify-start text-left font-normal ${filters.endDate ? 'bg-blue-50 border-blue-200' : ''}`}
-                              >
-                                <Calendar className="mr-2 h-4 w-4" />
-                                {filters.endDate ? format(filters.endDate, 'PP') : <span>End date</span>}
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <CalendarComponent
-                                mode="single"
-                                selected={filters.endDate || undefined}
-                                onSelect={(date) => {
-                                  handleDateChange(date, 'end');
-                                }}
-                                initialFocus
-                              />
-                            </PopoverContent>
-                          </Popover>
-                        </div>
-                      </div>
-
-                      {showAllUsers && (
-                        <div className="space-y-2">
-                          <h5 className="text-sm font-medium">Filter by User</h5>
-                          <div className="relative">
-                            <Select
-                              value={filters.userId || 'all'}
-                              onValueChange={handleUserFilterChange}
+        <Card className="bg-white/80 backdrop-blur-sm rounded-lg shadow-md border-blue-100">
+          <CardHeader className="pb-2 bg-gradient-to-r from-blue-50 to-blue-100">
+            <div className="flex justify-between items-center">
+              <CardTitle className="text-xl font-semibold text-blue-800 flex items-center gap-2">
+                <FileIcon className="h-5 w-5" />
+                Your Salaysay Files
+              </CardTitle>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="show-all-users" className="text-sm flex items-center gap-2 text-blue-700">
+                    <Users className="h-4 w-4" />
+                    Show all users' files
+                  </Label>
+                  <Switch 
+                    id="show-all-users" 
+                    checked={showAllUsers} 
+                    onCheckedChange={toggleShowAllUsers}
+                    className="data-[state=checked]:bg-blue-600"
+                  />
+                </div>
+                <Popover open={isFilterPopoverOpen} onOpenChange={setIsFilterPopoverOpen}>
+                  <PopoverTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className={`flex items-center gap-1 ${hasActiveFilters ? 'bg-blue-50 border-blue-200 text-blue-700' : 'border-gray-200'}`}
+                    >
+                      <Filter className={`h-3.5 w-3.5 ${hasActiveFilters ? 'text-blue-500' : ''}`} />
+                      Filter {hasActiveFilters && <span className="ml-1 text-xs bg-blue-500 text-white rounded-full w-4 h-4 flex items-center justify-center">{getActiveFiltersCount()}</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-0 shadow-lg border-blue-100" align="end">
+                    <ScrollArea className="h-[70vh] max-h-[500px]">
+                      <div className="p-4 space-y-5">
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-medium text-sm text-blue-800">Filters</h4>
+                          {hasActiveFilters && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={clearFilters} 
+                              className="text-xs text-blue-500 hover:text-blue-700 p-0 h-auto"
                             >
-                              <SelectTrigger className="w-full">
-                                <SelectValue placeholder="Select a user">
-                                  {filters.userId 
-                                    ? usersList.find(user => user.id === filters.userId)?.name || "Select a user" 
-                                    : "All Users"}
-                                </SelectValue>
-                              </SelectTrigger>
-                              <SelectContent className="max-h-60">
-                                <ScrollArea className="h-full max-h-[200px]">
-                                  <SelectItem value="all">All Users</SelectItem>
-                                  {usersList.map((user) => (
-                                    <SelectItem key={user.id} value={user.id}>
-                                      {user.name}
-                                    </SelectItem>
-                                  ))}
-                                </ScrollArea>
-                              </SelectContent>
-                            </Select>
+                              Clear all
+                            </Button>
+                          )}
+                        </div>
+
+                        <div className="space-y-2">
+                          <h5 className="text-sm font-medium">Search by Keyword</h5>
+                          <div className="relative">
+                            <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
+                            <Input
+                              placeholder="Search in filename, student number, sender name..."
+                              value={keywordFilter}
+                              onChange={handleKeywordFilterChange}
+                              className="pl-8"
+                            />
+                          </div>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Search in file name, student number, sender name, and other AI-extracted information
+                          </p>
+                        </div>
+
+                        <div className="space-y-2">
+                          <h5 className="text-sm font-medium mb-2">Date Range</h5>
+                          <div className="grid grid-cols-2 gap-2">
+                            <Popover 
+                              open={calendarOpen === 'start'} 
+                              onOpenChange={(open) => !open && setCalendarOpen(null)}
+                            >
+                              <PopoverTrigger asChild>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => setCalendarOpen('start')}
+                                  className={`justify-start text-left font-normal ${filters.startDate ? 'bg-blue-50 border-blue-200' : ''}`}
+                                >
+                                  <Calendar className="mr-2 h-4 w-4" />
+                                  {filters.startDate ? format(filters.startDate, 'PP') : <span>Start date</span>}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <CalendarComponent
+                                  mode="single"
+                                  selected={filters.startDate || undefined}
+                                  onSelect={(date) => {
+                                    handleDateChange(date, 'start');
+                                  }}
+                                  initialFocus
+                                />
+                              </PopoverContent>
+                            </Popover>
+                            
+                            <Popover 
+                              open={calendarOpen === 'end'} 
+                              onOpenChange={(open) => !open && setCalendarOpen(null)}
+                            >
+                              <PopoverTrigger asChild>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => setCalendarOpen('end')}
+                                  className={`justify-start text-left font-normal ${filters.endDate ? 'bg-blue-50 border-blue-200' : ''}`}
+                                >
+                                  <Calendar className="mr-2 h-4 w-4" />
+                                  {filters.endDate ? format(filters.endDate, 'PP') : <span>End date</span>}
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <CalendarComponent
+                                  mode="single"
+                                  selected={filters.endDate || undefined}
+                                  onSelect={(date) => {
+                                    handleDateChange(date, 'end');
+                                  }}
+                                  initialFocus
+                                />
+                              </PopoverContent>
+                            </Popover>
                           </div>
                         </div>
-                      )}
 
-                      <div className="space-y-2">
-                        <h5 className="text-sm font-medium">Filter by Classification</h5>
-                        <div className="space-y-3">
-                          {VIOLATION_TYPES.map((type) => (
-                            <div key={type} className="flex items-center space-x-2">
-                              <Checkbox 
-                                id={`filter-${type}`} 
-                                checked={filters.violationTypes[type]} 
-                                onCheckedChange={(checked) => 
-                                  handleFilterChange(type, checked === true)
-                                }
-                              />
-                              <Label htmlFor={`filter-${type}`} className="text-sm">
-                                {type}
-                              </Label>
+                        {showAllUsers && (
+                          <div className="space-y-2">
+                            <h5 className="text-sm font-medium">Filter by User</h5>
+                            <div className="relative">
+                              <Select
+                                value={filters.userId || 'all'}
+                                onValueChange={handleUserFilterChange}
+                              >
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder="Select a user">
+                                    {filters.userId 
+                                      ? usersList.find(user => user.id === filters.userId)?.name || "Select a user" 
+                                      : "All Users"}
+                                  </SelectValue>
+                                </SelectTrigger>
+                                <SelectContent className="max-h-60">
+                                  <ScrollArea className="h-full max-h-[200px]">
+                                    <SelectItem value="all">All Users</SelectItem>
+                                    {usersList.map((user) => (
+                                      <SelectItem key={user.id} value={user.id}>
+                                        {user.name}
+                                      </SelectItem>
+                                    ))}
+                                  </ScrollArea>
+                                </SelectContent>
+                              </Select>
                             </div>
-                          ))}
+                          </div>
+                        )}
+
+                        <div className="space-y-2">
+                          <h5 className="text-sm font-medium">Filter by Classification</h5>
+                          <div className="space-y-3">
+                            {VIOLATION_TYPES.map((type) => (
+                              <div key={type} className="flex items-center space-x-2">
+                                <Checkbox 
+                                  id={`filter-${type}`} 
+                                  checked={filters.violationTypes[type]} 
+                                  onCheckedChange={(checked) => 
+                                    handleFilterChange(type, checked === true)
+                                  }
+                                />
+                                <Label htmlFor={`filter-${type}`} className="text-sm">
+                                  {type}
+                                </Label>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </ScrollArea>
-                </PopoverContent>
-              </Popover>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <Toggle 
-                pressed={showStatisticsInMain}
-                onPressedChange={setShowStatisticsInMain}
-                className={`data-[state=on]:bg-blue-50 data-[state=on]:text-blue-700`}
-              >
-                <BarChart className="h-4 w-4 mr-1" />
-                File Statistics
-              </Toggle>
-            </div>
-          </div>
-
-          {showStatisticsInMain && (
-            <div className="mb-6">
-              <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
-                <FileStatistics 
-                  stats={fileStats} 
-                  keywordFilter={filters.keyword}
-                  onSenderClick={handleSenderClick}
-                />
+                    </ScrollArea>
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
-          )}
+          </CardHeader>
 
-          <div className="border rounded-lg overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gray-50 text-sm">
-                <tr>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500">File Name</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500">Date Uploaded</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500">Classification</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500">Uploaded By</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-500">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {userProfile.id && (
-                  <FileExplorer 
-                    userId={userProfile.id} 
-                    refreshTrigger={refreshTrigger} 
-                    showAllUsers={showAllUsers}
-                    violationTypeFilters={activeViolationTypeFilters}
-                    dateRangeFilter={{
-                      startDate: filters.startDate ? format(filters.startDate, 'yyyy-MM-dd') : null,
-                      endDate: filters.endDate ? format(filters.endDate, 'yyyy-MM-dd') : null
-                    }}
-                    userFilter={filters.userId}
-                    keywordFilter={filters.keyword}
-                    onStatsCalculated={handleStatsUpdate}
-                  />
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Toggle 
+                  pressed={showStatisticsInMain}
+                  onPressedChange={setShowStatisticsInMain}
+                  className={`data-[state=on]:bg-blue-50 data-[state=on]:text-blue-700`}
+                >
+                  <BarChart className="h-4 w-4 mr-1" />
+                  File Statistics
+                </Toggle>
+              </div>
+            </div>
+
+            {showStatisticsInMain && (
+              <div className="mb-6">
+                <Card className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg border border-blue-100 shadow-sm">
+                  <CardContent className="p-4">
+                    <FileStatistics 
+                      stats={fileStats} 
+                      keywordFilter={filters.keyword}
+                      onSenderClick={handleSenderClick}
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            <div className="border rounded-lg overflow-hidden shadow bg-white">
+              <table className="w-full">
+                <thead className="bg-gradient-to-r from-gray-50 to-blue-50 text-sm">
+                  <tr>
+                    <th className="text-left px-4 py-3 font-medium text-blue-700">File Name</th>
+                    <th className="text-left px-4 py-3 font-medium text-blue-700">Date Uploaded</th>
+                    <th className="text-left px-4 py-3 font-medium text-blue-700">Classification</th>
+                    <th className="text-left px-4 py-3 font-medium text-blue-700">Uploaded By</th>
+                    <th className="text-left px-4 py-3 font-medium text-blue-700">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {userProfile.id && (
+                    <FileExplorer 
+                      userId={userProfile.id} 
+                      refreshTrigger={refreshTrigger} 
+                      showAllUsers={showAllUsers}
+                      violationTypeFilters={activeViolationTypeFilters}
+                      dateRangeFilter={{
+                        startDate: filters.startDate ? format(filters.startDate, 'yyyy-MM-dd') : null,
+                        endDate: filters.endDate ? format(filters.endDate, 'yyyy-MM-dd') : null
+                      }}
+                      userFilter={filters.userId}
+                      keywordFilter={filters.keyword}
+                      onStatsCalculated={handleStatsUpdate}
+                    />
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
       </div>
       
       <UploadDialog 
