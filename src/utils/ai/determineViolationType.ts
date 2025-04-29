@@ -78,7 +78,7 @@ export async function determineViolationType(documentInfo: DocumentInfo): Promis
       excuseLower.includes("failed to attend") ||
       excuseLower.includes("unable to join") && excuseLower.includes("class")
     ) {
-      return "Attendance";
+      return "Attendance Issue";
     }
     
     // Check for academic misconduct in the excuse
@@ -94,7 +94,7 @@ export async function determineViolationType(documentInfo: DocumentInfo): Promis
       ) ||
       excuseLower.includes("assignment") && excuseLower.includes("copied")
     ) {
-      return "Academic";
+      return "Academic Misconduct";
     }
     
     // Check for behavioral issues in class in the excuse
@@ -106,95 +106,47 @@ export async function determineViolationType(documentInfo: DocumentInfo): Promis
       excuseLower.includes("disrespect") ||
       excuseLower.includes("apologize for my recent behavior") ||
       excuseLower.includes("conduct") ||
+      excuseLower.includes("misbehavior") ||
+      excuseLower.includes("bad behavior")
+    ) {
+      return "Behavioral Issue";
+    }
+    
+    // Check for property damage
+    else if (
       excuseLower.includes("damage") && excuseLower.includes("property") ||
       excuseLower.includes("university property") ||
-      excuseLower.includes("sincerely apologize") && excuseLower.includes("damage")
+      excuseLower.includes("sincerely apologize") && excuseLower.includes("damage") ||
+      excuseLower.includes("broke") && (
+        excuseLower.includes("window") ||
+        excuseLower.includes("chair") ||
+        excuseLower.includes("desk") ||
+        excuseLower.includes("equipment")
+      ) ||
+      excuseLower.includes("vandalism") ||
+      excuseLower.includes("graffiti")
     ) {
-      return "Academic";
-    }
-    
-    // Check for medical related excuses in the excuse
-    else if (
-      excuseLower.includes("sick") ||
-      excuseLower.includes("illness") ||
-      excuseLower.includes("medical") ||
-      excuseLower.includes("doctor") ||
-      excuseLower.includes("hospital") ||
-      excuseLower.includes("health") ||
-      excuseLower.includes("fever") ||
-      excuseLower.includes("injury") ||
-      excuseLower.includes("appointment") && 
-        (excuseLower.includes("doctor") || excuseLower.includes("medical")) ||
-      excuseLower.includes("not feeling well") ||
-      excuseLower.includes("under the weather")
-    ) {
-      return "Medical";
-    }
-    
-    // Check for family emergencies in the excuse
-    else if (
-      (excuseLower.includes("family") && (
-        excuseLower.includes("emergency") ||
-        excuseLower.includes("urgent") ||
-        excuseLower.includes("crisis") ||
-        excuseLower.includes("matter") ||
-        excuseLower.includes("issue") ||
-        excuseLower.includes("problem")
-      )) ||
-      excuseLower.includes("death") ||
-      excuseLower.includes("funeral") ||
-      excuseLower.includes("bereavement") ||
-      excuseLower.includes("relative") && (excuseLower.includes("sick") || excuseLower.includes("ill")) ||
-      excuseLower.includes("parent") && (
-        excuseLower.includes("sick") || 
-        excuseLower.includes("hospital") ||
-        excuseLower.includes("emergency")
-      )
-    ) {
-      return "Family";
-    }
-    
-    // Check for technical issues in the excuse
-    else if (
-      excuseLower.includes("technical") ||
-      excuseLower.includes("internet") ||
-      excuseLower.includes("connection") ||
-      excuseLower.includes("device") ||
-      excuseLower.includes("computer") ||
-      excuseLower.includes("laptop") ||
-      excuseLower.includes("power outage") ||
-      excuseLower.includes("wifi") ||
-      excuseLower.includes("network") ||
-      excuseLower.includes("electricity") ||
-      excuseLower.includes("browser") ||
-      excuseLower.includes("website") && excuseLower.includes("down") ||
-      excuseLower.includes("technical difficulties") ||
-      excuseLower.includes("software") ||
-      excuseLower.includes("system") && excuseLower.includes("down")
-    ) {
-      return "Technical";
+      return "Property Damage";
     }
 
-    // Check for transportation issues in the excuse
+    // Check for dress code violations
     else if (
-      excuseLower.includes("transport") ||
-      excuseLower.includes("traffic") ||
-      excuseLower.includes("commute") ||
-      excuseLower.includes("travel") ||
-      excuseLower.includes("late") ||
-      excuseLower.includes("car") && (
-        excuseLower.includes("broke") || 
-        excuseLower.includes("accident") ||
-        excuseLower.includes("problem")
+      excuseLower.includes("uniform") ||
+      excuseLower.includes("dress code") ||
+      excuseLower.includes("proper attire") ||
+      excuseLower.includes("clothing") && (
+        excuseLower.includes("violation") ||
+        excuseLower.includes("inappropriate") ||
+        excuseLower.includes("inappropriate")
       ) ||
-      excuseLower.includes("flat tire") ||
-      excuseLower.includes("public transportation") ||
-      excuseLower.includes("missed the bus") ||
-      excuseLower.includes("train delay") ||
-      excuseLower.includes("stuck in traffic") ||
-      excuseLower.includes("transportation issue")
+      excuseLower.includes("improper") && excuseLower.includes("attire") ||
+      excuseLower.includes("not wearing") && (
+        excuseLower.includes("uniform") ||
+        excuseLower.includes("id") ||
+        excuseLower.includes("proper")
+      )
     ) {
-      return "Transport";
+      return "Dress Code Violation";
     }
   }
   
@@ -211,7 +163,7 @@ export async function determineViolationType(documentInfo: DocumentInfo): Promis
     textLower.includes("couldn't make it to class") ||
     titleLower.includes("attendance")
   ) {
-    violationType = "Attendance";
+    violationType = "Attendance Issue";
   }
   
   // Check for academic misconduct - more detailed patterns
@@ -225,101 +177,59 @@ export async function determineViolationType(documentInfo: DocumentInfo): Promis
       textLower.includes("cheat") || 
       textLower.includes("misconduct")
     ) ||
-    textLower.includes("assignment") && textLower.includes("copied") ||
-    textLower.includes("damage") && textLower.includes("property") ||
-    textLower.includes("university property") ||
-    textLower.includes("sincerely apologize") && textLower.includes("damage")
+    textLower.includes("assignment") && textLower.includes("copied")
   ) {
-    violationType = "Academic";
+    violationType = "Academic Misconduct";
   }
   
-  // Check for behavioral issues in class
+  // Check for behavioral issues
   else if (
     (textLower.includes("behavior") || textLower.includes("behaviour")) && 
     (textLower.includes("class") || textLower.includes("course")) ||
     textLower.includes("disrupt") ||
     textLower.includes("inappropriate") ||
     textLower.includes("disrespect") ||
-    textLower.includes("apologize for my recent behavior")
+    textLower.includes("apologize for my recent behavior") ||
+    textLower.includes("conduct violation") ||
+    textLower.includes("disciplinary action") ||
+    textLower.includes("misbehavior")
   ) {
-    violationType = "Academic";
+    violationType = "Behavioral Issue";
   }
   
-  // Check for medical related excuses - expanded patterns
+  // Check for property damage
   else if (
-    textLower.includes("sick") ||
-    textLower.includes("illness") ||
-    textLower.includes("medical") ||
-    textLower.includes("doctor") ||
-    textLower.includes("hospital") ||
-    textLower.includes("health") ||
-    textLower.includes("fever") ||
-    textLower.includes("injury") ||
-    textLower.includes("appointment") && 
-      (textLower.includes("doctor") || textLower.includes("medical")) ||
-    textLower.includes("not feeling well")
+    textLower.includes("damage") && textLower.includes("property") ||
+    textLower.includes("university property") ||
+    textLower.includes("sincerely apologize") && textLower.includes("damage") ||
+    textLower.includes("broke") && (
+      textLower.includes("window") ||
+      textLower.includes("chair") ||
+      textLower.includes("desk")
+    ) ||
+    textLower.includes("vandalism") ||
+    textLower.includes("graffiti")
   ) {
-    violationType = "Medical";
-  }
-  
-  // Check for family emergencies - expanded patterns
-  else if (
-    (textLower.includes("family") && (
-      textLower.includes("emergency") ||
-      textLower.includes("urgent") ||
-      textLower.includes("crisis") ||
-      textLower.includes("matter") ||
-      textLower.includes("issue")
-    )) ||
-    textLower.includes("death") ||
-    textLower.includes("funeral") ||
-    textLower.includes("bereavement") ||
-    textLower.includes("relative") && textLower.includes("sick") ||
-    textLower.includes("parent") && (
-      textLower.includes("sick") || 
-      textLower.includes("hospital")
-    )
-  ) {
-    violationType = "Family";
-  }
-  
-  // Check for technical issues - expanded patterns
-  else if (
-    textLower.includes("technical") ||
-    textLower.includes("internet") ||
-    textLower.includes("connection") ||
-    textLower.includes("device") ||
-    textLower.includes("computer") ||
-    textLower.includes("laptop") ||
-    textLower.includes("power outage") ||
-    textLower.includes("wifi") ||
-    textLower.includes("network") ||
-    textLower.includes("electricity") ||
-    textLower.includes("browser") ||
-    textLower.includes("website") && textLower.includes("down") ||
-    textLower.includes("technical difficulties")
-  ) {
-    violationType = "Technical";
+    violationType = "Property Damage";
   }
 
-  // Check for transportation issues - expanded patterns
+  // Check for dress code violations
   else if (
-    textLower.includes("transport") ||
-    textLower.includes("traffic") ||
-    textLower.includes("commute") ||
-    textLower.includes("travel") ||
-    textLower.includes("late") ||
-    textLower.includes("car") && (
-      textLower.includes("broke") || 
-      textLower.includes("accident") ||
-      textLower.includes("problem")
+    textLower.includes("uniform") ||
+    textLower.includes("dress code") ||
+    textLower.includes("proper attire") ||
+    textLower.includes("clothing") && (
+      textLower.includes("violation") ||
+      textLower.includes("inappropriate") ||
+      textLower.includes("inappropriate")
     ) ||
-    textLower.includes("flat tire") ||
-    textLower.includes("public transportation") ||
-    textLower.includes("missed the bus") ||
-    textLower.includes("train delay")
+    textLower.includes("improper") && textLower.includes("attire") ||
+    textLower.includes("not wearing") && (
+      textLower.includes("uniform") ||
+      textLower.includes("id")
+    )
   ) {
-    violationType = "Transport";
+    violationType = "Dress Code Violation";
   }
   
   return violationType;

@@ -115,6 +115,18 @@ export function useFileUpload(userId: string) {
       // Ensure we have a nature of excuse - it should be translated to English already
       const natureOfExcuse = extractedInfo.natureOfExcuse || DEFAULT_EXCUSE;
       
+      // Make sure the violation type is one of our defined types
+      let violationType = extractedInfo.violationType || "Other";
+      
+      // Map any legacy types to our new standardized types
+      if (violationType === "Medical" || violationType === "Family" || violationType === "Technical" || violationType === "Transport") {
+        violationType = "Other";
+      } else if (violationType === "Academic") {
+        violationType = "Academic Misconduct";
+      } else if (violationType === "Attendance") {
+        violationType = "Attendance Issue";
+      }
+      
       // Update uploads state with properly mapped values
       setUploads(prev => 
         prev.map(upload => 
@@ -129,26 +141,20 @@ export function useFileUpload(userId: string) {
                   natureOfExcuse: natureOfExcuse,
                   addressee: extractedInfo.addressee,
                   confidence: 'high',
-                  language: extractedInfo.language,
-                  violationType: extractedInfo.violationType
-                }
+                  language: extractedInfo.language
+                },
+                violationType
               }
             : upload
         )
       );
 
-      console.log("Upload state updated with extracted info:", {
-        studentNumber: extractedInfo.studentId,
-        senderName: extractedInfo.studentName,
-        date: extractedInfo.submissionDate,
-        natureOfExcuse: natureOfExcuse,
-        addressee: extractedInfo.addressee,
-        confidence: 'high',
-        language: extractedInfo.language,
-        violationType: extractedInfo.violationType
-      });
+      console.log("Upload state updated with extracted info and normalized violation type:", violationType);
       
-      return extractedInfo;
+      return {
+        ...extractedInfo,
+        violationType: violationType as ViolationType
+      };
     } catch (error) {
       console.error('Error analyzing file:', error);
       toast({
@@ -161,7 +167,7 @@ export function useFileUpload(userId: string) {
       const defaultInfo: DocumentInfo = {
         extractedText: "Error analyzing document",
         natureOfExcuse: DEFAULT_EXCUSE,
-        violationType: "Other" as ViolationType,
+        violationType: "Other",
         studentId: "22-13917-429",
         studentName: "Ysac Blu Advincula",
         addressee: "Sir Gaspar",
@@ -181,7 +187,8 @@ export function useFileUpload(userId: string) {
                   natureOfExcuse: defaultInfo.natureOfExcuse,
                   addressee: defaultInfo.addressee,
                   confidence: 'medium'
-                }
+                },
+                violationType: "Other"
               }
             : upload
         )
@@ -227,7 +234,12 @@ export function useFileUpload(userId: string) {
       const extractedInfo = await analyzeFile(pdfFile);
       
       // Ensure we have values for critical fields, using defaults if needed
-      const violationType = extractedInfo?.violationType || "Other";
+      // Make sure the violation type matches our standardized types
+      let violationType = extractedInfo?.violationType || "Other";
+      if (!["Other", "Behavioral Issue", "Dress Code Violation", "Academic Misconduct", "Property Damage", "Attendance Issue"].includes(violationType)) {
+        violationType = "Other";
+      }
+      
       const natureOfExcuse = extractedInfo?.natureOfExcuse || DEFAULT_EXCUSE;
       
       console.log("Using values for upload:", {
@@ -282,7 +294,7 @@ export function useFileUpload(userId: string) {
       };
 
       console.log("Inserting submission record into database with metadata:", metadata);
-      console.log("Using automatically determined violation type:", violationType);
+      console.log("Using standardized violation type:", violationType);
       
       const { error: insertError, data: submissionData } = await supabase
         .from('salaysay_submissions')
@@ -326,7 +338,7 @@ export function useFileUpload(userId: string) {
                   addressee: extractedInfo?.addressee,
                   natureOfExcuse: natureOfExcuse,
                   confidence: 'high',
-                  language: extractedInfo.language
+                  language: extractedInfo?.language
                 }
               }
             : upload

@@ -18,13 +18,12 @@ export interface FileUpload {
 }
 
 export const VIOLATION_TYPES = [
-  "Attendance",
-  "Technical",
-  "Academic",
-  "Transport", 
-  "Family",
-  "Medical",
-  "Other"
+  "Other",
+  "Behavioral Issue",
+  "Dress Code Violation",
+  "Academic Misconduct",
+  "Property Damage",
+  "Attendance Issue"
 ] as const;
 
 export const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB in bytes

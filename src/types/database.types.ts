@@ -1,6 +1,6 @@
 
 // Add or update the ViolationType definition
-export type ViolationType = "Attendance" | "Technical" | "Academic" | "Transport" | "Family" | "Medical" | "Other";
+export type ViolationType = "Other" | "Behavioral Issue" | "Dress Code Violation" | "Academic Misconduct" | "Property Damage" | "Attendance Issue";
 
 // Add Profile type export that's being referenced in ActivityLogs.tsx
 export interface Profile {
