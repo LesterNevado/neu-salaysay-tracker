@@ -143,13 +143,13 @@ export function DashboardCharts({ violationCounts, totalFiles }: DashboardCharts
               className="w-full h-full"
             >
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart margin={{ top: 20, right: 40, left: 40, bottom: 20 }}>
+                <PieChart margin={{ top: 20, right: 70, left: 70, bottom: 20 }}>
                   <Pie
                     data={pieData}
                     cx="50%"
                     cy="50%"
                     innerRadius={60}
-                    outerRadius={90}
+                    outerRadius={80}
                     paddingAngle={3}
                     dataKey="value"
                     nameKey="name"
