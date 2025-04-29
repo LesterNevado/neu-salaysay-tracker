@@ -42,6 +42,7 @@ export async function translateTagalogToEnglish(text: string): Promise<string> {
 
 /**
  * Determine the violation type from the extracted document text and context
+ * Enhanced with more comprehensive keyword mapping and prioritized context analysis
  */
 export async function determineViolationType(documentInfo: DocumentInfo): Promise<ViolationType> {
   const { extractedText, pdfTitle, natureOfExcuse, language } = documentInfo;
@@ -64,174 +65,149 @@ export async function determineViolationType(documentInfo: DocumentInfo): Promis
   const titleLower = pdfTitle?.toLowerCase() || "";
   const excuseLower = excuseToAnalyze.toLowerCase();
   
+  // Define keyword sets for each violation type with improved specificity
+  // Added more contextual keywords to better differentiate between categories
+  const propertyDamageKeywords = [
+    "damage", "damaged", "broke", "breaking", "broken", 
+    "destroy", "destroyed", "vandal", "graffiti", 
+    "spill", "spilled", "stain", "property", 
+    "equipment", "chair", "table", "desk", "window", "computer",
+    "laboratory", "accidentally breaking", "broke the", "damaged the",
+    "cracked", "shattered", "tore", "ripped", "scratched"
+  ];
+  
+  const attendanceKeywords = [
+    "absent", "absence", "attendance", "missed class", 
+    "not present", "couldn't attend", "couldn't make it", 
+    "failed to attend", "unable to join", "skipped class", "skip class",
+    "late", "tardy", "didn't show up", "no show", 
+    "not in class", "missing from class", "wasn't in class"
+  ];
+  
+  const academicMisconductKeywords = [
+    "plagiarism", "plagiarize", "plagiarized", "copied",
+    "cheat", "cheating", "cheated", "academic dishonesty", 
+    "academic misconduct", "test", "exam", "quiz",
+    "academic integrity", "answers", "assignment", "homework",
+    "paper", "thesis", "dissertation", "unauthorized help",
+    "unauthorized source", "unauthorized material"
+  ];
+  
+  const behavioralKeywords = [
+    "behavior", "behaviour", "misbehave", "misbehavior", 
+    "disrupt", "disruption", "inappropriate", 
+    "disrespect", "disrespectful", "conduct", "misconduct", 
+    "disturbing class", "talking", "noise", "outburst",
+    "rude", "impolite", "disorderly", "unruly", "aggressive",
+    "argument", "shouting", "disruptive", "phone use", "using phone"
+  ];
+  
+  const dressCodeKeywords = [
+    "uniform", "dress code", "attire", "clothing", 
+    "dress policy", "improper dress", "inappropriate clothing", 
+    "not wearing", "shoes", "shirt", "pants", "id",
+    "identification", "badge", "required attire",
+    "inappropriate outfit", "dress requirement", "improper uniform"
+  ];
+  
   // Prioritize checking the nature of excuse first as it's more focused
   if (excuseLower) {
+    // Property damage detection - improved to catch the specific case mentioned
+    // and similar cases with clear damage to property indicators
+    if (propertyDamageKeywords.some(keyword => excuseLower.includes(keyword))) {
+      // Extra check to ensure it's actually property damage and not just mentioning equipment
+      if (
+        excuseLower.includes("breaking") || 
+        excuseLower.includes("broke") || 
+        excuseLower.includes("damage") ||
+        excuseLower.includes("destroy") ||
+        (excuseLower.includes("chair") && (
+          excuseLower.includes("accident") || 
+          excuseLower.includes("broke") ||
+          excuseLower.includes("damage")
+        )) ||
+        (excuseLower.includes("laboratory") && (
+          excuseLower.includes("accident") ||
+          excuseLower.includes("broke") ||
+          excuseLower.includes("damage")
+        ))
+      ) {
+        console.log("Classified as Property Damage based on nature of excuse");
+        return "Property Damage";
+      }
+    }
+    
     // Check for attendance related keywords in the excuse
-    if (
-      excuseLower.includes("absent") || 
-      excuseLower.includes("attendance") || 
-      excuseLower.includes("absences") ||
-      excuseLower.includes("not present") ||
-      excuseLower.includes("missed class") ||
-      excuseLower.includes("couldn't attend") ||
-      excuseLower.includes("couldn't make it to class") ||
-      excuseLower.includes("failed to attend") ||
-      excuseLower.includes("unable to join") && excuseLower.includes("class")
-    ) {
+    if (attendanceKeywords.some(keyword => excuseLower.includes(keyword))) {
+      console.log("Classified as Attendance Issue based on nature of excuse");
       return "Attendance Issue";
     }
     
     // Check for academic misconduct in the excuse
-    else if (
-      excuseLower.includes("plagiarism") || 
-      excuseLower.includes("cheating") || 
-      excuseLower.includes("academic misconduct") ||
-      excuseLower.includes("academic dishonesty") ||
-      excuseLower.includes("copied") ||
-      excuseLower.includes("exam") && (
-        excuseLower.includes("cheat") || 
-        excuseLower.includes("misconduct")
-      ) ||
-      excuseLower.includes("assignment") && excuseLower.includes("copied")
-    ) {
+    if (academicMisconductKeywords.some(keyword => excuseLower.includes(keyword))) {
+      console.log("Classified as Academic Misconduct based on nature of excuse");
       return "Academic Misconduct";
     }
     
     // Check for behavioral issues in class in the excuse
-    else if (
-      (excuseLower.includes("behavior") || excuseLower.includes("behaviour")) && 
-      (excuseLower.includes("class") || excuseLower.includes("course")) ||
-      excuseLower.includes("disrupt") ||
-      excuseLower.includes("inappropriate") ||
-      excuseLower.includes("disrespect") ||
-      excuseLower.includes("apologize for my recent behavior") ||
-      excuseLower.includes("conduct") ||
-      excuseLower.includes("misbehavior") ||
-      excuseLower.includes("bad behavior")
-    ) {
+    // This check is now more specific to avoid misclassifying property damage
+    if (behavioralKeywords.some(keyword => excuseLower.includes(keyword)) &&
+        !propertyDamageKeywords.some(keyword => excuseLower.includes(keyword))) {
+      console.log("Classified as Behavioral Issue based on nature of excuse");
       return "Behavioral Issue";
     }
     
-    // Check for property damage
-    else if (
-      excuseLower.includes("damage") && excuseLower.includes("property") ||
-      excuseLower.includes("university property") ||
-      excuseLower.includes("sincerely apologize") && excuseLower.includes("damage") ||
-      excuseLower.includes("broke") && (
-        excuseLower.includes("window") ||
-        excuseLower.includes("chair") ||
-        excuseLower.includes("desk") ||
-        excuseLower.includes("equipment")
-      ) ||
-      excuseLower.includes("vandalism") ||
-      excuseLower.includes("graffiti")
-    ) {
-      return "Property Damage";
-    }
-
     // Check for dress code violations
-    else if (
-      excuseLower.includes("uniform") ||
-      excuseLower.includes("dress code") ||
-      excuseLower.includes("proper attire") ||
-      excuseLower.includes("clothing") && (
-        excuseLower.includes("violation") ||
-        excuseLower.includes("inappropriate") ||
-        excuseLower.includes("inappropriate")
-      ) ||
-      excuseLower.includes("improper") && excuseLower.includes("attire") ||
-      excuseLower.includes("not wearing") && (
-        excuseLower.includes("uniform") ||
-        excuseLower.includes("id") ||
-        excuseLower.includes("proper")
-      )
-    ) {
+    if (dressCodeKeywords.some(keyword => excuseLower.includes(keyword))) {
+      console.log("Classified as Dress Code Violation based on nature of excuse");
       return "Dress Code Violation";
     }
   }
   
   // If we couldn't determine from the excuse, check the full text
   // Using the original text without translation
-  // Check for attendance related keywords
-  if (
-    textLower.includes("absent") || 
-    textLower.includes("attendance") || 
-    textLower.includes("absences") ||
-    textLower.includes("not present") ||
-    textLower.includes("missed class") ||
-    textLower.includes("couldn't attend") ||
-    textLower.includes("couldn't make it to class") ||
-    titleLower.includes("attendance")
-  ) {
+  
+  // Property damage detection in full text
+  if (propertyDamageKeywords.some(keyword => textLower.includes(keyword))) {
+    // More specific context check for property damage
+    if (
+      textLower.includes("break") && textLower.includes("chair") ||
+      textLower.includes("damage") && textLower.includes("property") ||
+      textLower.includes("broke") && (
+        textLower.includes("window") ||
+        textLower.includes("chair") ||
+        textLower.includes("desk") ||
+        textLower.includes("equipment")
+      )
+    ) {
+      violationType = "Property Damage";
+    }
+  }
+  
+  // Check for attendance related keywords if not already classified
+  else if (attendanceKeywords.some(keyword => textLower.includes(keyword))) {
     violationType = "Attendance Issue";
   }
   
   // Check for academic misconduct - more detailed patterns
-  else if (
-    textLower.includes("plagiarism") || 
-    textLower.includes("cheating") || 
-    textLower.includes("academic misconduct") ||
-    textLower.includes("academic dishonesty") ||
-    textLower.includes("copied") ||
-    textLower.includes("exam") && (
-      textLower.includes("cheat") || 
-      textLower.includes("misconduct")
-    ) ||
-    textLower.includes("assignment") && textLower.includes("copied")
-  ) {
+  else if (academicMisconductKeywords.some(keyword => textLower.includes(keyword))) {
     violationType = "Academic Misconduct";
   }
   
   // Check for behavioral issues
-  else if (
-    (textLower.includes("behavior") || textLower.includes("behaviour")) && 
-    (textLower.includes("class") || textLower.includes("course")) ||
-    textLower.includes("disrupt") ||
-    textLower.includes("inappropriate") ||
-    textLower.includes("disrespect") ||
-    textLower.includes("apologize for my recent behavior") ||
-    textLower.includes("conduct violation") ||
-    textLower.includes("disciplinary action") ||
-    textLower.includes("misbehavior")
-  ) {
-    violationType = "Behavioral Issue";
+  else if (behavioralKeywords.some(keyword => textLower.includes(keyword))) {
+    // Make sure it's not actually about property damage
+    if (!propertyDamageKeywords.some(keyword => textLower.includes(keyword))) {
+      violationType = "Behavioral Issue";
+    }
   }
   
-  // Check for property damage
-  else if (
-    textLower.includes("damage") && textLower.includes("property") ||
-    textLower.includes("university property") ||
-    textLower.includes("sincerely apologize") && textLower.includes("damage") ||
-    textLower.includes("broke") && (
-      textLower.includes("window") ||
-      textLower.includes("chair") ||
-      textLower.includes("desk")
-    ) ||
-    textLower.includes("vandalism") ||
-    textLower.includes("graffiti")
-  ) {
-    violationType = "Property Damage";
-  }
-
   // Check for dress code violations
-  else if (
-    textLower.includes("uniform") ||
-    textLower.includes("dress code") ||
-    textLower.includes("proper attire") ||
-    textLower.includes("clothing") && (
-      textLower.includes("violation") ||
-      textLower.includes("inappropriate") ||
-      textLower.includes("inappropriate")
-    ) ||
-    textLower.includes("improper") && textLower.includes("attire") ||
-    textLower.includes("not wearing") && (
-      textLower.includes("uniform") ||
-      textLower.includes("id")
-    )
-  ) {
+  else if (dressCodeKeywords.some(keyword => textLower.includes(keyword))) {
     violationType = "Dress Code Violation";
   }
   
+  console.log("Final classification:", violationType);
   return violationType;
 }
 

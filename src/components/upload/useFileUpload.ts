@@ -118,28 +118,36 @@ export function useFileUpload(userId: string) {
       // Start with a string type, not a ViolationType
       let violationTypeStr: string = extractedInfo.violationType || "Other";
       
-      // Map any legacy types to our new standardized types using string comparison
-      if (
-        violationTypeStr === "Other" || 
-        violationTypeStr === "Medical" || 
-        violationTypeStr === "Family" || 
-        violationTypeStr === "Technical" || 
-        violationTypeStr === "Transport"
-      ) {
-        violationTypeStr = "Other";
-      } else if (violationTypeStr === "Academic") {
-        violationTypeStr = "Academic Misconduct";
-      } else if (violationTypeStr === "Attendance") {
-        violationTypeStr = "Attendance Issue";
+      // Define a list of valid violation types
+      const validViolationTypes = [
+        "Other", 
+        "Behavioral Issue", 
+        "Dress Code Violation", 
+        "Academic Misconduct", 
+        "Property Damage", 
+        "Attendance Issue"
+      ] as const;
+      
+      // Normalize legacy types to new types using string comparison
+      if (!validViolationTypes.includes(violationTypeStr as any)) {
+        // If not one of our valid types, map it accordingly
+        if (violationTypeStr === "Academic") {
+          violationTypeStr = "Academic Misconduct";
+        } else if (violationTypeStr === "Attendance") {
+          violationTypeStr = "Attendance Issue";
+        } else {
+          // Any other unrecognized type gets mapped to "Other"
+          violationTypeStr = "Other";
+        }
       }
       
-      // Validate that the violationType is one of our allowed types
-      // This ensures it's a valid ViolationType before assigning
-      const validViolationType: ViolationType = (
-        ["Other", "Behavioral Issue", "Dress Code Violation", "Academic Misconduct", "Property Damage", "Attendance Issue"] as const
-      ).includes(violationTypeStr as ViolationType) 
-        ? (violationTypeStr as ViolationType) 
-        : "Other";
+      // Ensure the final value is one of our valid violation types
+      const validViolationType: ViolationType = 
+        validViolationTypes.includes(violationTypeStr as any) 
+          ? (violationTypeStr as ViolationType) 
+          : "Other";
+      
+      console.log("Final normalized violation type:", validViolationType);
       
       // Update uploads state with properly mapped values
       setUploads(prev => 
@@ -247,10 +255,8 @@ export function useFileUpload(userId: string) {
       
       const extractedInfo = await analyzeFile(pdfFile);
       
-      // Ensure we have values for critical fields, using defaults if needed
-      // Make sure the violation type matches our standardized types
-      const violationType = extractedInfo?.violationType || "Other";
-      
+      // Use the violation type directly from extractedInfo - it's already normalized
+      const violationType: ViolationType = extractedInfo?.violationType || "Other";
       const natureOfExcuse = extractedInfo?.natureOfExcuse || DEFAULT_EXCUSE;
       
       console.log("Using values for upload:", {
