@@ -131,9 +131,8 @@ export function DashboardCharts({ violationCounts, totalFiles }: DashboardCharts
             Distribution of document classifications
           </CardDescription>
         </CardHeader>
-        <CardContent className="pt-0">
-          <div className="h-[320px]">
-            {/* Increased height to ensure full visibility */}
+        <CardContent className="pt-0 pb-1">
+          <div className="h-[340px]">
             <ChartContainer
               config={{
                 violation: { color: "#0088FE" },
@@ -141,22 +140,25 @@ export function DashboardCharts({ violationCounts, totalFiles }: DashboardCharts
                 major: { color: "#FFBB28" },
                 critical: { color: "#FF8042" },
               }}
+              className="w-full h-full"
             >
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart margin={{ top: 10, right: 30, left: 30, bottom: 10 }}>
-                  {/* Added margin to prevent cutoff */}
+                <PieChart margin={{ top: 20, right: 40, left: 40, bottom: 20 }}>
                   <Pie
                     data={pieData}
                     cx="50%"
                     cy="50%"
                     innerRadius={60}
-                    outerRadius={100}
-                    /* Reduced outerRadius to fit better */
+                    outerRadius={90}
                     paddingAngle={3}
                     dataKey="value"
                     nameKey="name"
                     label={({name, percent}) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    labelLine={false}
+                    labelLine={{
+                      stroke: "#777",
+                      strokeWidth: 0.5,
+                      strokeDasharray: "2 2",
+                    }}
                   >
                     {pieData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -187,8 +189,7 @@ export function DashboardCharts({ violationCounts, totalFiles }: DashboardCharts
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-0 pb-1">
-          <div className="h-[320px] w-full">
-            {/* Match height with pie chart and ensure full width */}
+          <div className="h-[340px] w-full">
             <ChartContainer
               config={{
                 count: { color: "#0088FE" },
