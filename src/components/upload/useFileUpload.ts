@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
@@ -116,28 +115,31 @@ export function useFileUpload(userId: string) {
       const natureOfExcuse = extractedInfo.natureOfExcuse || DEFAULT_EXCUSE;
       
       // Make sure the violation type is one of our defined types
-      let violationType = extractedInfo.violationType || "Other";
+      // Start with a string type, not a ViolationType
+      let violationTypeStr: string = extractedInfo.violationType || "Other";
       
-      // Map any legacy types to our new standardized types
+      // Map any legacy types to our new standardized types using string comparison
       if (
-        violationType === "Other" || 
-        // These need to be treated as strings, not as ViolationType
-        violationType === "Medical" || 
-        violationType === "Family" || 
-        violationType === "Technical" || 
-        violationType === "Transport"
+        violationTypeStr === "Other" || 
+        violationTypeStr === "Medical" || 
+        violationTypeStr === "Family" || 
+        violationTypeStr === "Technical" || 
+        violationTypeStr === "Transport"
       ) {
-        violationType = "Other";
-      } else if (violationType === "Academic") {
-        violationType = "Academic Misconduct";
-      } else if (violationType === "Attendance") {
-        violationType = "Attendance Issue";
+        violationTypeStr = "Other";
+      } else if (violationTypeStr === "Academic") {
+        violationTypeStr = "Academic Misconduct";
+      } else if (violationTypeStr === "Attendance") {
+        violationTypeStr = "Attendance Issue";
       }
       
-      // Ensure the violationType is a valid ViolationType
-      const validViolationType = (
-        ["Other", "Behavioral Issue", "Dress Code Violation", "Academic Misconduct", "Property Damage", "Attendance Issue"] as ViolationType[]
-      ).includes(violationType as ViolationType) ? (violationType as ViolationType) : "Other";
+      // Validate that the violationType is one of our allowed types
+      // This ensures it's a valid ViolationType before assigning
+      const validViolationType: ViolationType = (
+        ["Other", "Behavioral Issue", "Dress Code Violation", "Academic Misconduct", "Property Damage", "Attendance Issue"] as const
+      ).includes(violationTypeStr as ViolationType) 
+        ? (violationTypeStr as ViolationType) 
+        : "Other";
       
       // Update uploads state with properly mapped values
       setUploads(prev => 
@@ -247,10 +249,7 @@ export function useFileUpload(userId: string) {
       
       // Ensure we have values for critical fields, using defaults if needed
       // Make sure the violation type matches our standardized types
-      let violationType = extractedInfo?.violationType || "Other";
-      if (!["Other", "Behavioral Issue", "Dress Code Violation", "Academic Misconduct", "Property Damage", "Attendance Issue"].includes(violationType)) {
-        violationType = "Other";
-      }
+      const violationType = extractedInfo?.violationType || "Other";
       
       const natureOfExcuse = extractedInfo?.natureOfExcuse || DEFAULT_EXCUSE;
       
