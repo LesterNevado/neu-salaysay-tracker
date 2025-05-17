@@ -1,22 +1,21 @@
 
-import { ActivityLog } from "@/types/activity.types";
+/**
+ * Defines the allowed action types for activity logs
+ */
+export type ActionType = 
+  | 'upload' 
+  | 'view' 
+  | 'delete' 
+  | 'login' 
+  | 'logout' 
+  | 'soft-delete' // Added new action type
+  | 'restore';    // Added new action type
 
-export type ActionType = 'upload' | 'view' | 'login' | 'logout' | 'delete';
-export type StatusType = string | null;
-
-export interface ActivityLogFilters {
-  userFilter?: string;
-  actionFilter?: string;
-  violationTypeFilter?: string;
-  startDate?: string | null;
-  endDate?: string | null;
-  page?: number;
-  itemsPerPage?: number;
-  fileName?: string;
-  selectedUserName?: string;
-}
-
-export interface ActivityLogResult {
-  logs: ActivityLog[];
-  totalCount: number;
-}
+/**
+ * Defines the allowed status types for activity logs
+ */
+export type StatusType = 
+  | 'pending' 
+  | 'approved' 
+  | 'rejected' 
+  | 'archived';
