@@ -19,3 +19,25 @@ export type StatusType =
   | 'approved' 
   | 'rejected' 
   | 'archived';
+
+/**
+ * Defines the filters for activity logs
+ */
+export interface ActivityLogFilters {
+  userFilter?: string;
+  actionFilter?: string;
+  violationTypeFilter?: string;
+  startDate?: string | null;
+  endDate?: string | null;
+  page?: number;
+  itemsPerPage?: number;
+  fileName?: string;
+}
+
+/**
+ * Defines the result of a get activity logs operation
+ */
+export interface ActivityLogResult {
+  logs: any[];
+  totalCount: number;
+}
