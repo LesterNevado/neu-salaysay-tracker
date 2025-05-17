@@ -49,12 +49,17 @@ function App() {
       <Router>
         <div className="container" style={{ padding: "50px 0 100px 0" }}>
           {!session ? (
-            <Auth
-              supabaseClient={supabase}
-              appearance={{ theme: ThemeSupa }}
-              providers={["google"]}
-              redirectTo={`${window.location.origin}/dashboard`}
-            />
+            // Wrap the Auth component correctly in the React component tree
+            <div className="flex justify-center items-center min-h-[60vh]">
+              <div className="w-full max-w-md">
+                <Auth
+                  supabaseClient={supabase}
+                  appearance={{ theme: ThemeSupa }}
+                  providers={["google"]}
+                  redirectTo={`${window.location.origin}/dashboard`}
+                />
+              </div>
+            </div>
           ) : (
             <Routes>
               <Route path="/" element={<Index />} />

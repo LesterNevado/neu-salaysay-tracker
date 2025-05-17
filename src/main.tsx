@@ -34,7 +34,14 @@ initializeSupabase().catch(err => {
   console.error("Failed to initialize Supabase:", err);
 });
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
+// Make sure to create the ReactDOM root with the proper element
+const rootElement = document.getElementById('root');
+
+if (!rootElement) {
+  throw new Error("Root element not found. Make sure there is an element with id 'root' in the HTML.");
+}
+
+ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <App />
   </React.StrictMode>,
