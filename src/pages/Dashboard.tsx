@@ -1,3 +1,4 @@
+
 import { useEffect, useState, useCallback, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,12 +10,23 @@ import { FileExplorer } from "@/components/salaysay/FileExplorer";
 import { FileStatistics } from "@/components/salaysay/FileStatistics";
 import { DashboardCharts } from "@/components/salaysay/DashboardCharts";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { AuthContext } from "@/App"; // Now properly imported
+import { AuthContext } from "@/App";
 import { logLogoutActivity } from "@/utils/activity";
 import { VIOLATION_TYPES } from "@/components/upload/types";
 import { setupSalaysayStorageBucket } from "@/integrations/supabase/setupStorage";
 import { Badge } from "@/components/ui/badge";
 import { Toggle } from "@/components/ui/toggle";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
+import { format } from "date-fns";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export default function Dashboard() {
   const navigate = useNavigate();

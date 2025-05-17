@@ -1,4 +1,5 @@
-import { useState, useEffect, useContext } from "react";
+import { useEffect, useState, useContext } from "react";
+import { AuthContext } from "@/App";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -51,7 +52,6 @@ import { Profile } from "@/types/database.types";
 import { ActivityLog } from "@/types/activity.types";
 import { toast } from 'sonner';
 import { getActivityLogs } from "@/utils/activity";
-import { AuthContext } from "@/App";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";

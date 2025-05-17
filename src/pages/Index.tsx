@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useContext } from "react";
 import { motion } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -7,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AuthContext } from "@/App"; // Now properly imported
+import { AuthContext } from "@/App";
 import { toast } from "sonner";
 import { logLoginActivity } from "@/utils/activity";
 
