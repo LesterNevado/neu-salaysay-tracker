@@ -69,33 +69,24 @@ export type Database = {
       salaysay_submissions: {
         Row: {
           created_at: string
-          deleted_at: string | null
-          deletion_reason: string | null
           file_path: string
           id: string
-          is_deleted: boolean
           metadata: Json | null
           user_id: string
           violation_type: string
         }
         Insert: {
           created_at?: string
-          deleted_at?: string | null
-          deletion_reason?: string | null
           file_path: string
           id?: string
-          is_deleted?: boolean
           metadata?: Json | null
           user_id: string
           violation_type: string
         }
         Update: {
           created_at?: string
-          deleted_at?: string | null
-          deletion_reason?: string | null
           file_path?: string
           id?: string
-          is_deleted?: boolean
           metadata?: Json | null
           user_id?: string
           violation_type?: string

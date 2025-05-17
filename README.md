@@ -1,4 +1,3 @@
-
 # NEU-STAT: Salaysay Tracking And Archival Tool
 
 ## Project Overview
@@ -25,7 +24,6 @@ NEU-STAT (Salaysay Tracking And Archival Tool) is a web application developed fo
   - Addressee information
 - Automatic violation type categorization (Attendance Issue, Academic Misconduct, etc.)
 - Support for both English and Tagalog language documents with translation capabilities
-- **Trash management with 30-day soft delete feature for document recovery**
 
 **Dashboard and Analytics**
 - Comprehensive dashboard with document statistics
@@ -38,7 +36,6 @@ NEU-STAT (Salaysay Tracking And Archival Tool) is a web application developed fo
 - Complete audit trail of user actions
 - Login/logout tracking
 - Document upload and viewing history
-- Document deletion and restoration tracking
 
 ## Technical Stack
 
@@ -96,10 +93,8 @@ npm run dev
 - /src/components/ui - Reusable UI components
 - /src/utils/ai - AI text analysis utilities
 - /src/utils/pdf - PDF processing utilities
-- /src/utils/cleanup - Database cleanup utilities
 - /src/integrations/supabase - Supabase client and configuration
 - /src/pages - Main application pages
 
 ## Deployment
 The project is deployed via Lovable and can be accessed at the project URL.
-

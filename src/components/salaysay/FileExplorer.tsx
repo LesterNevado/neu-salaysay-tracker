@@ -46,10 +46,6 @@ type SalaysayFile = {
     avatar_url?: string;
     email?: string;
   }
-  // Add fields for soft delete
-  is_deleted?: boolean;
-  deleted_at?: string | null;
-  deletion_reason?: string | null;
 };
 
 type FileStats = {
@@ -70,8 +66,7 @@ export function FileExplorer({
   dateRangeFilter = { startDate: null, endDate: null },
   userFilter = null,
   keywordFilter = "",
-  onStatsCalculated,
-  showDeleted = false // New prop to control whether to show deleted files
+  onStatsCalculated
 }: { 
   userId: string;
   refreshTrigger: number;
@@ -81,7 +76,6 @@ export function FileExplorer({
   userFilter?: string | null;
   keywordFilter?: string;
   onStatsCalculated?: (stats: FileStats) => void;
-  showDeleted?: boolean; // Add this prop
 }) {
   const [files, setFiles] = useState<SalaysayFile[]>([]);
   const [filteredFiles, setFilteredFiles] = useState<SalaysayFile[]>([]);
@@ -99,13 +93,6 @@ export function FileExplorer({
           .from('salaysay_submissions')
           .select('*, profiles(*)')
           .order('created_at', { ascending: false });
-        
-        // Filter by deletion status
-        if (showDeleted) {
-          query = query.eq('is_deleted', true);
-        } else {
-          query = query.eq('is_deleted', false);
-        }
         
         if (!showAllUsers) {
           query = query.eq('user_id', userId);
@@ -159,7 +146,7 @@ export function FileExplorer({
     };
 
     fetchFiles();
-  }, [userId, refreshTrigger, showAllUsers, userFilter, dateRangeFilter.startDate, dateRangeFilter.endDate, showDeleted]);
+  }, [userId, refreshTrigger, showAllUsers, userFilter, dateRangeFilter.startDate, dateRangeFilter.endDate]);
 
   useEffect(() => {
     applyFilters(files, violationTypeFilters, keywordFilter);
@@ -282,33 +269,38 @@ export function FileExplorer({
     try {
       const fileName = fileToDelete.file_name || fileToDelete.file_path.split('/').pop() || fileToDelete.file_path;
       
-      // Instead of deleting the file from storage, we now just mark it as deleted in the database
-      const { error: dbError } = await supabase
-        .from('salaysay_submissions')
-        .update({
-          is_deleted: true,
-          deleted_at: new Date().toISOString(),
-          deletion_reason: 'User deleted'
-        })
-        .eq('id', fileToDelete.id);
+      const { error: storageError } = await supabase.storage
+        .from('salaysay-uploads')
+        .remove([fileToDelete.file_path]);
       
-      if (dbError) {
-        toast.error("Failed to delete file. Please try again.");
-        console.error(dbError);
+      if (storageError) {
+        toast.error("Failed to delete file from storage.");
+        console.error(storageError);
         return;
       }
       
       await logActivity(
-        'soft-delete',
-        `Moved salaysay to trash for ${fileToDelete.violation_type}`,
+        'delete',
+        `Deleted salaysay for ${fileToDelete.violation_type}`,
         fileToDelete.id,
         null,
         fileName
       );
       
+      const { error: dbError } = await supabase
+        .from('salaysay_submissions')
+        .delete()
+        .eq('id', fileToDelete.id);
+      
+      if (dbError) {
+        toast.error("Failed to delete file record.");
+        console.error(dbError);
+        return;
+      }
+      
       setFiles(files.filter(file => file.id !== fileToDelete.id));
       setFilteredFiles(filteredFiles.filter(file => file.id !== fileToDelete.id));
-      toast.success("File moved to trash. It will be available for recovery for 30 days.");
+      toast.success("File deleted successfully.");
     } catch (error) {
       console.error("Error during deletion:", error);
       toast.error("An error occurred during deletion.");
@@ -551,16 +543,16 @@ export function FileExplorer({
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Move to Trash?</AlertDialogTitle>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will move {fileToDelete?.file_name || fileToDelete?.file_path.split('/').pop()} to trash.
-              You can recover it from the trash for up to 30 days before it's permanently deleted.
+              This will permanently delete {fileToDelete?.file_name || fileToDelete?.file_path.split('/').pop()}.
+              This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} className="bg-red-500 hover:bg-red-600">
-              Move to Trash
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
